@@ -2,5 +2,7 @@ venv/
 __pycache__/
 *.pyc
 .env
+*.db
 instance/
 *.sqlite3
+uploads/

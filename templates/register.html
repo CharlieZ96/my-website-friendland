@@ -1,22 +1,35 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
+    <meta charset="UTF-8">
     <title>注册</title>
+    <style>
+        body { margin:0; min-height:100vh; display:flex; justify-content:center;
+               align-items:center; font-family:"Segoe UI","Microsoft YaHei",sans-serif;
+               background:#f4f6f8; }
+        .card { background:white; padding:40px; border-radius:12px; width:300px;
+                box-shadow:0 4px 20px rgba(0,0,0,0.08); }
+        h2 { text-align:center; color:#333; margin-top:0; }
+        input { width:100%; padding:12px; margin:8px 0; border:1px solid #ddd;
+                border-radius:6px; box-sizing:border-box; font-size:15px; }
+        button { width:100%; padding:12px; margin-top:12px; background:#4a90e2;
+                 color:white; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
+        .msg { color:#e74c3c; text-align:center; }
+        .link { text-align:center; margin-top:12px; font-size:14px; }
+    </style>
 </head>
 <body>
-    <h1>用户注册</h1>
-
-    <form action="/register" method="post">
-        <p>
-            用户名:
-            <input type="text" name="username">
-        </p>
-        <p>
-            密码:
-            <input type="password" name="password">
-        </p>
-        <button type="submit">注册</button>
-    </form>
-<a href="/"><button>返回首页</button></a>
+    <div class="card">
+        <h2>注册</h2>
+        {% with messages = get_flashed_messages() %}
+          {% for m in messages %}<p class="msg">{{ m }}</p>{% endfor %}
+        {% endwith %}
+        <form method="POST">
+            <input type="text" name="username" placeholder="设置用户名" required>
+            <input type="password" name="password" placeholder="设置密码" required>
+            <button type="submit">注册</button>
+        </form>
+        <div class="link"><a href="/login">已有账号？去登录</a></div>
+    </div>
 </body>
 </html>

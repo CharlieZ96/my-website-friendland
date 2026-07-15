@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>论坛主页</title>
+    <style>
+        body { margin:0; min-height:100vh; display:flex; flex-direction:column;
+               justify-content:center; align-items:center;
+               font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#f4f6f8; }
+        h1 { color:#333; margin-bottom:8px; }
+        .welcome { color:#888; margin-bottom:40px; }
+        .btn { padding:16px 48px; font-size:18px; border-radius:8px;
+               text-decoration:none; background:#4a90e2; color:white; transition:0.2s; }
+        .btn:hover { opacity:0.85; transform:translateY(-2px); }
+        .logout { position:absolute; top:20px; right:24px;
+                  color:#888; text-decoration:none; font-size:14px; }
+    </style>
+</head>
+<body>
+    <a href="/logout" class="logout">退出登录</a>
+    <h1>小论坛</h1>
+    <p class="welcome">欢迎你，{{ username }}</p>
+    <a href="/board" class="btn">进入留言板 →</a>
+</body>
+</html>
