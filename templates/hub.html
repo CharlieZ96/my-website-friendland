@@ -10,17 +10,22 @@
                font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#f4f6f8; }
         h1 { color:#333; margin-bottom:8px; }
         .welcome { color:#888; margin-bottom:40px; }
-        .btn { padding:16px 48px; font-size:18px; border-radius:8px;
-               text-decoration:none; background:#4a90e2; color:white; transition:0.2s; }
+        .btn { padding:16px 30px; font-size:18px; border-radius:8px;
+               text-decoration:none; background:#4a90e2; color:white; transition:0.2s; margin-bottom:20px; }
         .btn:hover { opacity:0.85; transform:translateY(-2px); }
+        .btn2 { padding:16px 30px; font-size:18px; border-radius:8px;
+                text-decoration:none; background:white; color:#4a90e2;
+                border:2px solid #4a90e2; transition:0.2s; }
+        .btn2:hover { opacity:0.85; transform:translateY(-2px); }
         .logout { position:absolute; top:20px; right:24px;
                   color:#888; text-decoration:none; font-size:14px; }
     </style>
 </head>
 <body>
     <a href="/logout" class="logout">退出登录</a>
-    <h1>小论坛</h1>
-    <p class="welcome">欢迎你，{{ username }}</p>
-    <a href="/board" class="btn">进入留言板 →</a>
+    <h1>神秘论坛</h1>
+    <p class="welcome">你醒啦，{{ username }}</p>
+    <a href="/board" class="btn">进入 →</a>
+    <a href="/jzhyl" class="btn2">JZH语录 →</a>
 </body>
 </html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>留言板</title>
+    <style>
+        body { margin:0; font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#f4f6f8; }
+        .container { max-width:600px; margin:0 auto; padding:20px; }
+        .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+        .topbar h2 { color:#333; margin:0; }
+        .topbar a { color:#888; text-decoration:none; font-size:14px; }
+        .post-form { background:white; padding:16px; border-radius:12px;
+                     box-shadow:0 2px 10px rgba(0,0,0,0.06); margin-bottom:20px; }
+        textarea { width:100%; border:1px solid #ddd; border-radius:8px; padding:10px;
+                   font-size:15px; box-sizing:border-box; resize:vertical; min-height:60px;
+                   font-family:inherit; }
+        .post-form button { margin-top:10px; padding:10px 24px; background:#4a90e2; color:white;
+                            border:none; border-radius:8px; font-size:15px; cursor:pointer; float:right; }
+        .card { background:white; padding:16px; border-radius:12px;
+                box-shadow:0 2px 10px rgba(0,0,0,0.06); margin-bottom:14px; }
+        .card .head { display:flex; justify-content:space-between; color:#888;
+                      font-size:13px; margin-bottom:8px; }
+        .card .author { color:#4a90e2; font-weight:bold; }
+        .card .content { color:#333; font-size:15px; line-height:1.5;
+                         white-space:pre-wrap; word-break:break-word; }
+        .empty { text-align:center; color:#aaa; margin-top:40px; }
+        .msg { color:#e74c3c; }
+    </style>
+</head>
+<script>
+setInterval(function () {
+    var box = document.querySelector('textarea');
+    // 如果你正在输入框里打字，就先不刷新，免得打断你
+    if (document.activeElement !== box || box.value === "") {
+        location.reload();
+    }
+}, 10000);   // 每 10 秒刷新一次
+</script>
+<body>
+    <div class="container">
+        <div class="topbar">
+            <h2>留言板</h2>
+            <a href="/hub">← 返回主页</a>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+          {% for m in messages %}<p class="msg">{{ m }}</p>{% endfor %}
+        {% endwith %}
+
+        <form class="post-form" method="POST" enctype="multipart/form-data">
+            <textarea name="content" placeholder="发点什么JZH吧..."></textarea>
+            <input type="file" name="image" accept="image/*" style="margin-top:10px;">
+            <label style="display:inline-block; margin-top:10px; color:#888; font-size:14px;">
+                <input type="checkbox" name="anonymous"> 匿名发布
+            </label>
+            <button type="submit">发布</button>
+            <div style="clear:both;"></div>
+</form>
+
+        {% if posts %}
+            {% for p in posts %}
+            <div class="card">
+                <div class="head">
+                    <span class="author">{% if p[3] %}匿名{% else %}{{ p[0] }}{% endif %}</span>
+                    <span>{{ p[2] }}</span>
+                </div>
+                <div class="content">{{ p[1] }}</div>
+                {% if p[4] %}
+                <img src="/uploads/{{ p[4] }}" style="max-width:100%; max-height:150px; border-radius:8px; margin-top:10px;">
+                {% endif %}
+                </div>
+                {% endfor %}
+        {% else %}
+            <p class="empty">还没有人发帖，来做第一个吧！</p>
+        {% endif %}
+    </div>
+</body>
+</html>

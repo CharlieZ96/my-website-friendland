@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>登录</title>
+    <title>欢迎来到JZH乐园</title>
     <style>
         body { margin:0; min-height:100vh; display:flex; justify-content:center;
                align-items:center; font-family:"Segoe UI","Microsoft YaHei",sans-serif;
@@ -20,16 +20,16 @@
 </head>
 <body>
     <div class="card">
-        <h2>登录</h2>
+        <h2>欢迎来到JZH乐园</h2>
         {% with messages = get_flashed_messages() %}
           {% for m in messages %}<p class="msg">{{ m }}</p>{% endfor %}
         {% endwith %}
         <form method="POST">
             <input type="text" name="username" placeholder="用户名" required>
             <input type="password" name="password" placeholder="密码" required>
-            <button type="submit">登录</button>
+            <button type="submit">和JZH玩儿</button>
         </form>
-        <div class="link"><a href="/register">还没账号？去注册</a></div>
+        <div class="link"><a href="/register">还没账号？去领取JZH</a></div>
     </div>
 </body>
 </html>
