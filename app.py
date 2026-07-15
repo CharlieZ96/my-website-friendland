@@ -8,6 +8,7 @@ import os
 import uuid
 from PIL import Image
 from flask import send_from_directory
+import random
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -198,7 +199,14 @@ def logout():
 @app.route("/jzhyl")
 @login_required
 def jzhyl():
-    return render_template("jzhyl.html")
+    folder = os.path.join("static", "gallery")          # 图片文件夹
+    # 列出文件夹里所有图片文件
+    files = [f for f in os.listdir(folder)
+             if f.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp"))]
+    if not files:
+        return "gallery 文件夹里还没有图片，先放几张进去～"
+    pick = random.choice(files)                          # 随机抽一张
+    return render_template("jzhyl.html", image=pick)
 
 if __name__ == "__main__":
-    app.run(debug=True, port=8080)
+    app.run(host="0.0.0.0", debug=False, port=5000)
