@@ -157,6 +157,7 @@ def hub():
 def board():
     if request.method == "POST":                       # 用户点了"发布"
         content = request.form.get("content", "").strip()
+        image_name = None
         if not content and not image_name:
             flash("说点什么，或者配张图吧")
             return redirect(url_for("board"))
@@ -165,7 +166,7 @@ def board():
             return redirect(url_for("board"))
         is_anon = 1 if request.form.get("anonymous") else 0
         # 处理图片（从 request.files 拿，不是 request.form）
-        image_name = None
+        
         file = request.files.get("image")
         if file and file.filename:              # 用户确实选了图
             image_name = save_image(file)
@@ -182,10 +183,27 @@ def board():
 
     # GET：把所有帖子查出来，按 id 倒序（新的在最上面）
     conn = sqlite3.connect("users.db")
-    cur = conn.execute("SELECT username, content, created_at, is_anon, image FROM posts ORDER BY id DESC")
+    cur = conn.execute("SELECT username, content, created_at, is_anon, image, id FROM posts ORDER BY id DESC")
     posts = cur.fetchall()
     conn.close()
     return render_template("board.html", posts=posts, username=session["username"])
+
+@app.route("/delete/<int:post_id>", methods=["POST"])
+@login_required
+def delete_post(post_id):
+    conn = sqlite3.connect("users.db")
+    cur = conn.execute("SELECT username, image FROM posts WHERE id = ?", (post_id,))
+    row = cur.fetchone()
+    if row and row[0] == session["username"]:      # 只能删自己的（服务端二次校验）
+        if row[1]:                                  # 有图就把图片文件也删了
+            img_path = os.path.join(UPLOAD_FOLDER, row[1])
+            if os.path.exists(img_path):
+                os.remove(img_path)
+        conn.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+        conn.commit()
+    conn.close()
+    return redirect(url_for("board"))
+
 
 @app.route("/uploads/<name>")
 def uploaded_file(name):

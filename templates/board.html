@@ -69,6 +69,14 @@ setInterval(function () {
                 {% if p[4] %}
                 <img src="/uploads/{{ p[4] }}" style="max-width:100%; max-height:150px; border-radius:8px; margin-top:10px;">
                 {% endif %}
+                {% if p[0] == username %}
+                <form method="POST" action="/delete/{{ p[5] }}" style="margin-top:8px;">
+                <button type="submit"
+                style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:13px;">
+                    删除
+                </button>
+    </form>
+    {% endif %}
                 </div>
                 {% endfor %}
         {% else %}
