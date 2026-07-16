@@ -30,18 +30,18 @@
 </head>
 
 <script>
-var composing = false;
-var form = document.querySelector('.post-form');
-if (form) {
-    // 用户一碰表单（点击/聚焦/选文件/打字），就暂停自动刷新
-    ['click', 'focusin', 'change', 'input'].forEach(function (ev) {
-        form.addEventListener(ev, function () { composing = true; });
-    });
-}
 setInterval(function () {
-    if (!composing) {          // 没在填表单时才刷新
-        location.reload();
-    }
+    fetch('/board')                                   // 悄悄拉取最新的留言板页面
+        .then(function (res) { return res.text(); })
+        .then(function (html) {
+            // 从拉回来的页面里，只取出新的 #feed 部分
+            var doc = new DOMParser().parseFromString(html, 'text/html');
+            var newFeed = doc.querySelector('#feed');
+            var curFeed = document.querySelector('#feed');
+            if (newFeed && curFeed) {
+                curFeed.innerHTML = newFeed.innerHTML;  // 只替换帖子列表，不碰发帖框
+            }
+        });
 }, 10000);
 </script>
 
@@ -65,7 +65,7 @@ setInterval(function () {
             <button type="submit">发布</button>
             <div style="clear:both;"></div>
 </form>
-
+<div id="feed">
         {% if posts %}
             {% for p in posts %}
             <div class="card">
@@ -85,6 +85,7 @@ setInterval(function () {
                 </button>
     </form>
     {% endif %}
+    
                 </div>
                 {% endfor %}
         {% else %}
