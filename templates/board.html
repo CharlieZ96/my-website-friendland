@@ -26,16 +26,25 @@
                          white-space:pre-wrap; word-break:break-word; }
         .empty { text-align:center; color:#aaa; margin-top:40px; }
         .msg { color:#e74c3c; }
+        .comment { margin:5px 0; }
+        .c-row { display:flex; align-items:baseline; font-size:13px; color:#555; }
+        .c-author { color:#4a90e2; font-weight:bold; }
+        .c-time { color:#ccc; font-size:11px; margin-left:auto; white-space:nowrap; }
     </style>
 </head>
 
 <script>
 setInterval(function () {
-    var el = document.activeElement;
-    // 正在任何输入框/文本框里打字（发帖或评论），就跳过这次刷新
-    if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')) {
-        return;
+    // 扫描页面上所有输入框：聚焦中 / 有文字 / 选了图 → 任一成立就跳过本次刷新
+    var inputs = document.querySelectorAll('input, textarea');
+    for (var i = 0; i < inputs.length; i++) {
+        var el = inputs[i];
+        if (document.activeElement === el) return;                        // 正在这个框里操作
+        if (el.type === 'file') {
+            if (el.files && el.files.length) return;                      // 选了图还没发
+        } else if (el.value && el.value.trim() !== '') return;            // 打了字还没发
     }
+    // 没人在填任何东西，才安全地刷新帖子列表
     fetch('/board')
         .then(function (res) { return res.text(); })
         .then(function (html) {
@@ -91,25 +100,34 @@ setInterval(function () {
                 <div class="comments">
                     {% for c in comments.get(p[5], []) %}
                     <div class="comment">
-                        <span class="c-body">
-                            <span class="c-author">{{ c[1] }}</span>:{{ c[2] }}
-                            {% if c[1] == username %}
-                            <form method="POST" action="/delete_comment/{{ c[4] }}" style="display:inline;">
-                                <button type="submit" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:11px;">删</button>
-                            </form>
-                            {% endif %}
-                        </span>
-                        <span class="c-time">{{ c[3] }}</span>
+                        <div class="c-row">
+                            <span class="c-body">
+                                <span class="c-author">{{ c[1] }}</span>:{{ c[2] }}
+                                {% if c[1] == username %}
+                                <form method="POST" action="/delete_comment/{{ c[4] }}" style="display:inline;">
+                                    <button type="submit" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:11px;">删</button>
+                                </form>
+                                {% endif %}
+                            </span>
+                            <span class="c-time">{{ c[3] }}</span>
+                        </div>
+                        {% if c[5] %}
+                        <img src="/uploads/{{ c[5] }}" style="max-width:120px; max-height:120px; border-radius:6px; margin-top:4px;">
+                        {% endif %}
                     </div>
                     {% endfor %}
                     </div>
                 <!-- 评论框（未满8条才显示） -->
                 {% if comments.get(p[5], [])|length < 8 %}
-                <form method="POST" action="/comment/{{ p[5] }}" style="margin-top:8px; display:flex; gap:6px;">
-                    <input type="text" name="content" placeholder="写评论…" required
-                           style="flex:1; padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
-                    <button type="submit" style="padding:6px 14px; background:#4a90e2; color:white; border:none; border-radius:6px; font-size:13px; cursor:pointer;">评论</button>
-                </form>
+            <form method="POST" action="/comment/{{ p[5] }}" enctype="multipart/form-data" style="margin-top:8px; display:flex; gap:6px; align-items:center;">
+                <input type="text" name="content" maxlength="200" placeholder="写评论或只发图…" style="flex:1; padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                <label style="cursor:pointer; font-size:18px; padding:0 4px;" title="添加图片">
+                <span>🖼️</span>
+                <input type="file" name="image" accept="image/*" style="display:none;"
+               onchange="this.previousElementSibling.textContent = this.files.length ? '✅' : '🖼️';">
+                </label>
+                <button type="submit" style="padding:6px 14px; background:#4a90e2; color:white; border:none; border-radius:6px; font-size:13px; cursor:pointer;">评论</button>
+            </form>
                 {% else %}
                 <div style="color:#aaa; font-size:12px; margin-top:6px;">评论已满 8 条</div>
                 {% endif %}

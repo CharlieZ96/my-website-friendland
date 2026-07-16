@@ -16,6 +16,16 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)             # 没有这文件夹就自
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024    # 上传最大 8MB，超了拒绝
 ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp"}   # 只允许这些图片格式
 app.secret_key = "change-me"
+ADMIN_USERNAME = "admin"
+
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if session.get("username") != ADMIN_USERNAME:
+            flash("只有管理员能进")
+            return redirect(url_for("board"))
+        return f(*args, **kwargs)
+    return wrapper
 
 def init_db():
     conn = sqlite3.connect("users.db")        # 连接(没有就自动创建)users.db 文件
@@ -42,11 +52,47 @@ def init_db():
             post_id INTEGER NOT NULL,
             username TEXT NOT NULL,
             content TEXT NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            image TEXT
+        )
+    """)
+    # 给已存在的老 comments 表补 image 列（列已存在会报错，忽略即可）
+    try:
+        conn.execute("ALTER TABLE comments ADD COLUMN image TEXT")
+    except sqlite3.OperationalError:
+        pass
+    # 卡牌本体
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS cards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            attack INTEGER NOT NULL,
+            defense INTEGER NOT NULL,
+            image TEXT,
+            rarity TEXT NOT NULL,
+            drop_rate REAL NOT NULL
+        )
+    """)
+    # 玩家拥有的卡（支持重复，count 记数量）
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_cards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            card_id INTEGER NOT NULL,
+            count INTEGER NOT NULL DEFAULT 1
         )
     """)
     conn.commit()                             # 保存改动
     conn.close()                              # 关闭连接
+
+def delete_post_comments(conn, post_id):
+    # 删这帖的所有评论，连它们的图片文件也删
+    for row in conn.execute("SELECT image FROM comments WHERE post_id = ?", (post_id,)).fetchall():
+        if row[0]:
+            path = os.path.join(UPLOAD_FOLDER, row[0])
+            if os.path.exists(path):
+                os.remove(path)
+    conn.execute("DELETE FROM comments WHERE post_id = ?", (post_id,))
 
 def enforce_post_limit(conn):
     # 找出排在第 POST_LIMIT 名之后的旧帖（就是要删的）
@@ -61,6 +107,7 @@ def enforce_post_limit(conn):
                 os.remove(path)
         conn.execute("DELETE FROM posts WHERE id = ?", (pid,))
         conn.execute("DELETE FROM comments WHERE post_id = ?", (pid,))
+        delete_post_comments(conn, pid)
     conn.commit()
 
 def validate(username, password):
@@ -182,9 +229,10 @@ def login():
 @app.route("/hub")
 @login_required
 def hub():
-    return render_template("hub.html", username=session["username"])
+    is_admin = (session["username"] == ADMIN_USERNAME)
+    return render_template("hub.html", username=session["username"], is_admin=is_admin)
 
-POST_LIMIT = 50
+POST_LIMIT = 30
 
 @app.route("/board", methods=["GET", "POST"])
 @login_required
@@ -226,7 +274,7 @@ def board():
     # 查所有评论，按 post_id 分组
     comments = {}
     for c in conn.execute(
-        "SELECT post_id, username, content, created_at, id FROM comments ORDER BY id ASC"
+        "SELECT post_id, username, content, created_at, id, image FROM comments ORDER BY id ASC"
     ).fetchall():
         comments.setdefault(c[0], []).append(c)
     
@@ -241,10 +289,14 @@ def board():
 @login_required
 def delete_comment(comment_id):
     conn = sqlite3.connect("users.db")
-    row = conn.execute("SELECT username FROM comments WHERE id = ?", (comment_id,)).fetchone()
-    if row and row[0] == session["username"]:      # 只能删自己的
+    row = conn.execute("SELECT username, image FROM comments WHERE id = ?", (comment_id,)).fetchone()
+    if row and row[0] == session["username"]: # 只能删自己的
+        if row[1]:                                   # 有图就把图片文件也删了
+            path = os.path.join(UPLOAD_FOLDER, row[1])
+            if os.path.exists(path):
+                os.remove(path)
         conn.execute("DELETE FROM comments WHERE id = ?", (comment_id,))
-        conn.commit()
+    conn.commit()
     conn.close()
     return redirect(url_for("board"))
 
@@ -254,9 +306,24 @@ COMMENT_LIMIT = 8
 @login_required
 def add_comment(post_id):
     content = request.form.get("content", "").strip()
-    if not content:
-        flash("评论不能为空")
+    # 处理图片
+    image_name = None
+    file = request.files.get("image")
+    if file and file.filename:
+        image_name = save_image(file)
+        if image_name is None:
+            flash("图片格式不支持")
+            return redirect(url_for("board"))
+
+    # 文字和图片至少要有一个（这就是"允许只发图"）
+    if not content and not image_name:
+        flash("评论不能全空白，写点字或配张图")
         return redirect(url_for("board"))
+    # 文字长度校验
+    if len(content) > 200:
+        flash("评论太长了（最多200字）")
+        return redirect(url_for("board"))
+
     conn = sqlite3.connect("users.db")
     # 先数这帖已有多少评论
     count = conn.execute("SELECT COUNT(*) FROM comments WHERE post_id = ?", (post_id,)).fetchone()[0]
@@ -283,7 +350,7 @@ def delete_post(post_id):
             if os.path.exists(img_path):
                 os.remove(img_path)
         conn.execute("DELETE FROM posts WHERE id = ?", (post_id,))
-        conn.execute("DELETE FROM comments WHERE post_id = ?", (post_id,))
+        delete_post_comments(conn, post_id) 
         conn.commit()
     conn.close()
     return redirect(url_for("board"))
@@ -310,5 +377,127 @@ def jzhyl():
     pick = random.choice(files)                          # 随机抽一张
     return render_template("jzhyl.html", image=pick)
 
+
+@app.route("/admin/cards", methods=["GET", "POST"])
+@admin_required
+def admin_cards():
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        rarity = request.form.get("rarity", "N").strip()
+        image_name = None
+        file = request.files.get("image")
+        if file and file.filename:
+            image_name = save_image(file)          # 复用你的图片压缩
+        # 数值校验
+        try:
+            attack = int(request.form.get("attack", "0"))
+            defense = int(request.form.get("defense", "0"))
+            drop_rate = float(request.form.get("drop_rate", "1"))
+        except ValueError:
+            flash("攻击/防御填整数，爆率填数字")
+            return redirect(url_for("admin_cards"))
+        if not name:
+            flash("卡牌名不能为空")
+            return redirect(url_for("admin_cards"))
+        conn = sqlite3.connect("users.db")
+        conn.execute(
+            "INSERT INTO cards (name, attack, defense, image, rarity, drop_rate) VALUES (?, ?, ?, ?, ?, ?)",
+            (name, attack, defense, image_name, rarity, drop_rate))
+        conn.commit()
+        conn.close()
+        flash("卡牌已添加")
+        return redirect(url_for("admin_cards"))
+
+    # GET：列出所有卡
+    conn = sqlite3.connect("users.db")
+    cards = conn.execute(
+        "SELECT id, name, attack, defense, image, rarity, drop_rate FROM cards ORDER BY id DESC"
+    ).fetchall()
+    conn.close()
+    return render_template("admin_cards.html", cards=cards)
+
+@app.route("/change_password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    if request.method == "POST":
+        old_pw = request.form.get("old_password", "")
+        new_pw = request.form.get("new_password", "")
+        confirm = request.form.get("confirm_password", "")
+
+        conn = sqlite3.connect("users.db")
+        row = conn.execute("SELECT password FROM users WHERE username = ?",
+                           (session["username"],)).fetchone()
+
+        # 核对原密码
+        if not row or not check_password_hash(row[0], old_pw):
+            conn.close()
+            flash("原密码不对")
+            return redirect(url_for("change_password"))
+        # 新密码校验
+        if len(new_pw) < 6:
+            conn.close()
+            flash("新密码至少 6 位")
+            return redirect(url_for("change_password"))
+        if new_pw != confirm:
+            conn.close()
+            flash("两次新密码不一致")
+            return redirect(url_for("change_password"))
+
+        # 更新（存的是加密后的）
+        conn.execute("UPDATE users SET password = ? WHERE username = ?",
+                     (generate_password_hash(new_pw), session["username"]))
+        conn.commit()
+        conn.close()
+        flash("密码修改成功")
+        return redirect(url_for("hub"))
+
+    return render_template("change_password.html")
+
+@app.route("/draw", methods=["GET", "POST"])
+@login_required
+def draw():
+    result = None
+    if request.method == "POST":
+        conn = sqlite3.connect("users.db")
+        cards = conn.execute(
+            "SELECT id, name, attack, defense, image, rarity, drop_rate FROM cards"
+        ).fetchall()
+        if not cards:
+            conn.close()
+            flash("还没有卡牌可抽，先去后台加卡")
+            return redirect(url_for("draw"))
+
+        weights = [c[6] for c in cards]                       # 每张卡的爆率权重
+        picked = random.choices(cards, weights=weights, k=1)[0]   # 加权随机抽一张
+        card_id = picked[0]
+
+        # 加进收藏：有就数量+1，没有就新建
+        existing = conn.execute(
+            "SELECT id FROM user_cards WHERE username = ? AND card_id = ?",
+            (session["username"], card_id)).fetchone()
+        if existing:
+            conn.execute("UPDATE user_cards SET count = count + 1 WHERE id = ?", (existing[0],))
+        else:
+            conn.execute("INSERT INTO user_cards (username, card_id, count) VALUES (?, ?, 1)",
+                         (session["username"], card_id))
+        conn.commit()
+        conn.close()
+        result = picked
+    return render_template("draw.html", result=result)
+
+@app.route("/collection")
+@login_required
+def collection():
+    conn = sqlite3.connect("users.db")
+    rows = conn.execute("""
+        SELECT c.name, c.attack, c.defense, c.image, c.rarity, uc.count
+        FROM user_cards uc
+        JOIN cards c ON uc.card_id = c.id
+        WHERE uc.username = ?
+        ORDER BY uc.id DESC
+    """, (session["username"],)).fetchall()
+    conn.close()
+    return render_template("collection.html", cards=rows)
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=False, port=5000)
+    app.run(host="0.0.0.0", debug=True, port=5000)
