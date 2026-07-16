@@ -6,7 +6,7 @@ from functools import wraps
 from datetime import datetime
 import os
 import uuid
-from PIL import Image
+from PIL import Image, ImageOps
 from flask import send_from_directory
 import random
 
@@ -133,8 +133,12 @@ def save_image(file, target_kb=120):
 
     # 2. 用 Pillow 打开图片
     img = Image.open(file)
-    img = img.convert("RGB")     # 转成RGB，避免PNG透明通道存JPEG时报错
-    img.thumbnail((900, 900))
+    if img.mode != "RGBA":
+        # 有透明通道：先铺一层白底，避免透明区域变黑
+        img = img.convert("RGBA")
+        bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
+        img = Image.alpha_composite(bg, img).convert("RGB")
+        img.thumbnail((900, 900))
 
     # 3. 压缩：如果太宽，按比例缩到最大宽度 1080
     max_width = 1080
@@ -142,19 +146,55 @@ def save_image(file, target_kb=120):
         ratio = max_width / img.width
         img = img.resize((max_width, int(img.height * ratio)))
 
-    # 4. 生成一个绝不重名的文件名，统一存成 jpg
-    new_name = uuid.uuid4().hex + ".jpg"
+    # 4. 生成一个绝不重名的文件名，统一存成 png
+    new_name = uuid.uuid4().hex + ".png"
     path = os.path.join(UPLOAD_FOLDER, new_name)
+    img.save(path, "PNG")
+    
+    return new_name
 
-    # 从质量 85 开始，太大就一档档降，直到小于目标体积
-    quality = 85
-    while quality >= 30:
-        img.save(path, "JPEG", quality=quality, optimize=True)
-        if os.path.getsize(path) <= target_kb * 1024:
-            break                 # 已经够小了，停
-        quality -= 10             # 还太大，再压狠一点
+def make_card(image_name):
+    # -----------------------------
+    # 1. 打开人物图片
+    # -----------------------------
+    character_path = os.path.join(UPLOAD_FOLDER, image_name)
+    character = Image.open(character_path).convert("RGBA")
 
-    return new_name    # 返回文件名，存进数据库
+    # -----------------------------
+    # 2. 打开卡框
+    # -----------------------------
+    frame = Image.open("frames/card.png").convert("RGBA")
+
+    # -----------------------------
+    # 3. 人物缩放
+    # -----------------------------
+    character.thumbnail((620, 620))
+
+    # -----------------------------
+    # 4. 新建透明画布
+    # -----------------------------
+    card = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+
+    # -----------------------------
+    # 5. 把人物放进去
+    # -----------------------------
+    card.paste(character, (170, 120))
+
+    # -----------------------------
+    # 6. 再盖上卡框
+    # -----------------------------
+    #card.alpha_composite(frame)
+
+    # -----------------------------
+    # 7. 保存
+    # -----------------------------
+    new_name = uuid.uuid4().hex + ".png"
+
+    save_path = os.path.join(UPLOAD_FOLDER, new_name)
+
+    card.save(save_path)
+
+    return new_name
 
 
 init_db()                                     # 程序一启动就执行一次
@@ -387,7 +427,12 @@ def admin_cards():
         image_name = None
         file = request.files.get("image")
         if file and file.filename:
-            image_name = save_image(file)          # 复用你的图片压缩
+            image_name = save_image(file)
+            if image_name is None:
+                flash("图片上传失败")
+                return redirect(url_for("admin_cards"))
+   
+            image_name = make_card(image_name)          # 产生卡面
         # 数值校验
         try:
             attack = int(request.form.get("attack", "0"))
@@ -448,8 +493,9 @@ def change_password():
                      (generate_password_hash(new_pw), session["username"]))
         conn.commit()
         conn.close()
-        flash("密码修改成功")
-        return redirect(url_for("hub"))
+        session.clear()                          # 先清空登录状态 = 登出
+        flash("密码修改成功，请用新密码登录")      # 清空后再 flash，消息才不会被一起清掉
+        return redirect(url_for("login"))        # 跳到登录页
 
     return render_template("change_password.html")
 
