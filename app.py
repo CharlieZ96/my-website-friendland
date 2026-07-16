@@ -36,9 +36,32 @@ def init_db():
             image TEXT
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
     conn.commit()                             # 保存改动
     conn.close()                              # 关闭连接
 
+def enforce_post_limit(conn):
+    # 找出排在第 POST_LIMIT 名之后的旧帖（就是要删的）
+    rows = conn.execute(
+        "SELECT id, image FROM posts ORDER BY id DESC LIMIT -1 OFFSET ?",
+        (POST_LIMIT,)
+    ).fetchall()
+    for pid, img in rows:
+        if img:                                    # 有图就把图片文件也删掉
+            path = os.path.join(UPLOAD_FOLDER, img)
+            if os.path.exists(path):
+                os.remove(path)
+        conn.execute("DELETE FROM posts WHERE id = ?", (pid,))
+        conn.execute("DELETE FROM comments WHERE post_id = ?", (pid,))
+    conn.commit()
 
 def validate(username, password):
     username = (username or "").strip()      # 去掉首尾空格
@@ -107,7 +130,12 @@ def register():
     if request.method == "POST":                       # ← 改动2:如果是"提交"来的
         username = request.form["username"]            # ← 取出用户名
         password = request.form["password"]            # ← 取出密码
-         # ↓↓↓ 就在这里调用 validate，这是你缺的一步 ↓↓↓
+        # 人机验证：核对算术答案
+        answer = request.form.get("captcha", "").strip()
+        if answer != str(session.get("captcha_answer")):
+            flash("验证码算错了，请重新计算")
+            return redirect(url_for("register"))
+        # ↓↓↓ 就在这里调用 validate，这是你缺的一步 ↓↓↓
         error = validate(username, password)
         if error:                        # 有错误信息 = 没通过
             flash(error)
@@ -128,7 +156,11 @@ def register():
             return redirect(url_for("register"))
         flash("注册成功，请登录")
         return redirect(url_for("login"))
-    return render_template("register.html")
+    # GET：生成一道新的算术题
+    a = random.randint(1, 9)
+    b = random.randint(1, 9)
+    session["captcha_answer"] = a + b               # 答案存 session
+    return render_template("register.html", captcha_question=f"{a} + {b}")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -152,6 +184,8 @@ def login():
 def hub():
     return render_template("hub.html", username=session["username"])
 
+POST_LIMIT = 50
+
 @app.route("/board", methods=["GET", "POST"])
 @login_required
 def board():
@@ -174,19 +208,68 @@ def board():
                 flash("图片格式不支持（只能 png/jpg/gif/webp）")
                 return redirect(url_for("board"))
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
+
         conn = sqlite3.connect("users.db")
         conn.execute("INSERT INTO posts (username, content, created_at, is_anon, image) VALUES (?, ?, ?, ?, ?)",
                      (session["username"], content, now, is_anon, image_name))
         conn.commit()
+        enforce_post_limit(conn)        # ← 加这行：超上限就删最老的
         conn.close()
-        return redirect(url_for("board"))              # 发完刷新回留言板
+        return redirect(url_for("board"))
+        # 发完刷新回留言板
 
     # GET：把所有帖子查出来，按 id 倒序（新的在最上面）
     conn = sqlite3.connect("users.db")
     cur = conn.execute("SELECT username, content, created_at, is_anon, image, id FROM posts ORDER BY id DESC")
     posts = cur.fetchall()
+
+    # 查所有评论，按 post_id 分组
+    comments = {}
+    for c in conn.execute(
+        "SELECT post_id, username, content, created_at, id FROM comments ORDER BY id ASC"
+    ).fetchall():
+        comments.setdefault(c[0], []).append(c)
+    
+    # 取所有评论，按 post_id 分组成字典 {帖子id: [评论, 评论...]}
+    comments = {}
+    for c in conn.execute("SELECT post_id, username, content, created_at, id FROM comments ORDER BY id ASC").fetchall():
+        comments.setdefault(c[0], []).append(c)
     conn.close()
-    return render_template("board.html", posts=posts, username=session["username"])
+    return render_template("board.html", posts=posts, username=session["username"], comments=comments)
+
+@app.route("/delete_comment/<int:comment_id>", methods=["POST"])
+@login_required
+def delete_comment(comment_id):
+    conn = sqlite3.connect("users.db")
+    row = conn.execute("SELECT username FROM comments WHERE id = ?", (comment_id,)).fetchone()
+    if row and row[0] == session["username"]:      # 只能删自己的
+        conn.execute("DELETE FROM comments WHERE id = ?", (comment_id,))
+        conn.commit()
+    conn.close()
+    return redirect(url_for("board"))
+
+COMMENT_LIMIT = 8
+
+@app.route("/comment/<int:post_id>", methods=["POST"])
+@login_required
+def add_comment(post_id):
+    content = request.form.get("content", "").strip()
+    if not content:
+        flash("评论不能为空")
+        return redirect(url_for("board"))
+    conn = sqlite3.connect("users.db")
+    # 先数这帖已有多少评论
+    count = conn.execute("SELECT COUNT(*) FROM comments WHERE post_id = ?", (post_id,)).fetchone()[0]
+    if count >= COMMENT_LIMIT:
+        conn.close()
+        flash(f"这条帖子的评论已满 {COMMENT_LIMIT} 条")
+        return redirect(url_for("board"))
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    conn.execute("INSERT INTO comments (post_id, username, content, created_at) VALUES (?, ?, ?, ?)",
+                 (post_id, session["username"], content, now))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("board"))
 
 @app.route("/delete/<int:post_id>", methods=["POST"])
 @login_required
@@ -200,6 +283,7 @@ def delete_post(post_id):
             if os.path.exists(img_path):
                 os.remove(img_path)
         conn.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+        conn.execute("DELETE FROM comments WHERE post_id = ?", (post_id,))
         conn.commit()
     conn.close()
     return redirect(url_for("board"))

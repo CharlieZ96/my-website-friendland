@@ -31,16 +31,18 @@
 
 <script>
 setInterval(function () {
-    fetch('/board')                                   // 悄悄拉取最新的留言板页面
+    var el = document.activeElement;
+    // 正在任何输入框/文本框里打字（发帖或评论），就跳过这次刷新
+    if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')) {
+        return;
+    }
+    fetch('/board')
         .then(function (res) { return res.text(); })
         .then(function (html) {
-            // 从拉回来的页面里，只取出新的 #feed 部分
             var doc = new DOMParser().parseFromString(html, 'text/html');
             var newFeed = doc.querySelector('#feed');
             var curFeed = document.querySelector('#feed');
-            if (newFeed && curFeed) {
-                curFeed.innerHTML = newFeed.innerHTML;  // 只替换帖子列表，不碰发帖框
-            }
+            if (newFeed && curFeed) { curFeed.innerHTML = newFeed.innerHTML; }
         });
 }, 10000);
 </script>
@@ -85,7 +87,32 @@ setInterval(function () {
                 </button>
     </form>
     {% endif %}
-    
+    <!-- 评论列表 -->
+                <div class="comments">
+                    {% for c in comments.get(p[5], []) %}
+                    <div class="comment">
+                        <span class="c-body">
+                            <span class="c-author">{{ c[1] }}</span>:{{ c[2] }}
+                            {% if c[1] == username %}
+                            <form method="POST" action="/delete_comment/{{ c[4] }}" style="display:inline;">
+                                <button type="submit" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:11px;">删</button>
+                            </form>
+                            {% endif %}
+                        </span>
+                        <span class="c-time">{{ c[3] }}</span>
+                    </div>
+                    {% endfor %}
+                    </div>
+                <!-- 评论框（未满8条才显示） -->
+                {% if comments.get(p[5], [])|length < 8 %}
+                <form method="POST" action="/comment/{{ p[5] }}" style="margin-top:8px; display:flex; gap:6px;">
+                    <input type="text" name="content" placeholder="写评论…" required
+                           style="flex:1; padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                    <button type="submit" style="padding:6px 14px; background:#4a90e2; color:white; border:none; border-radius:6px; font-size:13px; cursor:pointer;">评论</button>
+                </form>
+                {% else %}
+                <div style="color:#aaa; font-size:12px; margin-top:6px;">评论已满 8 条</div>
+                {% endif %}
                 </div>
                 {% endfor %}
         {% else %}
