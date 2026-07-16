@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台设置</title>
+    <style>
+        body { margin:0; font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#f4f6f8; }
+        .container { max-width:420px; margin:0 auto; padding:20px; }
+        .box { background:white; padding:24px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.06); }
+        .row { margin:14px 0; }
+        input[type=number] { width:80px; padding:8px; border:1px solid #ddd; border-radius:6px; }
+        button { padding:10px 24px; background:#4a90e2; color:white; border:none; border-radius:6px; cursor:pointer; }
+        .msg { color:#4a90e2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>后台设置 <a href="/hub" style="font-size:14px; color:#888;">← 返回</a></h2>
+        {% with messages = get_flashed_messages() %}
+          {% for m in messages %}<p class="msg">{{ m }}</p>{% endfor %}
+        {% endwith %}
+        <div class="box">
+            <form method="POST">
+                <div class="row">
+                    <label>
+                        <input type="checkbox" name="draw_limit_on" {% if limit_on %}checked{% endif %}>
+                        开启每日抽卡限制
+                    </label>
+                </div>
+                <div class="row">
+                    每天可抽次数：
+                    <input type="number" name="draw_limit_count" value="{{ limit_count }}" min="1">
+                </div>
+                <button type="submit">保存设置</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

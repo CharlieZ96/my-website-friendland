@@ -20,6 +20,7 @@
     {% with messages = get_flashed_messages() %}
       {% for m in messages %}<p style="color:#e74c3c; text-align:center;">{{ m }}</p>{% endfor %}
     {% endwith %}
+
     {% if result %}
     <div class="result">
         {% if result[4] %}<img src="/uploads/{{ result[4] }}">{% endif %}
@@ -28,7 +29,19 @@
         <div class="stat">攻击力 {{ result[2] }} / 孝心值 {{ result[3] }}</div>
     </div>
     {% endif %}
-    <form method="POST"><button type="submit" class="btn">抽一张 🎴</button></form>
+
+    {% if limit_on %}
+    <p style="color:#888; font-size:14px;">今日剩余抽卡次数：{{ remaining }}</p>
+    {% endif %}
+
+    {% if can_draw %}
+    <form method="POST">
+        <button type="submit" class="btn">抽一张 🎴</button>
+    </form>
+    {% else %}
+    <p style="color:#888; font-size:16px;">今天的抽卡次数用完了，明天再来 🌙</p>
+    {% endif %}
+
     <div class="nav">
         <a href="/collection">我的收藏夹</a>
         <a href="/hub">返回主页</a>

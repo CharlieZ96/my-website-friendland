@@ -17,6 +17,8 @@ app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024    # 上传最大 8MB，超�
 ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp"}   # 只允许这些图片格式
 app.secret_key = "change-me"
 ADMIN_USERNAME = "admin"
+DAILY_DRAW_LIMIT_ON = True     # True=开启每日限制；False=关闭（无限抽）
+DAILY_DRAW_LIMIT = 1           # 每天可抽几次
 
 def admin_required(f):
     @wraps(f)
@@ -36,6 +38,15 @@ def init_db():
             password TEXT NOT NULL
         )
     """)
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN last_draw TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN draw_count INTEGER NOT NULL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+
     conn.execute("""
         CREATE TABLE IF NOT EXISTS posts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,6 +84,7 @@ def init_db():
             drop_rate REAL NOT NULL
         )
     """)
+    
     # 玩家拥有的卡（支持重复，count 记数量）
     conn.execute("""
         CREATE TABLE IF NOT EXISTS user_cards (
@@ -82,6 +94,17 @@ def init_db():
             count INTEGER NOT NULL DEFAULT 1
         )
     """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    """)
+    # 默认设置：没有才插入（不会覆盖你后来改的）
+    conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('draw_limit_on', '1')")
+    conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('draw_limit_count', '1')")
+
     conn.commit()                             # 保存改动
     conn.close()                              # 关闭连接
 
@@ -153,7 +176,7 @@ def save_image(file, target_kb=120):
     
     return new_name
 
-def make_card(image_name):
+#def make_card(image_name):
     # -----------------------------
     # 1. 打开人物图片
     # -----------------------------
@@ -427,12 +450,7 @@ def admin_cards():
         image_name = None
         file = request.files.get("image")
         if file and file.filename:
-            image_name = save_image(file)
-            if image_name is None:
-                flash("图片上传失败")
-                return redirect(url_for("admin_cards"))
-   
-            image_name = make_card(image_name)          # 产生卡面
+            image_name = save_image(file)          # 复用你的图片压缩
         # 数值校验
         try:
             attack = int(request.form.get("attack", "0"))
@@ -503,21 +521,44 @@ def change_password():
 @login_required
 def draw():
     result = None
+    conn = sqlite3.connect("users.db")
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    # 读设置
+    lo = conn.execute("SELECT value FROM settings WHERE key='draw_limit_on'").fetchone()
+    lc = conn.execute("SELECT value FROM settings WHERE key='draw_limit_count'").fetchone()
+    limit_on = (lo and lo[0] == '1')
+    limit_count = int(lc[0]) if lc else 1
+
+    # 读该用户今天抽了几次
+    row = conn.execute("SELECT last_draw, draw_count FROM users WHERE username = ?",
+                       (session["username"],)).fetchone()
+    last_draw = row[0] if row else None
+    draw_count = row[1] if row and row[1] is not None else 0
+    if last_draw != today:
+        draw_count = 0
+
     if request.method == "POST":
-        conn = sqlite3.connect("users.db")
-        cards = conn.execute(
-            "SELECT id, name, attack, defense, image, rarity, drop_rate FROM cards"
-        ).fetchall()
-        if not cards:
+        # 达上限就拦
+        if limit_on and draw_count >= limit_count:
             conn.close()
-            flash("还没有卡牌可抽，先去后台加卡")
+            flash(f"今天的抽卡次数用完啦（每天 {limit_count} 次），明天再来～")
             return redirect(url_for("draw"))
 
-        weights = [c[6] for c in cards]                       # 每张卡的爆率权重
-        picked = random.choices(cards, weights=weights, k=1)[0]   # 加权随机抽一张
+        # 取所有卡
+        cards = conn.execute(
+            "SELECT id, name, attack, defense, image, rarity, drop_rate FROM cards").fetchall()
+        if not cards:
+            conn.close()
+            flash("还没有卡牌可抽")
+            return redirect(url_for("draw"))
+
+        # 加权随机抽一张（这里生成 picked）
+        weights = [c[6] for c in cards]
+        picked = random.choices(cards, weights=weights, k=1)[0]
         card_id = picked[0]
 
-        # 加进收藏：有就数量+1，没有就新建
+        # 加进收藏
         existing = conn.execute(
             "SELECT id FROM user_cards WHERE username = ? AND card_id = ?",
             (session["username"], card_id)).fetchone()
@@ -526,10 +567,19 @@ def draw():
         else:
             conn.execute("INSERT INTO user_cards (username, card_id, count) VALUES (?, ?, 1)",
                          (session["username"], card_id))
+
+        # 计数+1，记下今天
+        draw_count += 1
+        conn.execute("UPDATE users SET last_draw = ?, draw_count = ? WHERE username = ?",
+                     (today, draw_count, session["username"]))
         conn.commit()
-        conn.close()
         result = picked
-    return render_template("draw.html", result=result)
+
+    conn.close()
+    can_draw = (not limit_on) or (draw_count < limit_count)
+    remaining = (limit_count - draw_count) if limit_on else None
+    return render_template("draw.html", result=result, can_draw=can_draw,
+                           remaining=remaining, limit_on=limit_on)
 
 @app.route("/collection")
 @login_required
@@ -544,6 +594,29 @@ def collection():
     """, (session["username"],)).fetchall()
     conn.close()
     return render_template("collection.html", cards=rows)
+
+@app.route("/admin/settings", methods=["GET", "POST"])
+@admin_required
+def admin_settings():
+    conn = sqlite3.connect("users.db")
+    if request.method == "POST":
+        limit_on = "1" if request.form.get("draw_limit_on") else "0"    # 勾了=1
+        try:
+            limit_count = str(max(1, int(request.form.get("draw_limit_count", "1"))))
+        except ValueError:
+            limit_count = "1"
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('draw_limit_on', ?)", (limit_on,))
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('draw_limit_count', ?)", (limit_count,))
+        conn.commit()
+        conn.close()
+        flash("设置已保存")
+        return redirect(url_for("admin_settings"))
+    lo = conn.execute("SELECT value FROM settings WHERE key='draw_limit_on'").fetchone()
+    lc = conn.execute("SELECT value FROM settings WHERE key='draw_limit_count'").fetchone()
+    conn.close()
+    return render_template("admin_settings.html",
+                           limit_on=(lo and lo[0] == '1'),
+                           limit_count=int(lc[0]) if lc else 1)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=False, port=5000)
