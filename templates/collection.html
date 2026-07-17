@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的收藏夹</title>
+    <title>我的卡册</title>
     <style>
         body { margin:0; font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#f4f6f8; }
         .container { max-width:700px; margin:0 auto; padding:20px; }
@@ -34,29 +34,28 @@
             <div class="card">
                 <span class="count">×{{ c[5] }}</span>
                 {% if c[3] %}
-                <img src="/uploads/{{ c[3] }}" onclick="showBig(this.src)"
-                     style="cursor:zoom-in; width:100%; height:200px; object-fit:cover; border-radius:6px;">
+                <img src="/uploads/{{ c[3] }}" onclick="showBig(this.src)" style="cursor:zoom-in;">
                 {% endif %}
-                {% if c[3] %}<img src="/uploads/{{ c[3] }}">{% endif %}
                 <div class="name">{{ c[0] }}</div>
                 <div class="rarity">{{ c[4] }}</div>
                 <div class="stat">攻击力 {{ c[1] }} / 孝心值 {{ c[2] }}</div>
             </div>
             {% endfor %}
-            </div>
+        </div>
         {% else %}
         <p class="empty">还没有卡，快去 <a href="/draw">抽卡</a> 吧！</p>
         {% endif %}
-        </div>
-            <div class="lightbox" id="lightbox" onclick="this.style.display='none'">
-            <img id="lightbox-img" src="">
-            </div>
+    </div>
+
+    <div class="lightbox" id="lightbox" onclick="this.style.display='none'">
+        <img id="lightbox-img" src="">
+    </div>
 
     <script>
     function showBig(src) {
-    document.getElementById('lightbox-img').src = src;     // 把大图地址放进去
-    document.getElementById('lightbox').style.display = 'flex';  // 显示灯箱
-}
-</script>
+        document.getElementById('lightbox-img').src = src;
+        document.getElementById('lightbox').style.display = 'flex';
+    }
+    </script>
 </body>
 </html>
