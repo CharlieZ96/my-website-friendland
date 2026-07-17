@@ -343,7 +343,7 @@ def board():
     
     # 取所有评论，按 post_id 分组成字典 {帖子id: [评论, 评论...]}
     comments = {}
-    for c in conn.execute("SELECT post_id, username, content, created_at, id FROM comments ORDER BY id ASC").fetchall():
+    for c in conn.execute("SELECT post_id, username, content, created_at, id, image FROM comments ORDER BY id ASC").fetchall():
         comments.setdefault(c[0], []).append(c)
     conn.close()
     return render_template("board.html", posts=posts, username=session["username"], comments=comments)
@@ -395,8 +395,8 @@ def add_comment(post_id):
         flash(f"这条帖子的评论已满 {COMMENT_LIMIT} 条")
         return redirect(url_for("board"))
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    conn.execute("INSERT INTO comments (post_id, username, content, created_at) VALUES (?, ?, ?, ?)",
-                 (post_id, session["username"], content, now))
+    conn.execute("INSERT INTO comments (post_id, username, content, created_at, image) VALUES (?, ?, ?, ?, ?)",
+                 (post_id, session["username"], content, now, image_name))
     conn.commit()
     conn.close()
     return redirect(url_for("board"))
