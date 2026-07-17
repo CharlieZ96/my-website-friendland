@@ -547,7 +547,7 @@ def draw():
 
         # 取所有卡
         cards = conn.execute(
-            "SELECT id, name, attack, defense, image, rarity, drop_rate FROM cards").fetchall()
+            "SELECT id, name, attack, defense, image, rarity, drop_rate FROM cards WHERE drop_rate > 0").fetchall()
         if not cards:
             conn.close()
             flash("还没有卡牌可抽")
