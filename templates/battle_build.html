@@ -12,8 +12,8 @@
     .row { display:flex; align-items:center; gap:6px; background:#2f2019; border:1px solid #4a3226; border-radius:8px; padding:6px 8px; margin-bottom:5px; }
     .row .idx { width:18px; color:#a08a6f; font-weight:800; }
     .row .cn { flex:1; } .row small { color:#a08a6f; }
-    .row button { width:24px; height:22px; background:transparent; color:#a08a6f; border:1px solid #4a3226; border-radius:6px; cursor:pointer; }
-    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
+    .row button { width:34px; height:32px; font-size:15px; background:transparent; color:#a08a6f; border:1px solid #4a3226; border-radius:6px; cursor:pointer; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:8px; }
     .cardbtn { background:#241812; border:1px solid #4a3226; border-radius:8px; padding:8px; color:#f0e6d2; cursor:pointer; text-align:center; font-size:13px; }
     .cardbtn small { color:#a08a6f; display:block; }
     .submit { width:100%; padding:12px; margin-top:16px; border:none; border-radius:10px; font-weight:800; font-size:16px; background:linear-gradient(180deg,#ffd97a,#f5b942); color:#3a2410; cursor:pointer; }
@@ -32,7 +32,7 @@
     var t = setInterval(function(){
       fetch('/battle/'+mid+'/state').then(function(r){return r.json();}).then(function(s){
         if (s.status === 'gone') { clearInterval(t); location.href='/battle'; }
-        else if (s.status === 'ready') { clearInterval(t); location.href='/battle/'+mid+'/result'; }
+        else if (s.status === 'done') { clearInterval(t); location.href='/battle/'+mid+'/result'; }
       });
     }, 2000);
   </script>

@@ -210,6 +210,42 @@ def get_collection(conn, username):
     return [{"id": r[0], "name": r[1], "attack": r[2], "defense": r[3],
              "image": r[4], "rarity": r[5]} for r in rows]
 
+def resolve_battle(deck1_ids, deck2_ids, conn):
+    def load(ids):
+        out = []
+        for cid in ids:
+            r = conn.execute("SELECT name, attack, defense, image FROM cards WHERE id=?", (cid,)).fetchone()
+            if r:
+                out.append({"name": r[0], "atk": r[1], "hp": r[2], "maxhp": r[2], "image": r[3]})
+        return out
+    P, E = load(deck1_ids), load(deck2_ids)
+    steps = []
+    def snap(**extra):
+        s = {"P": [dict(x) for x in P], "E": [dict(x) for x in E]}
+        s.update(extra); steps.append(s)
+
+    snap(type="start", msg="⚔️ JZH对撞开始！")
+    guard = 0
+    while P and E and guard < 500:
+        guard += 1
+        a, b = P[0], E[0]
+        dmgA, dmgB = b["atk"], a["atk"]        # dmgA=打到P前排, dmgB=打到E前排
+        a["hp"] -= dmgA; b["hp"] -= dmgB
+        snap(type="clash", msg="💥 " + a["name"] + " 撞击 " + b["name"] + "中", dmgA=dmgA, dmgB=dmgB)
+        dead = []
+        if a["hp"] <= 0: dead.append(a["name"])
+        if b["hp"] <= 0: dead.append(b["name"])
+        if a["hp"] <= 0: P.pop(0)
+        if b["hp"] <= 0: E.pop(0)
+        if dead:
+            snap(type="death", msg="💀 " + "你的" + "、".join(dead) + " 倒下了")
+
+    if P and not E:   winner, surplus = "player1", len(P)
+    elif E and not P: winner, surplus = "player2", len(E)
+    else:             winner, surplus = "draw", 0
+    snap(type="end", msg="🏁 对撞结束")
+    return {"winner": winner, "surplus": surplus, "steps": steps}
+
 #def make_card(image_name):
     # -----------------------------
     # 1. 打开人物图片
@@ -758,7 +794,8 @@ def battle_build(mid):
         # 两边都交了 → status=ready
         cur = conn.execute("SELECT deck1, deck2 FROM matches WHERE id=?", (mid,)).fetchone()
         if cur[0] and cur[1]:
-            conn.execute("UPDATE matches SET status='ready' WHERE id=?", (mid,))
+            res = resolve_battle(json.loads(cur[0]), json.loads(cur[1]), conn)
+            conn.execute("UPDATE matches SET status='done', result=? WHERE id=?", (json.dumps(res), mid))
             conn.commit()
         conn.close()
         return redirect(url_for("battle_build", mid=mid))
@@ -783,11 +820,25 @@ def battle_build(mid):
                            forced=forced_cards, already=already)
 
 
-# 结算结果（占位，下一步做）
+# 结算结果
 @app.route("/battle/<int:mid>/result")
 @login_required
 def battle_result(mid):
-    return "双方都排好兵了！⚔️ 对撞结算是下一步（Phase 3）"
+    me = session["username"]
+    conn = sqlite3.connect("users.db")
+    m = conn.execute("SELECT player1, player2, status, result FROM matches WHERE id=?", (mid,)).fetchone()
+    conn.close()
+    if not m or me not in (m[0], m[1]):
+        flash("对局无效"); return redirect(url_for("battle_home"))
+    if m[2] != "done" or not m[3]:
+        return redirect(url_for("battle_build", mid=mid))   # 还没算完
+    death_imgs = []
+    ddir = os.path.join("static", "deaths")
+    if os.path.isdir(ddir):
+        death_imgs = [f for f in os.listdir(ddir)
+                      if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))]
+    return render_template("battle_result.html", mid=mid, result=json.loads(m[3]),
+                           is_p1=(me == m[0]), death_imgs=death_imgs)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True, port=5000)

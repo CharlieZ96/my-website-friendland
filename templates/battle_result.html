@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JZH对撞中</title>
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#f0e6d2;min-height:100vh;overflow-x:hidden;
+       background:radial-gradient(130% 90% at 50% -10%, #3a2114, #160f0c 55%, #0d0806);}
+  .wrap{max-width:460px;margin:0 auto;padding:14px 12px 30px;}
+  .title{text-align:center;font-weight:900;letter-spacing:2px;font-size:20px;
+         background:linear-gradient(180deg,#ffe6a8,#f5b942);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .legend{text-align:center;font-size:11px;color:#c9a06a;margin:2px 0 6px;}
+  .sidelabel{color:#c9a06a;font-size:11px;letter-spacing:2px;margin:6px 2px;}
+  .lane{display:flex;gap:5px;overflow-x:auto;padding:4px 2px;}
+  .lane::-webkit-scrollbar{display:none;}
+  .mini{flex:0 0 auto;width:44px;border-radius:6px;padding:2px;border:2px solid transparent;}
+  .mini.front{border-color:#f5b942;animation:pulse 1.2s infinite;}
+  .mini img,.mini .egg{width:100%;height:58px;object-fit:contain;border-radius:4px;display:block;}
+  .mini .egg{font-size:26px;text-align:center;line-height:58px;}
+  .mini.dead img,.mini.dead .egg{filter:grayscale(1) brightness(.45);}
+  .mbar{height:3px;background:#0006;border-radius:2px;margin-top:2px;overflow:hidden;}
+  .mbar>div{height:100%;border-radius:2px;transition:width .3s;}
+  .arena{position:relative;display:flex;align-items:center;justify-content:space-around;margin:12px 0;min-height:216px;
+         border-radius:16px;padding:14px 6px;border:1px solid #5a3a26;
+         background:radial-gradient(90% 70% at 50% 40%, #2a1810, #160d09);box-shadow:inset 0 0 30px #0008,0 6px 24px #0006;}
+  .flash{position:absolute;inset:0;border-radius:16px;pointer-events:none;opacity:0;
+         background:radial-gradient(circle at 50% 45%, #fff, #f5b942 30%, transparent 62%);}
+  .vs{font-size:28px;filter:drop-shadow(0 0 8px #f5b94288);}
+  .bigcard{position:relative;width:112px;text-align:center;}
+  .artwrap{position:relative;display:inline-block;}
+  .art{width:112px;height:156px;object-fit:contain;border-radius:8px;filter:drop-shadow(0 4px 12px #000a);}
+  .bigcard.dead .art{filter:grayscale(1) brightness(.4);}
+  .art.egg{font-size:70px;height:auto;}
+  .name{font-size:13px;font-weight:700;margin-top:4px;}
+  .gem{position:absolute;bottom:6px;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+       font-size:13px;font-weight:900;color:#fff;box-shadow:0 2px 6px #0009;}
+  .gem.atk{left:-8px;color:#3a2410;background:radial-gradient(circle at 35% 30%, #ffd27a, #d68a1e);}
+  .gem.hp{right:-8px;background:radial-gradient(circle at 35% 30%, #ff8a8a, #c0322f);}
+  .death{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+  .death img{width:82%;height:82%;object-fit:contain;}
+  .death .skull{font-size:54px;}
+  .dmg{position:absolute;top:16px;left:50%;font-size:26px;font-weight:900;color:#ff5a5a;text-shadow:0 2px 4px #000;pointer-events:none;}
+  .log{height:108px;overflow-y:auto;background:#221610;border:1px solid #4a3226;border-radius:10px;padding:8px 12px;font-size:13px;line-height:1.7;margin-top:12px;}
+  .log div:last-child{color:#ffe6a8;}
+  .banner{position:fixed;inset:0;background:rgba(10,6,4,.82);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100;}
+  .banner .big{font-size:46px;font-weight:900;letter-spacing:6px;animation:bannerIn .6s ease-out;
+               background:linear-gradient(180deg,#ffe6a8,#f5b942);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .banner .sub{color:#c9a06a;margin-top:8px;}
+  .banner .btn{margin-top:26px;padding:12px 34px;border-radius:10px;text-decoration:none;font-weight:800;background:linear-gradient(180deg,#ffd97a,#f5b942);color:#3a2410;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 8px #f5b94255}50%{box-shadow:0 0 18px #f5b942bb}}
+  @keyframes lungeR{0%{transform:translateX(0)}45%{transform:translateX(26px) rotate(5deg)}100%{transform:translateX(0)}}
+  @keyframes lungeL{0%{transform:translateX(0)}45%{transform:translateX(-26px) rotate(-5deg)}100%{transform:translateX(0)}}
+  @keyframes shake{0%,100%{transform:translate(0)}20%{transform:translate(-5px,2px)}40%{transform:translate(5px,-2px)}60%{transform:translate(-4px,1px)}80%{transform:translate(4px,-1px)}}
+  @keyframes flashk{0%{opacity:.9}100%{opacity:0}}
+  @keyframes floatUp{0%{opacity:1;transform:translate(-50%,0) scale(.8)}30%{opacity:1;transform:translate(-50%,-6px) scale(1.3)}100%{opacity:0;transform:translate(-50%,-46px) scale(1)}}
+  @keyframes bannerIn{0%{opacity:0;transform:scale(.4)}60%{transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">⚔️ JZH对撞中 · #{{ mid }}</div>
+  <div class="legend">⚔ 攻击力　♥ 孝心值</div>
+  <div class="sidelabel">对手</div>
+  <div class="lane" id="opplane"></div>
+  <div class="arena" id="arena">
+    <div class="flash" id="flash"></div>
+    <div class="bigcard" id="bigOpp"></div>
+    <div class="vs">💥</div>
+    <div class="bigcard" id="bigMe"></div>
+  </div>
+  <div class="lane" id="mylane"></div>
+  <div class="sidelabel">你</div>
+  <div class="log" id="log"></div>
+</div>
+<div class="banner" id="banner">
+  <div class="big" id="bBig"></div>
+  <div class="sub" id="bSub"></div>
+  <a class="btn" href="/battle">返回大厅 / 再来一局</a>
+</div>
+<script>
+  var RESULT={{ result|tojson }}, IS_P1={{ 'true' if is_p1 else 'false' }}, DEATHS={{ death_imgs|tojson }};
+  var steps=RESULT.steps, idx=0;
+  function deathHTML(){ if(DEATHS.length){var f=DEATHS[Math.floor(Math.random()*DEATHS.length)];return '<div class="death"><img src="/static/deaths/'+f+'"></div>';} return '<div class="death"><span class="skull">💀</span></div>'; }
+  function miniHTML(f,i){ var dead=f.hp<=0,frac=Math.max(0,f.hp)/f.maxhp*100,c=frac>50?'#6bbf8a':frac>25?'#f5b942':'#d64545';
+    var art=f.image?'<img src="/uploads/'+f.image+'">':'<div class="egg">🥚</div>';
+    return '<div class="mini '+(i===0&&!dead?'front':'')+' '+(dead?'dead':'')+'">'+art+'<div class="mbar"><div style="width:'+frac+'%;background:'+c+'"></div></div></div>'; }
+  function laneHTML(fs){ return fs.length?fs.map(miniHTML).join(''):'<span style="color:#a08a6f;font-size:12px;padding:8px;">全灭</span>'; }
+  function bigHTML(f){ var dead=f.hp<=0; var art=f.image?'<img class="art" src="/uploads/'+f.image+'">':'<div class="art egg">🥚</div>';
+    return '<div class="artwrap">'+art+(dead?deathHTML():'')+'<div class="gem atk">⚔'+f.atk+'</div><div class="gem hp">'+Math.max(0,f.hp)+'</div></div><div class="name">'+f.name+'</div>'; }
+  function setBig(id,f){ var el=document.getElementById(id); el.className='bigcard'+((f&&f.hp<=0)?' dead':''); el.innerHTML=f?bigHTML(f):''; }
+  function floatDmg(id,dmg){ if(!dmg)return; var el=document.getElementById(id); var d=document.createElement('div'); d.className='dmg'; d.textContent='-'+dmg; d.style.animation='floatUp .8s ease-out forwards'; el.appendChild(d); setTimeout(function(){d.remove();},800); }
+  function play(){
+    if(idx>=steps.length){ endB(); return; }
+    var s=steps[idx]; idx++;
+    var opp=IS_P1?s.E:s.P, mine=IS_P1?s.P:s.E;
+    setBig('bigOpp',opp[0]); setBig('bigMe',mine[0]);
+    document.getElementById('opplane').innerHTML=laneHTML(opp);
+    document.getElementById('mylane').innerHTML=laneHTML(mine);
+    if(s.msg){var l=document.getElementById('log');var d=document.createElement('div');d.textContent=s.msg;l.appendChild(d);l.scrollTop=l.scrollHeight;}
+    if(s.type==='clash'){
+      var dm=IS_P1?s.dmgA:s.dmgB, dop=IS_P1?s.dmgB:s.dmgA;
+      document.getElementById('bigOpp').style.animation='lungeR .45s';
+      document.getElementById('bigMe').style.animation='lungeL .45s';
+      document.getElementById('arena').style.animation='shake .45s';
+      document.getElementById('flash').style.animation='flashk .4s';
+      floatDmg('bigOpp',dop); floatDmg('bigMe',dm);
+      setTimeout(function(){ ['bigOpp','bigMe','arena','flash'].forEach(function(x){document.getElementById(x).style.animation='';}); },460);
+    }
+    setTimeout(play, s.type==='clash'?950:650);
+  }
+  function endB(){ var w=RESULT.winner, win=(w==='player1'&&IS_P1)||(w==='player2'&&!IS_P1);
+    document.getElementById('bBig').textContent = w==='draw'?'平 局':win?'胜 利':'败 北';
+    document.getElementById('bSub').textContent = w==='draw'?'两败俱伤，全部阵亡':win?'你的JZH还剩 '+RESULT.surplus+' 只！':'你的JZH全军覆没…';
+    document.getElementById('banner').style.display='flex'; }
+  play();
+</script>
+</body>
+</html>
