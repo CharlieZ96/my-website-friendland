@@ -9,6 +9,8 @@ import uuid
 from PIL import Image, ImageOps
 from flask import send_from_directory
 import random
+from datetime import datetime, timedelta
+import json
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -105,6 +107,29 @@ def init_db():
     conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('draw_limit_on', '1')")
     conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('draw_limit_count', '1')")
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS matches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player1 TEXT NOT NULL,
+            player2 TEXT,
+            status TEXT NOT NULL DEFAULT 'waiting',
+            deck1 TEXT,
+            deck2 TEXT,
+            result TEXT,
+            created_at TEXT NOT NULL
+        )
+    """)
+    try:
+        conn.execute("ALTER TABLE matches ADD COLUMN last_seen TEXT")
+    except sqlite3.OperationalError:
+        pass
+
+    for _col in ("forced1", "forced2"):
+        try:
+            conn.execute(f"ALTER TABLE matches ADD COLUMN {_col} TEXT")
+        except sqlite3.OperationalError:
+            pass
+
     conn.commit()                             # 保存改动
     conn.close()                              # 关闭连接
 
@@ -175,6 +200,15 @@ def save_image(file, target_kb=120):
     img.save(path, "PNG")
     
     return new_name
+
+def get_collection(conn, username):
+    rows = conn.execute("""
+        SELECT c.id, c.name, c.attack, c.defense, c.image, c.rarity
+        FROM user_cards uc JOIN cards c ON uc.card_id = c.id
+        WHERE uc.username = ?
+    """, (username,)).fetchall()
+    return [{"id": r[0], "name": r[1], "attack": r[2], "defense": r[3],
+             "image": r[4], "rarity": r[5]} for r in rows]
 
 #def make_card(image_name):
     # -----------------------------
@@ -618,5 +652,142 @@ def admin_settings():
                            limit_on=(lo and lo[0] == '1'),
                            limit_count=int(lc[0]) if lc else 1)
 
+# 对战大厅
+@app.route("/battle")
+@login_required
+def battle_home():
+    return render_template("battle_home.html")
+
+# 找对战：匹配逻辑
+@app.route("/battle/find", methods=["POST"])
+@login_required
+def battle_find():
+    me = session["username"]
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cutoff = (datetime.now() - timedelta(seconds=10)).strftime("%Y-%m-%d %H:%M:%S")   # 10秒没心跳=死局
+    conn = sqlite3.connect("users.db")
+
+    # ① 先清掉没人守着的等待局（超10秒没报平安）
+    conn.execute("DELETE FROM matches WHERE status='waiting' AND (last_seen IS NULL OR last_seen < ?)", (cutoff,))
+
+    # ② 加入别人还活着的等待局
+    other = conn.execute(
+        "SELECT id FROM matches WHERE status='waiting' AND player1 != ? AND last_seen >= ? ORDER BY id LIMIT 1",
+        (me, cutoff)).fetchone()
+    if other:
+        conn.execute("UPDATE matches SET player2=?, status='building', last_seen=? WHERE id=?", (me, now, other[0]))
+        mid = other[0]
+    else:
+        mine = conn.execute("SELECT id FROM matches WHERE player1=? AND status='waiting'", (me,)).fetchone()
+        if mine:
+            conn.execute("UPDATE matches SET last_seen=? WHERE id=?", (now, mine[0]))
+            mid = mine[0]
+        else:
+            cur = conn.execute(
+                "INSERT INTO matches (player1, status, created_at, last_seen) VALUES (?, 'waiting', ?, ?)",
+                (me, now, now))
+            mid = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return redirect(url_for("battle_page", mid=mid))
+
+# 对局页面
+@app.route("/battle/<int:mid>")
+@login_required
+def battle_page(mid):
+    conn = sqlite3.connect("users.db")
+    row = conn.execute("SELECT player1, player2, status FROM matches WHERE id=?", (mid,)).fetchone()
+    conn.close()
+    if not row:
+        flash("对局不存在"); return redirect(url_for("battle_home"))
+    if session["username"] not in (row[0], row[1]):     # 只有双方能看
+        flash("这不是你的对局"); return redirect(url_for("battle_home"))
+    return render_template("battle.html", mid=mid, me=session["username"])
+
+# 对局状态（轮询用，返回 JSON）
+@app.route("/battle/<int:mid>/state")
+@login_required
+def battle_state(mid):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = sqlite3.connect("users.db")
+    conn.execute("UPDATE matches SET last_seen=? WHERE id=?", (now, mid))
+    conn.commit()
+    row = conn.execute("SELECT player1, player2, status, deck1, deck2 FROM matches WHERE id=?", (mid,)).fetchone()
+    conn.close()
+    if not row:
+        return {"status": "gone"}
+    return {"status": row[2], "player1": row[0], "player2": row[1],
+            "deck1": row[3] is not None, "deck2": row[4] is not None}
+
+@app.route("/battle/<int:mid>/leave", methods=["POST"])
+@login_required
+def battle_leave(mid):
+    me = session["username"]
+    conn = sqlite3.connect("users.db")
+    row = conn.execute("SELECT player1, player2 FROM matches WHERE id=?", (mid,)).fetchone()
+    if row and me in (row[0], row[1]):     # 是本局参与者才能删
+        conn.execute("DELETE FROM matches WHERE id=?", (mid,))
+        conn.commit()
+    conn.close()
+    return "", 204
+
+@app.route("/battle/<int:mid>/build", methods=["GET", "POST"])
+@login_required
+def battle_build(mid):
+    me = session["username"]
+    conn = sqlite3.connect("users.db")
+    m = conn.execute("SELECT player1, player2, deck1, deck2, forced1, forced2 FROM matches WHERE id=?", (mid,)).fetchone()
+    if not m or me not in (m[0], m[1]):
+        conn.close(); flash("对局无效"); return redirect(url_for("battle_home"))
+    p1, p2, deck1, deck2, forced1, forced2 = m
+    is_p1 = (me == p1)
+    my_deck = deck1 if is_p1 else deck2
+    my_forced = forced1 if is_p1 else forced2
+
+    if request.method == "POST":
+        try:
+            deck = json.loads(request.form.get("deck", ""))
+        except Exception:
+            deck = []
+        owned = {c["id"] for c in get_collection(conn, me)}
+        if len(deck) != 7 or any(cid not in owned for cid in deck):
+            conn.close(); flash("卡组不合法（需7张、且都是你拥有的卡）"); return redirect(url_for("battle_build", mid=mid))
+        col = "deck1" if is_p1 else "deck2"
+        conn.execute(f"UPDATE matches SET {col}=? WHERE id=?", (json.dumps(deck), mid))
+        conn.commit()
+        # 两边都交了 → status=ready
+        cur = conn.execute("SELECT deck1, deck2 FROM matches WHERE id=?", (mid,)).fetchone()
+        if cur[0] and cur[1]:
+            conn.execute("UPDATE matches SET status='ready' WHERE id=?", (mid,))
+            conn.commit()
+        conn.close()
+        return redirect(url_for("battle_build", mid=mid))
+
+    # GET
+    collection = get_collection(conn, me)
+    if not collection:
+        conn.close(); flash("你的收藏夹是空的，先去抽卡"); return redirect(url_for("battle_home"))
+    # 生成/读取强制3张（存下来，刷新不变）
+    if not my_forced:
+        forced_ids = [random.choice(collection)["id"] for _ in range(3)]
+        col = "forced1" if is_p1 else "forced2"
+        conn.execute(f"UPDATE matches SET {col}=? WHERE id=?", (json.dumps(forced_ids), mid))
+        conn.commit()
+    else:
+        forced_ids = json.loads(my_forced)
+    cardmap = {c["id"]: c for c in collection}
+    forced_cards = [cardmap[i] for i in forced_ids if i in cardmap]
+    already = my_deck is not None
+    conn.close()
+    return render_template("battle_build.html", mid=mid, collection=collection,
+                           forced=forced_cards, already=already)
+
+
+# 结算结果（占位，下一步做）
+@app.route("/battle/<int:mid>/result")
+@login_required
+def battle_result(mid):
+    return "双方都排好兵了！⚔️ 对撞结算是下一步（Phase 3）"
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=False, port=5000)
+    app.run(host="0.0.0.0", debug=True, port=5000)
