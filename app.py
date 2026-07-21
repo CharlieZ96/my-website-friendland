@@ -48,6 +48,10 @@ def init_db():
         conn.execute("ALTER TABLE users ADD COLUMN draw_count INTEGER NOT NULL DEFAULT 0")
     except sqlite3.OperationalError:
         pass
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN score INTEGER NOT NULL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS posts (
@@ -203,12 +207,13 @@ def save_image(file, target_kb=120):
 
 def get_collection(conn, username):
     rows = conn.execute("""
-        SELECT c.id, c.name, c.attack, c.defense, c.image, c.rarity
+        SELECT c.id, c.name, c.attack, c.defense, c.image, c.rarity, SUM(uc.count)
         FROM user_cards uc JOIN cards c ON uc.card_id = c.id
         WHERE uc.username = ?
+        GROUP BY c.id
     """, (username,)).fetchall()
     return [{"id": r[0], "name": r[1], "attack": r[2], "defense": r[3],
-             "image": r[4], "rarity": r[5]} for r in rows]
+             "image": r[4], "rarity": r[5], "count": r[6]} for r in rows]
 
 def resolve_battle(deck1_ids, deck2_ids, conn):
     def load(ids):
@@ -231,14 +236,14 @@ def resolve_battle(deck1_ids, deck2_ids, conn):
         a, b = P[0], E[0]
         dmgA, dmgB = b["atk"], a["atk"]        # dmgA=打到P前排, dmgB=打到E前排
         a["hp"] -= dmgA; b["hp"] -= dmgB
-        snap(type="clash", msg="💥 " + a["name"] + " 撞击 " + b["name"] + "中", dmgA=dmgA, dmgB=dmgB)
+        snap(type="clash", msg="💥 " + a["name"] + " 撞击 " + b["name"] + " 中", dmgA=dmgA, dmgB=dmgB)
         dead = []
         if a["hp"] <= 0: dead.append(a["name"])
         if b["hp"] <= 0: dead.append(b["name"])
         if a["hp"] <= 0: P.pop(0)
         if b["hp"] <= 0: E.pop(0)
         if dead:
-            snap(type="death", msg="💀 " + "你的" + "、".join(dead) + " 倒下了")
+            snap(type="death", msg="💀 " + "你的" + "".join(dead) + " 倒下了")
 
     if P and not E:   winner, surplus = "player1", len(P)
     elif E and not P: winner, surplus = "player2", len(E)
@@ -785,17 +790,30 @@ def battle_build(mid):
             deck = json.loads(request.form.get("deck", ""))
         except Exception:
             deck = []
-        owned = {c["id"] for c in get_collection(conn, me)}
-        if len(deck) != 7 or any(cid not in owned for cid in deck):
-            conn.close(); flash("卡组不合法（需7张、且都是你拥有的卡）"); return redirect(url_for("battle_build", mid=mid))
+        owned = {c["id"]: c["count"] for c in get_collection(conn, me)}
+        counts = {}
+        for cid in deck:
+            counts[cid] = counts.get(cid, 0) + 1
+        ok = (len(deck) == 7) and all(owned.get(cid, 0) >= n for cid, n in counts.items())
+        if not ok:
+            conn.close(); flash("卡组不合法：需7张，且每张不能超过你拥有的数量"); return redirect(url_for("battle_build", mid=mid))
         col = "deck1" if is_p1 else "deck2"
         conn.execute(f"UPDATE matches SET {col}=? WHERE id=?", (json.dumps(deck), mid))
         conn.commit()
-        # 两边都交了 → status=ready
         cur = conn.execute("SELECT deck1, deck2 FROM matches WHERE id=?", (mid,)).fetchone()
         if cur[0] and cur[1]:
             res = resolve_battle(json.loads(cur[0]), json.loads(cur[1]), conn)
             conn.execute("UPDATE matches SET status='done', result=? WHERE id=?", (json.dumps(res), mid))
+            w = res["winner"]
+            if w == "player1":
+                conn.execute("UPDATE users SET score = score + 2 WHERE username = ?", (p1,))
+                conn.execute("UPDATE users SET score = MAX(0, score - 2) WHERE username = ?", (p2,))
+            elif w == "player2":
+                conn.execute("UPDATE users SET score = score + 2 WHERE username = ?", (p2,))
+                conn.execute("UPDATE users SET score = MAX(0, score - 2) WHERE username = ?", (p1,))
+            else:
+                conn.execute("UPDATE users SET score = score + 1 WHERE username = ?", (p1,))
+                conn.execute("UPDATE users SET score = score + 1 WHERE username = ?", (p2,))
             conn.commit()
         conn.close()
         return redirect(url_for("battle_build", mid=mid))
@@ -806,7 +824,8 @@ def battle_build(mid):
         conn.close(); flash("你的收藏夹是空的，先去抽卡"); return redirect(url_for("battle_home"))
     # 生成/读取强制3张（存下来，刷新不变）
     if not my_forced:
-        forced_ids = [random.choice(collection)["id"] for _ in range(3)]
+        k = min(3, len(collection))                       # 不足3种就有几种抽几种
+        forced_ids = [c["id"] for c in random.sample(collection, k)]   # 按种类抽，不重复
         col = "forced1" if is_p1 else "forced2"
         conn.execute(f"UPDATE matches SET {col}=? WHERE id=?", (json.dumps(forced_ids), mid))
         conn.commit()
@@ -819,26 +838,33 @@ def battle_build(mid):
     return render_template("battle_build.html", mid=mid, collection=collection,
                            forced=forced_cards, already=already)
 
+@app.route("/leaderboard")
+@login_required
+def leaderboard():
+    conn = sqlite3.connect("users.db")
+    rows = conn.execute("SELECT username, score FROM users ORDER BY score DESC, username LIMIT 100").fetchall()
+    conn.close()
+    return render_template("leaderboard.html", rows=rows, me=session["username"])
 
-# 结算结果
 @app.route("/battle/<int:mid>/result")
 @login_required
 def battle_result(mid):
     me = session["username"]
     conn = sqlite3.connect("users.db")
     m = conn.execute("SELECT player1, player2, status, result FROM matches WHERE id=?", (mid,)).fetchone()
+    top3 = conn.execute("SELECT username, score FROM users ORDER BY score DESC, username LIMIT 3").fetchall()
     conn.close()
     if not m or me not in (m[0], m[1]):
         flash("对局无效"); return redirect(url_for("battle_home"))
     if m[2] != "done" or not m[3]:
-        return redirect(url_for("battle_build", mid=mid))   # 还没算完
+        return redirect(url_for("battle_build", mid=mid))
     death_imgs = []
     ddir = os.path.join("static", "deaths")
     if os.path.isdir(ddir):
         death_imgs = [f for f in os.listdir(ddir)
                       if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))]
     return render_template("battle_result.html", mid=mid, result=json.loads(m[3]),
-                           is_p1=(me == m[0]), death_imgs=death_imgs)
+                           is_p1=(me == m[0]), death_imgs=death_imgs, top3=top3)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True, port=5000)

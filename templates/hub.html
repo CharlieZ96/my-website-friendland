@@ -28,6 +28,9 @@
                 text-decoration:none; background:rgb(255, 255, 255); color:#2769b5;
                 border:2px solid #2769b5; transition:0.2s; margin-bottom:20px;}
         .btn4:hover { opacity:0.85; transform:translateY(-2px); }
+        .btn5 { display: inline-block; width: 200px; box-sizing: border-box; text-align: center;padding:16px 30px; font-size:18px; border-radius:8px;
+               text-decoration:none; background:#ff9b0e; color:white; transition:0.2s; margin-bottom:20px;}
+        .btn5:hover { opacity:0.85; transform:translateY(-2px); }
         .topnav { position:absolute; top:20px; right:24px; display:flex; gap:16px; }
         .topnav a { color:#888; text-decoration:none; font-size:14px; }
     </style>
@@ -46,10 +49,15 @@
     <a href="/jzhyl" class="btn2">JZH语录 →</a>
     <a href="/draw" class="btn3">抽取你的JZH</a>
     <a href="/collection" class="btn4">卡册</a>
-    <a href="/battle" class="btn">JZH对撞</a>
+    <a href="/battle" class="btn5">JZH对撞</a>
+    
     {% if is_admin %}
     <a href="/admin/cards" class="btn" style="background:#e67e22;">卡牌管理</a>
     <a href="/admin/settings" class="btn" style="background:#e67e22;">后台设置</a>
     {% endif %}
+    
+    <a href="/leaderboard" style="display:inline-block; margin-top:24px;
+    background:#241812; border:1px solid #f5b942; color:#f5b942; font-weight:700;
+    padding:8px 24px; border-radius:20px; text-decoration:none;">🏆排行榜</a>
 </body>
 </html>

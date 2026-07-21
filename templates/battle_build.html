@@ -59,19 +59,26 @@
         var up=document.createElement('button'); up.textContent='▲'; up.onclick=function(){mv(i,-1)};
         var dn=document.createElement('button'); dn.textContent='▼'; dn.onclick=function(){mv(i,1)};
         div.appendChild(up); div.appendChild(dn);
-        if(!c._forced){ var rm=document.createElement('button'); rm.textContent='✕'; rm.style.color='#d64545'; rm.onclick=function(){deck.splice(i,1);renderDeck();}; div.appendChild(rm); }
+        if(!c._forced){ var rm=document.createElement('button'); rm.textContent='✕'; rm.style.color='#d64545'; rm.onclick=function(){deck.splice(i,1);renderDeck();renderPool();}; div.appendChild(rm); }
         dv.appendChild(div);
       });
       document.getElementById('count').textContent=deck.length;
     }
 
+    function copies(id){ return deck.filter(function(c){return c.id===id;}).length; }
     function renderPool(){
       var pv=document.getElementById('pool'); pv.innerHTML='';
       COLLECTION.forEach(function(c){
-        var b=document.createElement('div'); b.className='cardbtn';
-        var thumb = c.image ? '<img src="/uploads/'+c.image+'" style="width:80px;height:112px;object-fit:cover;border-radius:6px;display:block;margin:0 auto 4px;">' : '';
-        b.innerHTML=thumb+c.name+'<small>攻'+c.attack+'/孝'+c.defense+'</small>';
-        b.onclick=function(){ if(deck.length>=7){alert('已满7张');return;} var x=Object.assign({},c);x._forced=false;deck.push(x);renderDeck(); };
+        var used=copies(c.id), maxed=used>=c.count;
+        var b=document.createElement('div'); b.className='cardbtn'; b.style.opacity=maxed?0.45:1;
+        var thumb=c.image?'<img src="/uploads/'+c.image+'" style="width:80px;height:112px;object-fit:cover;border-radius:6px;display:block;margin:0 auto 4px;">':'';
+        b.innerHTML=thumb+c.name+'<small>攻'+c.attack+' / 孝'+c.defense+'</small>'+
+          '<small style="color:'+(maxed?'#d64545':'#6bbf8a')+'">已用 '+used+'/'+c.count+'</small>';
+        b.onclick=function(){
+          if(deck.length>=7){alert('已满7张');return;}
+          if(copies(c.id)>=c.count){alert('你只有 '+c.count+' 张「'+c.name+'」');return;}
+          var x=Object.assign({},c); x._forced=false; deck.push(x); renderDeck(); renderPool();
+        };
         pv.appendChild(b);
       });
     }
