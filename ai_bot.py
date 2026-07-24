@@ -6,22 +6,21 @@ import requests
 import time
 import re
 
-# 把 emoji / 各种符号表情清掉，只留朴素文字
+import re
+
+# 去 emoji / 符号表情
 _EMOJI_RE = re.compile(
     "[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U00002300-\U000023FF"
     "\U00002B00-\U00002BFF\U0001F1E6-\U0001F1FF\uFE0F\u200d]",
     flags=re.UNICODE)
 
-# 清掉括号/星号里的动作、神态、心理活动，比如（翻个白眼）（叹气）*笑*【无奈】
+# 去括号/星号里的动作、神态、心理活动：（翻个白眼）(叹气)*笑*【无奈】
 _ACT_RE = re.compile(r"（[^（）]*）|\([^()]*\)|\*[^*]*\*|【[^】]*】")
 
 def _clean(text):
     text = _EMOJI_RE.sub("", text)     # 去 emoji
-    text = _ACT_RE.sub("", text)       # 去括号/星号里的动作神态
+    text = _ACT_RE.sub("", text)       # 去括号/星号里的动作
     return text.strip()
-
-def _clean(text):
-    return _EMOJI_RE.sub("", text).strip()
 
 # ====== DeepSeek 备用接口 ======
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
