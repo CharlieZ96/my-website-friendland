@@ -416,7 +416,7 @@ def board():
         conn.commit()
         enforce_post_limit(conn)
         conn.close()
-        on_new_post(new_post_id)        # ← 加这行：JZH 可能来冒泡回帖
+        on_new_post(new_post_id, content)        # ← 加这行：JZH 可能来冒泡回帖
         return redirect(url_for("board"))
         # 发完刷新回留言板
 

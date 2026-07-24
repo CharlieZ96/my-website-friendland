@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 from werkzeug.security import generate_password_hash
  
-from ai_bot import ask_ai   # 复用你写好的调用函数（里面有人设 PERSONA）
+from ai_bot import ask_ai, build_persona  # 复用你写好的调用函数（里面有人设 PERSONA）
  
 DB = "users.db"
 BOT_NAME = "JZH"            # bot 的账号名 / 大家 @ 的名字
@@ -47,6 +47,15 @@ def ensure_bot():
                 conn.execute(sql)
             except sqlite3.OperationalError:
                 pass
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS bot_memory (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                role TEXT NOT NULL,
+                text TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
         conn.commit()
     finally:
         conn.close()
@@ -129,7 +138,7 @@ def _do_board_reply(post_id, summoned):
         prompt = (f"{who}\n帖子内容：「{content}」\n最近的评论：{ctx}\n"
                   f"请你以JZH的口吻，回一条简短的评论（只回评论本身）。")
  
-        reply = ask_ai(prompt)
+        reply = ask_ai(prompt, system_prompt=build_persona(author))
         if not reply:
             return
         reply = reply.strip()[:200]
@@ -144,10 +153,12 @@ def _do_board_reply(post_id, summoned):
         conn.close()
  
  
-def on_new_post(post_id):
-    """发新帖后调用：按概率让 JZH 冒泡回复。"""
-    if random.random() < BOARD_BUBBLE_CHANCE:
-        run_bg(_do_board_reply, post_id, False)
+def on_new_post(post_id, content=""):
+    # 正贴里 @JZH 就必回；否则按概率随机冒泡
+    if content and ("@JZH" in content.upper() or "@JZH" in content):
+        run_bg(_do_board_reply, post_id, True)      # True=被召唤，必回
+    elif random.random() < BOARD_BUBBLE_CHANCE:
+        run_bg(_do_board_reply, post_id, False)     # False=随机冒泡
  
  
 def on_new_comment(post_id, content):
@@ -157,42 +168,55 @@ def on_new_comment(post_id, content):
  
  
 # ============ 功能三：聊天气泡 ============
+MEMORY_TURNS = 10      # 回复时带上该用户最近多少条对话
+MEMORY_KEEP = 40       # 每个用户最多存多少条记忆（超了删最老的）
+
 def chat(username, message, history):
-    """返回 dict 给前端。reply=回复内容；error=给用户看的提示。"""
     message = (message or "").strip()
     if not message:
         return {"reply": None, "error": "说点什么吧"}
     if len(message) > 200:
         message = message[:200]
- 
+
     conn = _connect()
     try:
         today = datetime.now().strftime("%Y-%m-%d")
-        row = conn.execute(
-            "SELECT bot_chat_day, bot_chat_count FROM users WHERE username=?", (username,)).fetchone()
+        row = conn.execute("SELECT bot_chat_day, bot_chat_count FROM users WHERE username=?", (username,)).fetchone()
         day = row[0] if row else None
         used = row[1] if row and row[1] is not None else 0
         if day != today:
             used = 0
         if used >= BOT_CHAT_DAILY_PER_USER:
-            return {"reply": None, "error": f"今天跟JZH聊得够多啦（每天{BOT_CHAT_DAILY_PER_USER}条），明天再来～"}
- 
+            return {"reply": None, "error": f"找JZH聊天（每天{BOT_CHAT_DAILY_PER_USER}条），明天再来～"}
         if not bot_gate(conn):
-            return {"reply": None, "error": "JZH正忙，没空理你，找真的JZH去"}
- 
-        hist = []
-        if isinstance(history, list):
-            for h in history[-6:]:                 # 只带最近 6 条，省 token
-                t = (h.get("text") or "").strip()
-                if t:
-                    hist.append({"role": "model" if h.get("role") == "model" else "user",
-                                 "text": t[:200]})
- 
-        reply = ask_ai(message, history=hist)
+            return {"reply": None, "error": "JZH没空理你，找真的JZH去"}
+
+        # 从数据库读这个用户最近的对话（跨刷新、跨设备都记得）
+        mem = conn.execute(
+            "SELECT role, text FROM bot_memory WHERE username=? ORDER BY id DESC LIMIT ?",
+            (username, MEMORY_TURNS)).fetchall()
+        hist = [{"role": r, "text": t} for r, t in reversed(mem)]
+
+        # 用"针对这个人的人设"来回复
+        system = build_persona(username)
+        reply = ask_ai(message, system_prompt=system, history=hist)
         if not reply:
             return {"reply": None, "error": "JZH没搭理你，再试一次？"}
         reply = reply.strip()[:300]
- 
+
+        # 把这轮对话存进记忆
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn.execute("INSERT INTO bot_memory (username, role, text, created_at) VALUES (?,?,?,?)",
+                     (username, "user", message, now))
+        conn.execute("INSERT INTO bot_memory (username, role, text, created_at) VALUES (?,?,?,?)",
+                     (username, "model", reply, now))
+        # 每人只保留最近 MEMORY_KEEP 条，超出的删掉
+        old = conn.execute(
+            "SELECT id FROM bot_memory WHERE username=? ORDER BY id DESC LIMIT -1 OFFSET ?",
+            (username, MEMORY_KEEP)).fetchall()
+        for (i,) in old:
+            conn.execute("DELETE FROM bot_memory WHERE id=?", (i,))
+
         used += 1
         conn.execute("UPDATE users SET bot_chat_day=?, bot_chat_count=? WHERE username=?",
                      (today, used, username))
@@ -203,7 +227,6 @@ def chat(username, message, history):
         return {"reply": None, "error": "出了点小问题，稍后再试"}
     finally:
         conn.close()
- 
  
 # ============ 功能二：对战陪玩 ============
 def maybe_bot_join(conn, mid, me):

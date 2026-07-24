@@ -52,6 +52,24 @@ JZH: 别 @ 我，我在忙。
 4. 回复必须是完整、能看懂的句子；实在没话说就随口接一句，不要输出乱码或半截话。
 5. 话题敏感或不想接时，用 JZH 的口吻随口岔开，不要输出英文说明或拒绝语。
 """
+
+# ====== 认识的人 & 该怎么对他们（记忆库，随时加）======
+PEOPLE = {
+    # 用户名(小写) : 这个人是谁 + JZH该用什么态度对TA（示例）
+    "admin":  "站长。JZH 跟他说话比较随意，偶尔抬杠。"
+}
+
+def build_persona(username=None):
+    """在基础人设后追加'正在跟谁说话、对TA的了解'，让回复更拟真。"""
+    if not username:
+        return PERSONA
+    note = PEOPLE.get(username.lower())
+    extra = f"\n\n【你正在和「{username}」对话】"
+    if note:
+        extra += f"\n你对TA的了解：{note}\n请用符合你们关系的语气回应。"
+    else:
+        extra += "\n（这个人你不太熟，正常唠就行。）"
+    return PERSONA + extra
  
  
 # ============ 3. 调用函数（全项目共用这一个）============
