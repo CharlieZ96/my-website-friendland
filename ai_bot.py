@@ -77,16 +77,16 @@ PEOPLE = {
 }
 
 def build_persona(username=None):
-    """在基础人设后追加'正在跟谁说话、对TA的了解'，让回复更拟真。"""
+    tail = "\n\n【务必记住】每次只回1~2句短话，像发微信，别解释、别客气、别铺垫。保持你一贯怼人、阴阳怪气、爱抬杠的攻击性，该损就损。"
     if not username:
-        return PERSONA
+        return PERSONA + tail
     note = PEOPLE.get(username.lower())
     extra = f"\n\n【你正在和「{username}」对话】"
     if note:
         extra += f"\n你对TA的了解：{note}\n请用符合你们关系的语气回应。"
     else:
         extra += "\n（这个人你不太熟，正常唠就行。）"
-    return PERSONA + extra
+    return PERSONA + extra + tail
  
  
 # ============ 3. 调用函数（全项目共用这一个）============
@@ -102,8 +102,8 @@ def _ask_gemini(user_message, system_prompt, history):
         "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": contents,
         "generationConfig": {
-            "maxOutputTokens": 300,
-            "temperature": 0.9,
+            "maxOutputTokens": 80,
+            "temperature": 0.95,
             "thinkingConfig": {"thinkingLevel": "minimal"},
         },
     }
