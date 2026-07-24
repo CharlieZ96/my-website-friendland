@@ -53,6 +53,109 @@ document.addEventListener('submit', function (e) {
     }
 });
 </script>
+<!-- ===== JZH 聊天气泡：粘到 board.html 的 </body> 前面 ===== -->
+<div id="jzh-fab" onclick="jzhToggle()">JZH</div>
+
+<div id="jzh-box">
+  <div id="jzh-head">
+    <span>JZH</span>
+    <span id="jzh-close" onclick="jzhToggle()">✕</span>
+  </div>
+  <div id="jzh-msgs"></div>
+  <div id="jzh-input">
+    <input id="jzh-text" type="text" placeholder="跟JZH说两句…" maxlength="200"
+           onkeydown="if(event.key==='Enter')jzhSend()">
+    <button onclick="jzhSend()">发送</button>
+  </div>
+</div>
+
+<style>
+  /* ===== 想改大小就调下面这几个数 ===== */
+  #jzh-fab{position:fixed;right:18px;bottom:18px;width:46px;height:46px;border-radius:50%;
+    background:#4a7dff;color:#fff;font-size:22px;line-height:46px;text-align:center;cursor:pointer;
+    box-shadow:0 3px 10px rgba(0,0,0,.22);z-index:9998;user-select:none;transition:transform .1s;}
+  #jzh-fab:active{transform:scale(.92);}
+  #jzh-box{position:fixed;right:18px;bottom:74px;width:290px;max-width:86vw;height:400px;max-height:68vh;
+    background:#fff;border-radius:16px;box-shadow:0 8px 26px rgba(0,0,0,.22);z-index:9999;
+    display:none;flex-direction:column;overflow:hidden;font-family:"Microsoft YaHei",sans-serif;}
+  #jzh-box.open{display:flex;}
+  #jzh-head{background:#4a7dff;color:#fff;padding:9px 13px;font-size:13px;font-weight:600;
+    display:flex;justify-content:space-between;align-items:center;}
+  #jzh-close{cursor:pointer;font-weight:400;opacity:.9;font-size:14px;}
+  #jzh-msgs{flex:1;overflow-y:auto;padding:11px;background:#f5f7fa;font-size:13px;}   /* ← 消息字号 */
+  .jzh-row{margin:5px 0;display:flex;}
+  .jzh-row.me{justify-content:flex-end;}
+  .jzh-b{max-width:76%;padding:7px 10px;border-radius:12px;line-height:1.45;word-break:break-word;}
+  .jzh-row.me  .jzh-b{background:#4a7dff;color:#fff;border-bottom-right-radius:4px;}
+  .jzh-row.bot .jzh-b{background:#fff;color:#333;border:1px solid #e6e9f0;border-bottom-left-radius:4px;}
+  .jzh-tip{text-align:center;color:#9aa0ab;font-size:11px;margin:6px 4px;line-height:1.4;}
+  #jzh-input{display:flex;border-top:1px solid #eef0f4;padding:7px;gap:6px;background:#fff;}
+  #jzh-text{flex:1;border:1px solid #d8dce4;border-radius:16px;padding:7px 11px;font-size:13px;outline:none;}
+  #jzh-text:focus{border-color:#4a7dff;}
+  #jzh-input button{border:none;background:#4a7dff;color:#fff;border-radius:16px;padding:0 14px;
+    font-size:13px;cursor:pointer;white-space:nowrap;}
+</style>
+
+<script>
+  let jzhHistory = [];
+  let jzhBusy = false;
+
+  function jzhToggle(){
+    const box = document.getElementById('jzh-box');
+    box.classList.toggle('open');
+    if(box.classList.contains('open') && jzhHistory.length===0){
+      jzhAddTip('这是 AI JZH，随便聊两句吧（每天有次数限制）');
+    }
+  }
+  function jzhAddMsg(text, who){
+    const wrap = document.getElementById('jzh-msgs');
+    const row = document.createElement('div');
+    row.className = 'jzh-row ' + who;
+    const b = document.createElement('div');
+    b.className = 'jzh-b';
+    b.textContent = text;
+    row.appendChild(b);
+    wrap.appendChild(row);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+  function jzhAddTip(text){
+    const wrap = document.getElementById('jzh-msgs');
+    const t = document.createElement('div');
+    t.className = 'jzh-tip';
+    t.textContent = text;
+    wrap.appendChild(t);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+  async function jzhSend(){
+    if(jzhBusy) return;
+    const input = document.getElementById('jzh-text');
+    const msg = input.value.trim();
+    if(!msg) return;
+    input.value = '';
+    jzhAddMsg(msg, 'me');
+    jzhHistory.push({role:'user', text:msg});
+    jzhBusy = true;
+    try{
+      const r = await fetch('/bot/chat', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({message: msg, history: jzhHistory})
+      });
+      const data = await r.json();
+      if(data.reply){
+        jzhAddMsg(data.reply, 'bot');
+        jzhHistory.push({role:'model', text:data.reply});
+      }else{
+        jzhAddTip(data.error || 'JZH没搭理你');
+      }
+    }catch(e){
+      jzhAddTip('网络出错了，待会再试');
+    }finally{
+      jzhBusy = false;
+    }
+  }
+</script>
+<!-- ===== 聊天气泡结束 ===== -->
 
 <body>
     <div class="container">

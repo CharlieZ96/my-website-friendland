@@ -70,7 +70,7 @@
 <div class="wrap">
   <div class="title">⚔️ JZH对撞中 · #{{ mid }}</div>
   <div class="legend">⚔ 攻击力　♥ 孝心值</div>
-  <div class="sidelabel">对手</div>
+  <div class="sidelabel">对手 · {{ opponent }}</div>
   <div class="lane" id="opplane"></div>
   <div class="arena" id="arena">
     <div class="flash" id="flash"></div>
@@ -118,14 +118,14 @@
     if(s.msg){var l=document.getElementById('log');var d=document.createElement('div');d.textContent=s.msg;l.appendChild(d);l.scrollTop=l.scrollHeight;}
     if(s.type==='clash'){
       var dm=IS_P1?s.dmgA:s.dmgB, dop=IS_P1?s.dmgB:s.dmgA;
-      document.getElementById('bigOpp').style.animation='lungeR .45s';
-      document.getElementById('bigMe').style.animation='lungeL .45s';
-      document.getElementById('arena').style.animation='shake .45s';
+      document.getElementById('bigOpp').style.animation='lungeR .6s';
+      document.getElementById('bigMe').style.animation='lungeL .6s';
+      document.getElementById('arena').style.animation='shake .6s';
       document.getElementById('flash').style.animation='flashk .4s';
       floatDmg('bigOpp',dop); floatDmg('bigMe',dm);
-      setTimeout(function(){ ['bigOpp','bigMe','arena','flash'].forEach(function(x){document.getElementById(x).style.animation='';}); },460);
+      setTimeout(function(){ ['bigOpp','bigMe','arena','flash'].forEach(function(x){document.getElementById(x).style.animation='';}); },620);
     }
-    setTimeout(play, s.type==='clash'?950:650);
+    setTimeout(play, s.type==='clash'?1900:1000);
   }
   function endB(){ var w=RESULT.winner, win=(w==='player1'&&IS_P1)||(w==='player2'&&!IS_P1);
     document.getElementById('bBig').textContent = w==='draw'?'平 局':win?'胜 利':'败 北';

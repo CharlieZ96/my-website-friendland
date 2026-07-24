@@ -11,6 +11,8 @@ from flask import send_from_directory
 import random
 from datetime import datetime, timedelta
 import json
+from bot_actions import (ensure_bot, on_new_post, on_new_comment,
+                         chat as bot_chat, maybe_bot_join, bot_fill_deck_if_needed)
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -162,6 +164,17 @@ def enforce_post_limit(conn):
         delete_post_comments(conn, pid)
     conn.commit()
 
+MATCH_KEEP = 70          # 最多保留多少条对局记录（想更省就改小，比如 100）
+
+def enforce_match_limit(conn):
+    # 只删“已结束”里最老的、超出保留数量的那些
+    rows = conn.execute(
+        "SELECT id FROM matches WHERE status='done' ORDER BY id DESC LIMIT -1 OFFSET ?",
+        (MATCH_KEEP,)).fetchall()
+    for (mid,) in rows:
+        conn.execute("DELETE FROM matches WHERE id=?", (mid,))
+    conn.commit()
+
 def validate(username, password):
     username = (username or "").strip()      # 去掉首尾空格
     password = password or ""
@@ -295,7 +308,8 @@ def resolve_battle(deck1_ids, deck2_ids, conn):
     return new_name
 
 
-init_db()                                     # 程序一启动就执行一次
+init_db()
+ensure_bot()                                     # 程序一启动就执行一次
 # 守卫：贴在哪个页面上，哪个页面就必须登录才能进
 def login_required(f):
     @wraps(f)
@@ -396,11 +410,13 @@ def board():
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
         conn = sqlite3.connect("users.db")
-        conn.execute("INSERT INTO posts (username, content, created_at, is_anon, image) VALUES (?, ?, ?, ?, ?)",
+        cur = conn.execute("INSERT INTO posts (username, content, created_at, is_anon, image) VALUES (?, ?, ?, ?, ?)",
                      (session["username"], content, now, is_anon, image_name))
+        new_post_id = cur.lastrowid
         conn.commit()
-        enforce_post_limit(conn)        # ← 加这行：超上限就删最老的
+        enforce_post_limit(conn)
         conn.close()
+        on_new_post(new_post_id)        # ← 加这行：JZH 可能来冒泡回帖
         return redirect(url_for("board"))
         # 发完刷新回留言板
 
@@ -474,6 +490,7 @@ def add_comment(post_id):
                  (post_id, session["username"], content, now, image_name))
     conn.commit()
     conn.close()
+    on_new_comment(post_id, content)    # ← 加这行：评论里 @JZH 就召唤它
     return redirect(url_for("board"))
 
 @app.route("/delete/<int:post_id>", methods=["POST"])
@@ -741,9 +758,10 @@ def battle_page(mid):
     conn.close()
     if not row:
         flash("对局不存在"); return redirect(url_for("battle_home"))
-    if session["username"] not in (row[0], row[1]):     # 只有双方能看
+    if session["username"] not in (row[0], row[1]):
         flash("这不是你的对局"); return redirect(url_for("battle_home"))
-    return render_template("battle.html", mid=mid, me=session["username"])
+    opponent = (row[1] if session["username"] == row[0] else row[0]) or "等待对手中…"
+    return render_template("battle.html", mid=mid, me=session["username"], opponent=opponent)
 
 # 对局状态（轮询用，返回 JSON）
 @app.route("/battle/<int:mid>/state")
@@ -753,6 +771,7 @@ def battle_state(mid):
     conn = sqlite3.connect("users.db")
     conn.execute("UPDATE matches SET last_seen=? WHERE id=?", (now, mid))
     conn.commit()
+    maybe_bot_join(conn, mid, session["username"])   # ← 加这行：等久了 JZH 来当对手
     row = conn.execute("SELECT player1, player2, status, deck1, deck2 FROM matches WHERE id=?", (mid,)).fetchone()
     conn.close()
     if not row:
@@ -800,6 +819,7 @@ def battle_build(mid):
         col = "deck1" if is_p1 else "deck2"
         conn.execute(f"UPDATE matches SET {col}=? WHERE id=?", (json.dumps(deck), mid))
         conn.commit()
+        bot_fill_deck_if_needed(conn, mid, p1, p2)   # 对手是JZH就帮它组牌
         cur = conn.execute("SELECT deck1, deck2 FROM matches WHERE id=?", (mid,)).fetchone()
         if cur[0] and cur[1]:
             res = resolve_battle(json.loads(cur[0]), json.loads(cur[1]), conn)
@@ -815,6 +835,7 @@ def battle_build(mid):
                 conn.execute("UPDATE users SET score = score + 1 WHERE username = ?", (p1,))
                 conn.execute("UPDATE users SET score = score + 1 WHERE username = ?", (p2,))
             conn.commit()
+            enforce_match_limit(conn)      # 清理老对局
         conn.close()
         return redirect(url_for("battle_build", mid=mid))
 
@@ -834,9 +855,10 @@ def battle_build(mid):
     cardmap = {c["id"]: c for c in collection}
     forced_cards = [cardmap[i] for i in forced_ids if i in cardmap]
     already = my_deck is not None
+    opponent = (p2 if is_p1 else p1) or "等待对手中…"      # ← 新增：算出对手名字
     conn.close()
     return render_template("battle_build.html", mid=mid, collection=collection,
-                           forced=forced_cards, already=already)
+                           forced=forced_cards, already=already, opponent=opponent)   # ← 末尾多传 opponent
 
 @app.route("/leaderboard")
 @login_required
@@ -863,8 +885,17 @@ def battle_result(mid):
     if os.path.isdir(ddir):
         death_imgs = [f for f in os.listdir(ddir)
                       if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))]
+    opponent = m[1] if me == m[0] else m[0]      # ← 新增：算出对手名字
     return render_template("battle_result.html", mid=mid, result=json.loads(m[3]),
-                           is_p1=(me == m[0]), death_imgs=death_imgs, top3=top3)
+                           is_p1=(me == m[0]), death_imgs=death_imgs, top3=top3,
+                           opponent=opponent)     # ← 末尾多传 opponent
+
+@app.route("/bot/chat", methods=["POST"])
+@login_required
+def bot_chat_route():
+    data = request.get_json(silent=True) or {}
+    return bot_chat(session["username"], data.get("message", ""), data.get("history", []))
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True, port=5000)

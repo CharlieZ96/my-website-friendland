@@ -25,7 +25,9 @@
 {% if already %}
   <div class="wait">
     <p>✅ 已提交，等待对手排兵…</p>
+    <p style="font-size:15px;color:#c99a5a;">对手：{{ opponent }}</p>
     <div style="font-size:40px;">⏳</div>
+  </div>
   </div>
   <script>
     var mid = {{ mid }};
@@ -38,6 +40,7 @@
   </script>
 {% else %}
   <h2>选择你的JZH · #{{ mid }}</h2>
+  <div style="color:#f5b942;font-size:14px;margin:-6px 0 10px;">⚔ 对手：<b>{{ opponent }}</b></div>
   <div class="label">出战顺序（前3张随机抽到·必上）· <span id="count">3</span>/7</div>
   <div id="deck"></div>
   <div class="label">从收藏夹选（最多再选4张）</div>
