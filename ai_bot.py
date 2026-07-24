@@ -8,7 +8,7 @@ import time
 # ====== DeepSeek 备用接口 ======
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
-DEEPSEEK_MODEL = "deepseek-v4-flash"
+DEEPSEEK_MODEL = "deepseek-chat"
 
 # 熔断：Gemini 连续报错超过几次，就暂时改用 DeepSeek
 GEM_FAIL_THRESHOLD = 3      # 连续错几次触发切换
