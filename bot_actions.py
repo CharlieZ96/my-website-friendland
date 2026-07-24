@@ -168,7 +168,7 @@ def on_new_comment(post_id, content):
  
  
 # ============ 功能三：聊天气泡 ============
-MEMORY_TURNS = 4      # 回复时带上该用户最近多少条对话
+MEMORY_TURNS = 1      # 回复时带上该用户最近多少条对话
 MEMORY_KEEP = 40       # 每个用户最多存多少条记忆（超了删最老的）
 
 def chat(username, message, history):

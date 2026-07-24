@@ -102,7 +102,7 @@ def _ask_gemini(user_message, system_prompt, history):
         "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": contents,
         "generationConfig": {
-            "maxOutputTokens": 80,
+            "maxOutputTokens": 70,
             "temperature": 0.95,
             "thinkingConfig": {"thinkingLevel": "minimal"},
         },
@@ -128,7 +128,7 @@ def _ask_deepseek(user_message, system_prompt, history):
             messages.append({"role": role, "content": h.get("text", "")})
     messages.append({"role": "user", "content": user_message})
     body = {"model": DEEPSEEK_MODEL, "messages": messages,
-            "max_tokens": 300, "temperature": 0.9}
+            "max_tokens": 70, "temperature": 0.9}
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}",
                "Content-Type": "application/json"}
     r = requests.post(DEEPSEEK_URL, headers=headers, json=body, timeout=30)
