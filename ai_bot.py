@@ -8,7 +8,7 @@ import time
 # ====== DeepSeek 备用接口 ======
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
-DEEPSEEK_MODEL = "deepseek-chat"
+DEEPSEEK_MODEL = "deepseek-v4-flash"
 
 # 熔断：Gemini 连续报错超过几次，就暂时改用 DeepSeek
 GEM_FAIL_THRESHOLD = 3      # 连续错几次触发切换
@@ -121,31 +121,19 @@ def _ask_deepseek(user_message, system_prompt, history):
 
 
 def ask_ai(user_message, system_prompt=PERSONA, history=None):
-    global _gem_fails, _gem_block_until
-    now = time.time()
-
-    # 不在冷却期才试 Gemini
-    if now >= _gem_block_until:
-        try:
-            reply = _ask_gemini(user_message, system_prompt, history)
-            if reply:
-                _gem_fails = 0                    # 成功，计数清零
-                return reply
-            print("【Gemini空回复，本次改用DeepSeek】")   # 空回复不计入熔断，仅本次兜底
-        except Exception as e:
-            _gem_fails += 1
-            print(f"【Gemini报错第{_gem_fails}次】", repr(e))
-            if _gem_fails >= GEM_FAIL_THRESHOLD:
-                _gem_block_until = now + GEM_COOLDOWN
-                _gem_fails = 0
-                print(f"【连续{GEM_FAIL_THRESHOLD}次出错，暂时改用DeepSeek {GEM_COOLDOWN}秒】")
-
-    # 走到这：Gemini 没成 或 处于冷却期 → 用 DeepSeek 兜底
+    # 优先 DeepSeek（中文好、已付费）；它出错或没返回，再退回 Gemini 兜底
     try:
         reply = _ask_deepseek(user_message, system_prompt, history)
         if reply:
             return reply
-        print("【DeepSeek也没返回】")
+        print("【DeepSeek空回复，改试Gemini】")
     except Exception as e:
-        print("【DeepSeek出错】", repr(e))
+        print("【DeepSeek出错，改试Gemini】", repr(e))
+    try:
+        reply = _ask_gemini(user_message, system_prompt, history)
+        if reply:
+            return reply
+        print("【Gemini也没返回】")
+    except Exception as e:
+        print("【Gemini出错】", repr(e))
     return None
