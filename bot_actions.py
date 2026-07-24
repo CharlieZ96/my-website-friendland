@@ -17,9 +17,9 @@ DB = "users.db"
 BOT_NAME = "JZH"            # bot 的账号名 / 大家 @ 的名字
  
 # ====== 各种限额（想调就改这里）======
-BOT_DAILY_LIMIT = 300          # 全站每天最多调用 AI 多少次（免费额度 ~1500，留足余量）
-BOT_MIN_INTERVAL = 4           # 两次 AI 调用至少间隔几秒（4 秒 ≈ 每分钟 15 次，卡在免费上限内）
-BOT_CHAT_DAILY_PER_USER = 20   # 每个用户每天最多找 JZH 聊几句
+BOT_DAILY_LIMIT = 3000          # 全站每天最多调用 AI 多少次（免费额度 ~1500，留足余量）
+BOT_MIN_INTERVAL = 2           # 两次 AI 调用至少间隔几秒（4 秒 ≈ 每分钟 15 次，卡在免费上限内）
+BOT_CHAT_DAILY_PER_USER = 200   # 每个用户每天最多找 JZH 聊几句
 BOARD_BUBBLE_CHANCE = 0.15     # 发新帖时，JZH 随机冒泡回复的概率（0.15 = 15%）
 BATTLE_WAIT_SECONDS = 8        # 匹配等待超过几秒，JZH 才可能来陪打
 BATTLE_JOIN_CHANCE = 0.5       # 超时后每次轮询，JZH 加入的概率
