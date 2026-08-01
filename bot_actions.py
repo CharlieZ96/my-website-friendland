@@ -257,24 +257,33 @@ def maybe_bot_join(conn, mid, me):
  
  
 def _bot_build_deck(conn):
-    """从 JZH 账户真实拥有的卡里组一副 7 张的牌，规则和真人一样：每张不超过拥有数量。"""
+    """从 JZH 拥有的卡里组 7 张，优先用稀有卡（爆率越低权重越高）；每张不超过拥有数量。"""
     rows = conn.execute(
-        "SELECT card_id, SUM(count) FROM user_cards WHERE username=? GROUP BY card_id",
-        (BOT_NAME,)).fetchall()
-    owned = [(cid, int(cnt)) for cid, cnt in rows if cnt and cnt > 0]
+        "SELECT uc.card_id, SUM(uc.count), c.drop_rate "
+        "FROM user_cards uc JOIN cards c ON uc.card_id = c.id "
+        "WHERE uc.username = ? GROUP BY uc.card_id", (BOT_NAME,)).fetchall()
+    owned = [(cid, int(cnt), (float(rate) if rate is not None else 1.0))
+             for cid, cnt, rate in rows if cnt and cnt > 0]
  
     if owned:
-        # 把拥有的卡按数量展开成"一张张实体牌"，再随机抽 7 张（自动满足"不超过拥有数"）
-        pool = []
-        for cid, cnt in owned:
-            pool.extend([cid] * cnt)
-        if len(pool) >= 7:
-            return random.sample(pool, 7)
-        # 拥有总数不足 7 张：就用它拥有的这几种，随便凑够 7 张（可能重复）
-        types = [cid for cid, _ in owned]
-        return [random.choice(types) for _ in range(7)]
+        # 爆率越低 → 权重越高（越优先选）。+0.5 防止除零、也压一下极端值
+        weight = {cid: 1.0 / (rate + 0.5) for cid, cnt, rate in owned}
+        avail = {cid: cnt for cid, cnt, _ in owned}
+        deck = []
+        for _ in range(7):
+            cands = [cid for cid in avail if avail[cid] > 0]     # 还没用完的卡
+            if not cands:
+                break
+            pick = random.choices(cands, weights=[weight[c] for c in cands], k=1)[0]
+            deck.append(pick)
+            avail[pick] -= 1
+        # 拥有总数不足 7 张：按权重（仍偏稀有）补满
+        while len(deck) < 7:
+            cids = [c for c, _, _ in owned]
+            deck.append(random.choices(cids, weights=[weight[c] for c in cids], k=1)[0])
+        return deck
  
-    # 兜底：JZH 一张卡都没有时，从所有卡里抽，保证对战还能正常进行
+    # 兜底：JZH 一张卡都没有时，从所有卡里随机抽，保证对战还能进行
     allcards = [r[0] for r in conn.execute("SELECT id FROM cards").fetchall()]
     if not allcards:
         return None
