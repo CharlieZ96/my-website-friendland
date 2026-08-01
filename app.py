@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import json
 from bot_actions import (ensure_bot, on_new_post, on_new_comment,
                          chat as bot_chat, maybe_bot_join, bot_fill_deck_if_needed)
+import pet
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -310,6 +311,7 @@ def resolve_battle(deck1_ids, deck2_ids, conn):
 
 init_db()
 ensure_bot()                                     # 程序一启动就执行一次
+pet.ensure_pet_tables()      # ← 加这行
 # 守卫：贴在哪个页面上，哪个页面就必须登录才能进
 def login_required(f):
     @wraps(f)
@@ -896,6 +898,32 @@ def bot_chat_route():
     data = request.get_json(silent=True) or {}
     return bot_chat(session["username"], data.get("message", ""), data.get("history", []))
 
+@app.route("/pet")
+@login_required
+def pet_page():
+    return render_template("pet.html")
+
+@app.route("/pet/state")
+@login_required
+def pet_state():
+    return pet.get_state(session["username"])
+
+@app.route("/pet/act", methods=["POST"])
+@login_required
+def pet_act():
+    data = request.get_json(silent=True) or {}
+    return pet.act(session["username"], data.get("action", ""))
+
+@app.route("/plaza")
+@login_required
+def plaza_page():
+    return render_template("plaza.html")
+
+@app.route("/plaza/pets")
+@login_required
+def plaza_pets():
+    return pet.plaza_data(session["username"])
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=False, port=5000)
+    app.run(host="0.0.0.0", debug=True, port=5000)

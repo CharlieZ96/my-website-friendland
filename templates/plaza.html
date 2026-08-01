@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>牧场 · 托管JZH</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#D9E2EC;color:#262B33;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;padding:18px 12px 40px}
+  .wrap{max-width:520px;margin:0 auto}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  h1{font-size:22px;margin:0}
+  h1 em{font-style:normal;color:#6D4FA3}
+  .back{font-size:13px;color:#6B7683;text-decoration:none}
+  .hint{text-align:center;color:#6B7683;font-size:12px;margin:2px 0 12px}
+  .field{position:relative;height:300px;border-radius:18px;overflow:hidden;
+    background:linear-gradient(180deg,#CDEBD0 0 62%,#A6DBA9 62%);box-shadow:inset 0 -10px 24px rgba(0,0,0,.06)}
+  .pw{position:absolute;bottom:10px;width:72px;text-align:center;transition:left 3s linear;z-index:1}
+  .pw svg{width:72px;height:72px;image-rendering:pixelated;display:block;margin:0 auto}
+  .pw .nm{font-size:11px;background:#fff;border-radius:8px;padding:0 6px;display:inline-block;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .pw.me .nm{background:#F5A623;font-weight:700}
+  .pw .bb{position:absolute;bottom:76px;left:50%;transform:translateX(-50%);background:#fff;border:1.5px solid #333;border-radius:10px;padding:2px 8px;font-size:11px;white-space:nowrap;opacity:0;transition:opacity .2s;z-index:2}
+  .pw .bb.on{opacity:1}
+  .empty{text-align:center;color:#4a6b4a;padding-top:120px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar"><h1>🌿 <em>牧场</em></h1><a class="back" href="/pet">← 回养成</a></div>
+  <p class="hint">这里是大家托管的JZH。金色名字的是你自己的，回养成页可以把它领回。</p>
+  <div class="field" id="field"></div>
+</div>
+
+<script src="/static/pet_sprite.js"></script>
+<script>
+let PETS=[], SAY={}, ME="";
+
+async function loadPlaza(){
+  try{
+    const r=await fetch('/plaza/pets'); const d=await r.json();
+    PETS=d.pets||[]; SAY=d.sayings||{}; ME=d.me||"";
+  }catch(e){ return; }
+  const field=document.getElementById('field'); field.innerHTML="";
+  if(!PETS.length){ field.innerHTML='<div class="empty">牧场空荡荡的～<br>去养成页把你的JZH「送去牧场托管」吧</div>'; return; }
+  const W=Math.max(40, field.clientWidth-72);
+  PETS.forEach(p=>{
+    const node=document.createElement('div');
+    node.className='pw'+(p.owner===ME?' me':'');
+    node.innerHTML=petSVG(p)+`<div class="bb"></div><div class="nm">${(p.name||'JZH')}${p.owner===ME?'（你的）':''}</div>`;
+    node.style.left=(Math.random()*W)+'px';
+    field.appendChild(node);
+    p._node=node; p._W=W;
+    wander(p);
+  });
+}
+function wander(p){
+  function step(){
+    if(!p._node||!document.body.contains(p._node)) return;
+    const nx=Math.random()*p._W;
+    const cur=parseFloat(p._node.style.left)||0;
+    const svg=p._node.querySelector('svg');
+    if(svg) svg.style.transform = (nx<cur?'scaleX(-1)':'scaleX(1)');
+    p._node.style.left=nx+'px';
+    setTimeout(step, 2500+Math.random()*3500);
+  }
+  setTimeout(step, Math.random()*2000);
+}
+function chatter(){
+  if(!PETS.length) return;
+  const p=PETS[Math.floor(Math.random()*PETS.length)];
+  const pool=(SAY[p.stage]||SAY['adult']||['…']);
+  const bb=p._node&&p._node.querySelector('.bb');
+  if(bb){ bb.textContent=pool[Math.floor(Math.random()*pool.length)]; bb.classList.add('on'); setTimeout(()=>bb.classList.remove('on'),2400); }
+}
+loadPlaza();
+setInterval(chatter, 2600);
+setInterval(loadPlaza, 60000);   // 每分钟刷新名单（有新托管进来会出现）
+</script>
+</body>
+</html>

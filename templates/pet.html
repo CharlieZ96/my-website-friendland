@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>像素JZH · 养成</title>
+<style>
+  :root{--sky:#D9E2EC;--paper:#fff;--ink:#262B33;--muted:#6B7683;--grape:#6D4FA3;--marigold:#F5A623;--coral:#FF7A59;--line:#C6D0DA;--green:#5FBF8F;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--sky);color:var(--ink);font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;padding:18px 12px 50px}
+  .wrap{max-width:460px;margin:0 auto}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  h1{font-size:22px;margin:0}
+  h1 em{font-style:normal;color:var(--grape)}
+  .back{font-size:13px;color:var(--muted);text-decoration:none}
+  .panel{background:var(--paper);border-radius:22px;padding:16px;box-shadow:0 10px 26px rgba(38,43,51,.10)}
+  .stage{position:relative;border-radius:16px;padding:10px;background:linear-gradient(180deg,#F7FAFD 0 68%,#E9EFF6 68%);display:flex;align-items:center;justify-content:center;min-height:230px;cursor:pointer;user-select:none}
+  .stage svg{width:min(200px,52vw);height:auto;image-rendering:pixelated}
+  .bubble{position:absolute;top:8px;left:50%;transform:translate(-50%,8px) scale(.85);opacity:0;font-size:16px;color:var(--grape);background:#fff;border:2px solid var(--ink);border-radius:14px;padding:4px 14px;pointer-events:none;transition:all .2s cubic-bezier(.2,1.6,.4,1);white-space:nowrap;z-index:3}
+  .bubble.on{opacity:1;transform:translate(-50%,0) scale(1)}
+  .nameline{text-align:center;margin:8px 0 2px}
+  .nameline b{font-size:20px}
+  .tag{display:inline-block;font-size:12px;background:var(--grape);color:#fff;border-radius:999px;padding:2px 10px;margin-left:6px;vertical-align:middle}
+  .sub{text-align:center;color:var(--muted);font-size:12px;margin:0 0 10px}
+  .bars{display:grid;gap:7px;margin-top:6px}
+  .bar{display:grid;grid-template-columns:56px 1fr 34px;align-items:center;gap:8px;font-size:12px}
+  .track{height:13px;background:#EDF1F5;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+  .fill{height:100%;border-radius:999px;transition:width .4s}
+  .bar span:last-child{color:var(--muted);text-align:right}
+  .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .btn{font-weight:700;font-size:14px;cursor:pointer;flex:1 1 auto;border:2px solid var(--ink);border-radius:12px;padding:10px 12px;background:#fff;color:var(--ink);box-shadow:3px 3px 0 var(--ink);transition:transform .1s,box-shadow .1s}
+  .btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+  .btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
+  .btn.y{background:var(--marigold)}.btn.c{background:var(--coral)}.btn.g{background:var(--green)}.btn.p{background:var(--grape);color:#fff}
+  .btn.sm{font-size:12px;padding:6px 11px;box-shadow:2px 2px 0 var(--ink);flex:0 0 auto}
+  h2{font-size:12px;letter-spacing:.14em;color:var(--muted);margin:18px 0 8px}
+  .swatches{display:flex;flex-wrap:wrap;gap:8px}
+  .sw{width:32px;height:32px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px var(--line);cursor:pointer;padding:0}
+  .sw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--grape)}
+  .lbl{font-size:12px;color:var(--muted);margin:12px 0 6px}
+  .plazalink{display:block;text-align:center;margin-top:14px;font-size:14px;color:var(--grape);text-decoration:none;font-weight:700}
+  .logbook{background:#F5F8FB;border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;line-height:1.8;color:#4a5561;max-height:190px;overflow:auto}
+  .logbook .t{color:#9aa0ab;font-size:11px;margin-left:6px}
+  .logbook .empty{color:#9aa0ab;font-size:12px}
+  .famempty{color:#9aa0ab;font-size:12px;grid-column:1/-1;white-space:nowrap}
+  .famgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+  .fam{background:#fff;border:2px solid var(--line);border-radius:12px;padding:6px;text-align:center}
+  .fam svg{width:54px;height:54px;image-rendering:pixelated}
+  .fam b{display:block;font-size:12px}
+  .fam small{color:var(--muted);font-size:10px;display:block}
+  .sprite{animation:float 3.2s ease-in-out infinite alternate}
+  @keyframes float{from{transform:translateY(0)}to{transform:translateY(-6px)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar"><h1>像素<em>JZH</em></h1><div><span id="coins" style="font-weight:700;margin-right:12px">🪙 0</span><a class="back" href="/hub">← 回主页</a></div></div>
+  <div class="panel">
+    <div class="stage" id="stage"><div class="bubble" id="bubble">…</div><div id="petView"></div></div>
+    <div class="nameline"><b id="petName">JZH</b><span class="tag" id="stageTag"></span></div>
+    <p class="sub" id="petSub"></p>
+    <div class="bars" id="bars"></div>
+    <div class="row" id="actions"></div>
+    <h2>换装</h2>
+    <div class="row" id="hats" style="margin-top:0"></div>
+    <p class="lbl">上衣</p><div class="swatches" id="swOutfit"></div>
+    <p class="lbl">发色</p><div class="swatches" id="swHair"></div>
+    <p class="lbl">肤色</p><div class="swatches" id="swSkin"></div>
+    <a class="plazalink" href="/plaza">🌿 去牧场看看大家的JZH →</a>
+  </div>
+  <div class="panel" style="margin-top:14px">
+    <h2 style="margin-top:0">📖 成长记录册</h2>
+    <div id="logbook" class="logbook"></div>
+    <h2>👶 家族相册 · 后代</h2>
+    <div id="family" class="famgrid"></div>
+  </div>
+</div>
+
+<script src="/static/pet_sprite.js"></script>
+<script>
+let S=null;
+async function apiState(){const r=await fetch('/pet/state');return r.json();}
+async function apiAct(action){const r=await fetch('/pet/act',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});return r.json();}
+function say(t){if(!t)return;const b=document.getElementById('bubble');b.textContent=t;b.classList.add('on');clearTimeout(b._t);b._t=setTimeout(()=>b.classList.remove('on'),1600);}
+function fmt(sec){const m=Math.ceil(sec/60);return m>=60?Math.ceil(m/60)+'小时':m+'分';}
+const STAGE_NAME={cocoon:"睡袋",kid:"幼年",adult:"成年",old:"老年",cloud:"云"};
+
+function render(){
+  document.getElementById('coins').textContent="🪙 "+Math.floor(S.coins||0);
+  document.getElementById('petView').innerHTML=petSVG(S);
+  document.getElementById('petName').textContent=S.name||"新的JZH";
+  document.getElementById('stageTag').textContent=STAGE_NAME[S.stage]||S.stage;
+
+  let sub;
+  if(S.stage==="cloud"){ sub="🌥️ 你的JZH化作了一朵云…"; }
+  else if(S.needs_name){ sub="先给它起个名字吧～"; }
+  else if(S.stage==="cocoon"){ sub=`还在睡 · 唤醒 ${S.wake}/${S.wakes_need}`+(S.can_wake?"":` · ${fmt(S.wake_in)}后可叫`); }
+  else if(S.status==="plaza"){ sub="🌿 正在牧场托管中"; }
+  else if(S.status&&S.status!=="home"){ sub=(S.status==="working"?"外出打工中…":"外出购物中…")+(S.can_collect?" 已回来，快收！":` 还要 ${fmt(S.out_in)}`); }
+  else if(S.stage==="old"){ sub="老年 · 安享晚年，好好陪陪它"; }
+  else if(S.stage==="kid"){ sub=`幼年 · 成长 ${S.growth}/${S.growth_need}`; }
+  else{ sub=`成年 · 好感 ${S.affection}`; }
+  document.getElementById('petSub').textContent=sub;
+
+  const bars = (S.stage==="cocoon") ? [] :
+    [["饱食",S.hunger,"#F5A623"],["清洁",S.clean,"#5FBF8F"],["精神",S.spirit,"#7FB3E8",S.spirit_max],["好感",S.affection,"#FF9FB2"]];
+  document.getElementById('bars').innerHTML = bars.map(([n,v,c,mx])=>{
+    const pct=Math.max(0,Math.min(100, v/(mx||100)*100));
+    return `<div class="bar"><span>${n}</span><div class="track"><div class="fill" style="width:${pct}%;background:${c}"></div></div><span>${Math.round(v)}</span></div>`;
+  }).join("");
+
+  let acts;
+  if(S.stage==="cloud"){
+    acts = `<button class="btn y" data-act="reborn">🌱 迎接新的JZH</button>`;
+  }else if(S.needs_name){
+    acts = `<input id="nameInput" maxlength="8" placeholder="给JZH起个名字（最多8字）" style="flex:1 1 auto;padding:10px 12px;border:2px solid var(--line);border-radius:12px;font-size:14px;outline:none">
+       <button class="btn y" id="nameBtn" style="flex:0 0 auto">确定</button>`;
+  }else if(S.stage==="cocoon"){
+    acts = `<button class="btn y" data-act="wake" ${S.can_wake?"":"disabled"}>${S.can_wake?"叫醒他（点一点）":"还在睡 "+fmt(S.wake_in)+"后可叫"}</button>`;
+  }else if(S.status==="plaza"){
+    acts = `<button class="btn y" data-act="retrieve">🏠 把JZH领回来</button>`;
+  }else if(S.status&&S.status!=="home"){
+    const label=S.status==="working"?"打工":"购物";
+    acts = S.can_collect
+      ? `<button class="btn y" data-act="collect">${S.status==="working"?"💰 收工领钱":"🛍️ 收下战利品"}</button>`
+      : `<button class="btn" disabled>${label}中… ${fmt(S.out_in)}后回来</button>`;
+  }else{
+    // 幼年/成年/老年在家：核心照料一直有；打工/购物/托管只有非老年才有
+    acts = `<button class="btn y" data-act="feed" ${S.can_feed?"":"disabled"}>${S.can_feed?"喂食":"喂食 "+fmt(S.feed_in)+"后"}</button>
+       <button class="btn g" data-act="wash">洗澡</button>
+       <button class="btn c" data-act="pet">摸摸头</button>
+       <button class="btn p" data-act="play">互动</button>
+       <button class="btn" data-act="drop" ${S.can_drop?"":"disabled"}>${S.can_drop?"🎁 领掉落":(S.has_locked?"掉落 "+fmt(S.drop_in)+"后":"装扮已集齐")}</button>`;
+    if(S.stage!=="old"){
+      acts += `
+       <button class="btn c" data-act="work">🛠️ 出去打工</button>
+       <button class="btn p" data-act="shop">🛍️ 出去购物 🪙${S.shop_cost}</button>
+       <button class="btn g" data-act="consign">🌿 送去牧场托管</button>`;
+    }
+  }
+  document.getElementById('actions').innerHTML = acts;
+
+  // 换装（只有已解锁的能点，锁着的变灰 🔒）
+  const owned = S.owned || {hat:[],outfit:[],hair:[],skin:[]};
+  document.getElementById('hats').innerHTML = Object.keys(HATS).map(h=>{
+    const has=(owned.hat||[]).includes(h);
+    return `<button class="btn sm ${S.hat===h?'p':''}" data-hat="${h}" ${has?'':'disabled'}>${has?h:'🔒'+h}</button>`;
+  }).join("");
+  const sw=(arr,key,colorOf)=>arr.map((x,i)=>{
+    const has=(owned[key]||[]).includes(i);
+    return `<button class="sw" data-set="${key}" data-i="${i}" style="background:${colorOf(x)};${has?'':'opacity:.28'}" aria-pressed="${(S[key]||0)===i}" ${has?'':'disabled'} title="${has?'':'未解锁'}"></button>`;
+  }).join("");
+  document.getElementById('swOutfit').innerHTML=sw(OUTFITS,"outfit",x=>x.main);
+  document.getElementById('swHair').innerHTML=sw(HAIRS,"hair",x=>x.k);
+  document.getElementById('swSkin').innerHTML=sw(SKINS,"skin",x=>x.s);
+
+  // 成长记录册
+  const lb=document.getElementById('logbook');
+  if(S.log&&S.log.length){ lb.innerHTML=S.log.map(e=>`<div>${e.text}<span class="t">${e.t||''}</span></div>`).join(""); }
+  else{ lb.innerHTML='<div class="empty">还没有记录～把JZH托管到牧场，它会遇到别的JZH、留下故事。</div>'; }
+
+  // 家族相册（后代）
+  const fg=document.getElementById('family');
+  if(S.family&&S.family.length){
+    fg.innerHTML=S.family.map(c=>{
+      const svg=petSVG({version:c.version||'v1',stage:'kid',hat:'光头',outfit:0,hair:0,skin:0});
+      return `<div class="fam">${svg}<b>${c.name||'未命名'}</b><small>${(c.parents||[]).join('×')}</small><small>${c.version||'v1'}</small></div>`;
+    }).join("");
+  }else{
+    fg.innerHTML='<div class="famempty">还没有后代。成年JZH在牧场结伴后会诞生下一代。</div>';
+  }
+}
+
+async function doAct(action){const r=await apiAct(action);const msg=r.msg;S=r;render();say(msg);}
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button'); if(!t||!S)return;
+  if(t.id==='nameBtn'){ const v=(document.getElementById('nameInput').value||'').trim(); if(v) return doAct('name:'+v); return; }
+  const d=t.dataset;
+  if(d.act) return doAct(d.act);
+  if(d.hat) return doAct('dress:hat:'+d.hat);
+  if(d.set) return doAct('dress:'+d.set+':'+d.i);
+});
+document.getElementById('stage').addEventListener('click',e=>{
+  if(e.target.closest('button')||!S)return;
+  if(S.stage==="cocoon") return doAct('wake');
+  doAct('say');
+});
+
+(async function(){ S=await apiState(); render();
+  setInterval(async()=>{ S=await apiState(); render(); }, 30000);
+})();
+</script>
+</body>
+</html>
