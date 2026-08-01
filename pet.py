@@ -28,6 +28,9 @@ WAKES_NEED      = 2       # 唤醒几次进幼年
 FEED_GAP        = 1800     # 喂食间隔：半小时（秒）
 GROWTH_TO_ADULT = 100      # 幼年→成年所需成长值（每次喂食 +20，约 5 次）
 SPIRIT_MAX      = 100
+PET_GAP         = 60       # 摸头间隔：60 秒（不能猛点）
+PLAY_GAP        = 120      # 互动间隔：120 秒（不能猛点）
+AFFECTION_MAX   = 100      # 好感满值（满了 JZH 偶尔会叫姐姐）
 DROP_GAP        = 3600    # 掉落间隔：1小时（秒）——隔这么久能领一次掉落
 DROP_HAT_CHANCE = 0.1     # 掉落时出"装饰(帽子)"的概率，其余出颜色（越小帽子越稀有）
 WORK_SEC        = 2400     # 打工外出时长：40分钟（秒）
@@ -140,6 +143,10 @@ def _migrate(s):
         s["death_cause"] = ""
     if "heir" not in s:
         s["heir"] = None
+    if "last_pet" not in s:
+        s["last_pet"] = 0
+    if "last_play" not in s:
+        s["last_play"] = 0
     return s
  
  
@@ -293,6 +300,10 @@ def _public(s):
     v["shop_cost"]   = SHOP_COST
     v["out_in"]      = max(0, int(s.get("out_until", 0) - t)) if s.get("status", "home") != "home" else 0
     v["can_collect"] = (s.get("status", "home") != "home" and t >= s.get("out_until", 0))
+    v["can_pet"]     = (t - s.get("last_pet", 0)) >= PET_GAP
+    v["pet_in"]      = max(0, int(PET_GAP - (t - s.get("last_pet", 0))))
+    v["can_play"]    = (t - s.get("last_play", 0)) >= PLAY_GAP
+    v["play_in"]     = max(0, int(PLAY_GAP - (t - s.get("last_play", 0))))
     v["log"]         = s.get("log", [])
     v["family"]      = s.get("family", [])
     v["friends_n"]   = len(s.get("friends", []))
@@ -472,18 +483,30 @@ def act(owner, action):
             s["clean"] = 100
             msg = "洗得干干净净～"
  
-        elif action == "pet":       # 摸头，加好感
-            s["affection"] = _clamp(s.get("affection", 0) + 5, 0, 100)
-            msg = "（蹭蹭你）"
+        elif action == "pet":       # 摸头，慢慢加好感（有冷却，不能猛点）
+            if (t - s.get("last_pet", 0)) >= PET_GAP:
+                s["last_pet"] = t
+                s["affection"] = _clamp(s.get("affection", 0) + 4, 0, AFFECTION_MAX)
+                msg = "JZH锤了锤你"
+            else:
+                msg = "JZH还在害羞呢～"
  
-        elif action == "play":      # 互动，涨精神
-            s["spirit"] = _clamp(s["spirit"] + 15, 0, SPIRIT_MAX)
-            s["clean"]  = _clamp(s["clean"] - 5, 0, 100)
-            msg = "玩得好开心！"
+        elif action == "play":      # 互动，涨精神 + 少量好感（有冷却）
+            if (t - s.get("last_play", 0)) >= PLAY_GAP:
+                s["last_play"] = t
+                s["spirit"] = _clamp(s["spirit"] + 15, 0, SPIRIT_MAX)
+                s["clean"]  = _clamp(s["clean"] - 5, 0, 100)
+                s["affection"] = _clamp(s.get("affection", 0) + 2, 0, AFFECTION_MAX)
+                msg = "玩得好开心！"
+            else:
+                msg = "玩累了，歇会儿再玩～"
  
-        elif action == "say":       # 点击JZH，随机说一句
-            pool = SAYINGS.get(s["stage"], SAYINGS["adult"])
-            msg = random.choice(pool)
+        elif action == "say":       # 点击JZH，随机说一句；好感满了偶尔叫姐姐
+            if s.get("affection", 0) >= AFFECTION_MAX and random.random() < 0.35:
+                msg = random.choice(["姐姐~", "姐姐最好了", "就喜欢姐姐嘿嘿", "姐姐再摸摸我嘛"])
+            else:
+                pool = SAYINGS.get(s["stage"], SAYINGS["adult"])
+                msg = random.choice(pool)
  
         elif action == "drop":      # 领取掉落，随机解锁一样装扮
             if s["stage"] == "cocoon":

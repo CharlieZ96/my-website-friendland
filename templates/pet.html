@@ -37,6 +37,7 @@
   .swatches{display:flex;flex-wrap:wrap;gap:8px}
   .sw{width:32px;height:32px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px var(--line);cursor:pointer;padding:0}
   .sw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--grape)}
+  .sw.locked{background:#e5e7eb;display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:#9aa0ab;box-shadow:0 0 0 2px #d5d9e2;cursor:not-allowed}
   .lbl{font-size:12px;color:var(--muted);margin:12px 0 6px}
   .plazalink{display:block;text-align:center;margin-top:14px;font-size:14px;color:var(--grape);text-decoration:none;font-weight:700}
   .logbook{background:#F5F8FB;border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;line-height:1.8;color:#4a5561;max-height:190px;overflow:auto}
@@ -82,7 +83,7 @@ let S=null;
 async function apiState(){const r=await fetch('/pet/state');return r.json();}
 async function apiAct(action){const r=await fetch('/pet/act',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});return r.json();}
 function say(t){if(!t)return;const b=document.getElementById('bubble');b.textContent=t;b.classList.add('on');clearTimeout(b._t);b._t=setTimeout(()=>b.classList.remove('on'),1600);}
-function fmt(sec){const m=Math.ceil(sec/60);return m>=60?Math.ceil(m/60)+'小时':m+'分';}
+function fmt(sec){if(sec<60)return Math.ceil(sec)+'秒';const m=Math.ceil(sec/60);return m>=60?Math.ceil(m/60)+'小时':m+'分';}
 const STAGE_NAME={cocoon:"睡袋",kid:"幼年",adult:"成年",old:"老年",cloud:"云"};
 
 function render(){
@@ -128,8 +129,8 @@ function render(){
     // 幼年/成年/老年在家：核心照料一直有；打工/购物/托管只有非老年才有
     acts = `<button class="btn y" data-act="feed" ${S.can_feed?"":"disabled"}>${S.can_feed?"喂食":"喂食 "+fmt(S.feed_in)+"后"}</button>
        <button class="btn g" data-act="wash">洗澡</button>
-       <button class="btn c" data-act="pet">摸摸头</button>
-       <button class="btn p" data-act="play">互动</button>
+       <button class="btn c" data-act="pet" ${S.can_pet?"":"disabled"}>${S.can_pet?"摸摸头":"摸头 "+fmt(S.pet_in)+"后"}</button>
+       <button class="btn p" data-act="play" ${S.can_play?"":"disabled"}>${S.can_play?"互动":"互动 "+fmt(S.play_in)+"后"}</button>
        <button class="btn" data-act="drop" ${S.can_drop?"":"disabled"}>${S.can_drop?"🎁 领掉落":(S.has_locked?"掉落 "+fmt(S.drop_in)+"后":"装扮已集齐")}</button>`;
     if(S.stage!=="old"){
       acts += `
@@ -148,7 +149,8 @@ function render(){
   }).join("");
   const sw=(arr,key,colorOf)=>arr.map((x,i)=>{
     const has=(owned[key]||[]).includes(i);
-    return `<button class="sw" data-set="${key}" data-i="${i}" style="background:${colorOf(x)};${has?'':'opacity:.28'}" aria-pressed="${(S[key]||0)===i}" ${has?'':'disabled'} title="${has?'':'未解锁'}"></button>`;
+    if(has) return `<button class="sw" data-set="${key}" data-i="${i}" style="background:${colorOf(x)}" aria-pressed="${(S[key]||0)===i}"></button>`;
+    return `<button class="sw locked" data-set="${key}" data-i="${i}" disabled title="未解锁">🔒</button>`;
   }).join("");
   document.getElementById('swOutfit').innerHTML=sw(OUTFITS,"outfit",x=>x.main);
   document.getElementById('swHair').innerHTML=sw(HAIRS,"hair",x=>x.k);
@@ -183,8 +185,7 @@ document.addEventListener('click',e=>{
 });
 document.getElementById('stage').addEventListener('click',e=>{
   if(e.target.closest('button')||!S)return;
-  if(S.stage==="cocoon") return doAct('wake');
-  doAct('say');
+  doAct('say');   // 点身体一律说话（睡袋会说梦话，唤醒用按钮）
 });
 
 (async function(){ S=await apiState(); render();
