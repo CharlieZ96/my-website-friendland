@@ -40,6 +40,10 @@
   .sw.locked{background:#e5e7eb;display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:#9aa0ab;box-shadow:0 0 0 2px #d5d9e2;cursor:not-allowed}
   .lbl{font-size:12px;color:var(--muted);margin:12px 0 6px}
   .plazalink{display:block;text-align:center;margin-top:14px;font-size:14px;color:var(--grape);text-decoration:none;font-weight:700}
+  .caslink{display:block;text-align:center;margin-top:10px;font-size:15px;font-weight:800;text-decoration:none;color:#2a1a04;
+    background:linear-gradient(90deg,#ffd85a,#ffb54d);border:2px solid #b9791f;border-radius:12px;padding:11px;
+    box-shadow:0 4px 14px rgba(255,181,77,.45)}
+  .caslink:active{transform:translateY(1px)}
   .logbook{background:#F5F8FB;border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;line-height:1.8;color:#4a5561;max-height:190px;overflow:auto}
   .logbook .t{color:#9aa0ab;font-size:11px;margin-left:6px}
   .logbook .empty{color:#9aa0ab;font-size:12px}
@@ -75,8 +79,9 @@
     <p class="lbl">上衣</p><div class="swatches" id="swOutfit"></div>
     <p class="lbl">发色</p><div class="swatches" id="swHair"></div>
     <p class="lbl">肤色</p><div class="swatches" id="swSkin"></div>
-    <p class="lbl">衣服（打工赚金币购买解锁）</p><div class="row" id="clothesRow" style="margin-top:0"></div>
+    <p class="lbl">衣服</p><div class="row" id="clothesRow" style="margin-top:0"></div>
     <a class="plazalink" href="/plaza">🌿 去牧场看看大家的JZH →</a>
+    <a class="caslink" href="/casino">🎰 去JZH读博的地方看看 →</a>
   </div>
   <div class="panel" style="margin-top:14px">
     <a class="plazalink" href="/pet/records" style="margin-top:0">📖 打开成长记录册（每只JZH的完整故事）→</a>
@@ -124,7 +129,7 @@ function render(){
   document.getElementById('petSub').textContent=sub;
 
   const bars = (S.stage==="cocoon") ? [] :
-    [["饱食",S.hunger,"#F5A623"],["清洁",S.clean,"#5FBF8F"],["精神",S.spirit,"#7FB3E8",S.spirit_max],["好感",S.affection,"#FF9FB2"]];
+    [["饱食",S.hunger,"#F5A623"],["清洁",S.clean,"#5FBF8F"],["SAN值",S.spirit,"#7FB3E8",S.spirit_max],["好感",S.affection,"#FF9FB2"]];
   document.getElementById('bars').innerHTML = bars.map(([n,v,c,mx])=>{
     const pct=Math.max(0,Math.min(100, v/(mx||100)*100));
     return `<div class="bar"><span>${n}</span><div class="track"><div class="fill" style="width:${pct}%;background:${c}"></div></div><span>${Math.round(v)}</span></div>`;

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JZH 赌场 · 轮盘赌</title>
+<style>
+  :root{--bg:#0a0e1a;--pink:#ff2e88;--cyan:#27e3ff;--purple:#a06bff;--amber:#ffb54d;--green:#34d17e;--ink:#eaf2ff;}
+  *{box-sizing:border-box}
+  body{margin:0;background:#06070f;color:var(--ink);font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;padding:12px 10px 40px}
+  .wrap{max-width:480px;margin:0 auto}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:13px}
+  .top .coins{font-weight:800;background:#141c38;border:2px solid var(--amber);color:var(--amber);border-radius:999px;padding:4px 12px}
+  .top .win{color:var(--amber);font-weight:700;font-size:12px;text-shadow:0 0 8px rgba(255,181,77,.5)}
+  .leave{cursor:pointer;background:#1a2138;border:2px solid #2a3350;color:#9fb0d8;border-radius:999px;padding:4px 12px;font-weight:700}
+
+  .board{background:linear-gradient(#0e1430,#0a0f24);border:2px solid #22305a;border-radius:14px;padding:12px;box-shadow:inset 0 0 40px rgba(160,107,255,.12)}
+  .phase{text-align:center;font-weight:800;font-size:15px;margin-bottom:8px}
+  .phase .t{color:var(--cyan)}
+  .lastres{text-align:center;font-size:12px;color:#8fa0c8;margin:-2px 0 8px}
+  .lastres b{font-size:14px}.lastres .red{color:#ff6a7c}.lastres .black{color:#cdd8f5}.lastres .green{color:var(--green)}
+
+  .seatshead{font-size:12px;color:#8fa0c8;margin:2px 0 2px;font-weight:700}
+  .seats{display:flex;gap:6px;overflow-x:auto;padding:4px 0 6px;margin-bottom:4px}
+  .seat{flex:0 0 auto;width:64px;text-align:center;background:#0b1024;border:1px solid #22305a;border-radius:10px;padding:4px}
+  .seat.me{border-color:var(--cyan);box-shadow:0 0 8px rgba(39,227,255,.4)}
+  .seat svg{width:46px;height:46px;image-rendering:pixelated}
+  .seat .nm{font-size:10px;color:#cdd8f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .seat .bot{font-size:9px;color:var(--purple)}
+
+  .chips{display:flex;gap:8px;justify-content:center;margin:8px 0}
+  .chip{cursor:pointer;width:42px;height:42px;border-radius:50%;border:3px dashed #fff6;font-weight:800;font-size:13px;color:#04121a;display:flex;align-items:center;justify-content:center}
+  .chip[data-v="5"]{background:#8fe6ff}.chip[data-v="10"]{background:#ffd85a}.chip[data-v="50"]{background:#ff8fbf}.chip[data-v="100"]{background:#b69bff}
+  .chip.sel{outline:3px solid #fff;transform:scale(1.08)}
+
+  .evens{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+  .spot{position:relative;cursor:pointer;border:2px solid #2a3350;border-radius:10px;padding:10px;text-align:center;font-weight:800;font-size:15px;background:#0b1024}
+  .spot.red{background:#3a1020;border-color:#ff5a6e;color:#ff8fa0}.spot.black{background:#12172b;color:#cdd8f5}
+  .spot:active{transform:translateY(1px)}
+  .stake{position:absolute;top:-8px;right:-6px;min-width:20px;height:20px;line-height:20px;font-size:11px;font-weight:800;background:var(--amber);color:#2a1a04;border-radius:999px;padding:0 5px;box-shadow:0 0 6px rgba(255,181,77,.6)}
+  .nums{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:8px}
+  .num0{grid-column:1/-1}
+  .num{position:relative;cursor:pointer;border-radius:6px;padding:7px 0;text-align:center;font-weight:800;font-size:13px;color:#fff}
+  .num.r{background:#b12437}.num.b{background:#20263e}.num.g{background:#1c7a4d}
+  .num:active{transform:translateY(1px)}
+  .mytotal{text-align:center;font-size:13px;color:#9fb0d8;margin:6px 0}
+  /* 饮品栏 */
+  .drinkbar{background:#0b1024;border:1px solid #26305a;border-radius:10px;padding:8px 10px;margin:6px 0}
+  .drinkbar .dbh{font-size:12px;color:#8fa0c8;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+  .drinkbar .dbh .lock{color:#ffb54d;font-weight:800}
+  .dchips{display:flex;gap:6px;flex-wrap:wrap}
+  .dchip{cursor:pointer;border:2px solid #000;border-radius:9px;padding:5px 9px;font-weight:800;font-size:12px;
+    background:linear-gradient(#ffe08a,#ffb54d);color:#2a1a04;box-shadow:2px 2px 0 #000}
+  .dchip:active{transform:translate(2px,2px);box-shadow:0 0 0 #000}
+  .dchip[disabled]{background:#242c48;color:#6b7aa0;border-color:#2a3350;box-shadow:none;cursor:not-allowed}
+  .dactive{display:inline-block;font-size:11px;font-weight:800;color:#0b1020;background:#34d17e;border-radius:999px;padding:2px 8px;margin:2px 3px 0 0}
+  .dempty{font-size:12px;color:#8fa0c8}
+  .dempty a{color:var(--cyan);text-decoration:none;font-weight:700}
+  .ctrls{display:flex;gap:8px}
+  .btn{flex:1;cursor:pointer;border:2px solid #000;border-radius:12px;padding:12px;font-weight:800;font-size:15px;color:#04121a;box-shadow:3px 3px 0 #000}
+  .btn:active{transform:translate(3px,3px);box-shadow:0 0 0 #000}
+  .btn.spin{background:linear-gradient(#ffd85a,#ffb54d)}
+  .btn.spin.rdy{background:linear-gradient(#7ef0a8,#34d17e);color:#04250f}
+  .seat .bot.rdy{color:#34d17e;font-weight:800}
+  .btn.clear{background:#1a2138;color:#9fb0d8;border-color:#2a3350;box-shadow:none;flex:0 0 90px}
+  .btn[disabled]{opacity:.45;pointer-events:none}
+  .log{margin-top:10px;background:#0b1024;border:1px solid #22305a;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.7;color:#9fb0d8;max-height:110px;overflow:auto}
+  .toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;background:#0a1230;border:2px solid var(--cyan);color:var(--cyan);font-weight:800;font-size:13px;border-radius:10px;padding:8px 14px;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.on{opacity:1}
+
+  /* ====== 开奖大画面（全屏弹框，手机友好）====== */
+  .spinmodal{position:fixed;inset:0;z-index:50;background:radial-gradient(circle at 50% 40%,#141a3a,#06070f 75%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:18px}
+  .spinmodal[hidden]{display:none}
+  .mtitle{font-weight:900;font-size:17px;color:var(--cyan);text-shadow:0 0 10px rgba(39,227,255,.5);letter-spacing:1px}
+  .wheelwrap{position:relative;width:min(300px,82vw);height:min(300px,82vw)}
+  .rwheel{width:100%;height:100%;filter:drop-shadow(0 8px 22px rgba(0,0,0,.6))}
+  /* 轮盘/珠子的旋转用 SVG 原生 rotate 属性 + JS 逐帧驱动，跨浏览器最稳，这里不设 CSS transform */
+  .pointer{position:absolute;top:-4px;left:50%;transform:translateX(-50%);z-index:3;width:0;height:0;
+    border-left:11px solid transparent;border-right:11px solid transparent;border-top:18px solid var(--amber);filter:drop-shadow(0 0 6px var(--amber))}
+  .reslabel{font-size:16px;font-weight:800;min-height:22px;text-align:center}
+  .reslabel .rn{font-size:22px}
+  .rn.red{color:#ff6a7c}.rn.black{color:#cdd8f5}.rn.green{color:var(--green)}
+  .outcomes{width:100%;max-width:360px;display:flex;flex-direction:column;gap:6px;max-height:30vh;overflow:auto}
+  .orow{display:flex;align-items:center;gap:8px;background:rgba(11,16,36,.9);border:1px solid #22305a;border-radius:10px;padding:5px 8px}
+  .orow.me{border-color:var(--cyan)}
+  .orow svg{width:34px;height:34px;image-rendering:pixelated;flex:0 0 auto}
+  .orow .onm{flex:1;font-size:13px;color:#cdd8f5}
+  .orow .onet{font-weight:800;font-size:14px}
+  .onet.up{color:var(--green)}.onet.down{color:#ff6a7c}.onet.zero{color:#9fb0d8}
+  .mcont{cursor:pointer;background:linear-gradient(#8fe6ff,#27e3ff);border:2px solid #000;border-radius:12px;padding:10px 26px;font-weight:800;font-size:15px;color:#04121a;box-shadow:3px 3px 0 #000}
+  .mcont:active{transform:translate(3px,3px);box-shadow:0 0 0 #000}
+  .mnext{font-size:12px;color:#8fa0c8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <span class="coins">🪙 <span id="coin">…</span></span>
+    <span class="win">🏆 <span id="win">—</span></span>
+    <span class="leave" id="leave">离开 ↩</span>
+  </div>
+
+  <div class="board">
+    <div class="phase" id="phase">连接中…</div>
+    <div class="lastres" id="lastres"></div>
+
+    <div class="seatshead">🎰 本桌玩家（各自的 JZH）</div>
+    <div class="seats" id="seats"></div>
+
+    <div class="chips" id="chips">
+      <div class="chip" data-v="5">5</div>
+      <div class="chip sel" data-v="10">10</div>
+      <div class="chip" data-v="50">50</div>
+      <div class="chip" data-v="100">100</div>
+    </div>
+
+    <div class="evens" id="evens"></div>
+    <div class="nums" id="nums"></div>
+
+    <div class="mytotal">本轮已下注 <b id="staked" style="color:var(--amber)">0</b> 🪙</div>
+
+    <!-- 饮品栏：显示背包里带进来的饮品，下注阶段点一下喝掉，本轮生效 -->
+    <div class="drinkbar" id="drinkbar" hidden>
+      <div class="dbh"><span>🍷 饮品（喝下这一轮生效）</span><span class="lock" id="drinkLock" hidden></span></div>
+      <div class="dchips" id="dchips"></div>
+      <div id="dactiveWrap" style="margin-top:6px" hidden><span style="font-size:11px;color:#8fa0c8">本轮已喝：</span><span id="dactive"></span></div>
+    </div>
+
+    <div class="ctrls">
+      <button class="btn clear" id="btnClear">撤注</button>
+      <button class="btn spin" id="btnSpin">🎡 开始转动</button>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<!-- 开奖大画面 -->
+<div class="spinmodal" id="spinModal" hidden>
+  <div class="mtitle" id="mtitle">🎡 开 盘</div>
+  <div class="wheelwrap">
+    <div class="pointer"></div>
+    <svg class="rwheel" viewBox="0 0 220 220">
+      <circle cx="110" cy="110" r="106" fill="#3a2418"/>
+      <circle cx="110" cy="110" r="102" fill="#1a1024"/>
+      <g id="disc"></g>
+      <circle cx="110" cy="110" r="58" fill="#160e22" stroke="#3a2a5a" stroke-width="2"/>
+      <text id="hubNum" x="110" y="120" text-anchor="middle" font-size="40" font-weight="900" fill="#eaf2ff"></text>
+      <g id="ballLayer"><circle cx="110" cy="110" r="100" fill="none"/><circle id="ball" cx="110" cy="18" r="5.5" fill="#fff" stroke="#c9d4f0" stroke-width="1"/></g>
+    </svg>
+  </div>
+  <div class="reslabel" id="reslabel">正在占卜你的幸运值…</div>
+  <div class="outcomes" id="outcomes"></div>
+  <button class="mcont" id="mcont" hidden>继续下注 ▶</button>
+  <div class="mnext" id="mnext"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>const RID = {{ rid }};</script>
+<script src="/static/pet_sprite.js"></script>
+<script>
+const RED=new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+const WHEEL=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+const SEG=360/WHEEL.length;
+const EVENS=[["red","红"],["black","黑"],["odd","单"],["even","双"],["low","小 1-18"],["high","大 19-36"]];
+let selChip=10, phase="betting", myBets={}, curV=null;
+let animResult=null, settled=true, discA=0, ballA=0, first=true, modalOpen=false;
+
+function toast(t){const e=document.getElementById('toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),1600);}
+function color(n){return n===0?"green":(RED.has(n)?"red":"black");}
+
+// 画 37 格轮盘
+(function buildWheel(){
+  const cx=110,cy=110,rOut=100,rIn=58,rTxt=(rOut+rIn)/2+2, P=(r,a)=>[cx+r*Math.cos(a),cy+r*Math.sin(a)];
+  let paths="",texts="";
+  WHEEL.forEach((n,i)=>{
+    const mid=i*SEG, a0=(mid-SEG/2-90)*Math.PI/180, a1=(mid+SEG/2-90)*Math.PI/180;
+    const [x0o,y0o]=P(rOut,a0),[x1o,y1o]=P(rOut,a1),[x1i,y1i]=P(rIn,a1),[x0i,y0i]=P(rIn,a0);
+    const col=n===0?"#1c7a4d":(RED.has(n)?"#c02033":"#141a2e");
+    paths+=`<path d="M${x0i.toFixed(1)} ${y0i.toFixed(1)} L${x0o.toFixed(1)} ${y0o.toFixed(1)} A${rOut} ${rOut} 0 0 1 ${x1o.toFixed(1)} ${y1o.toFixed(1)} L${x1i.toFixed(1)} ${y1i.toFixed(1)} A${rIn} ${rIn} 0 0 0 ${x0i.toFixed(1)} ${y0i.toFixed(1)} Z" fill="${col}" stroke="#0a0f1a" stroke-width=".6"/>`;
+    const am=(mid-90)*Math.PI/180, tx=cx+rTxt*Math.cos(am), ty=cy+rTxt*Math.sin(am);
+    texts+=`<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" font-size="8" font-weight="700" fill="#fff" text-anchor="middle" dominant-baseline="central" transform="rotate(${mid.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)})">${n}</text>`;
+  });
+  document.getElementById('disc').innerHTML=paths+texts;
+})();
+
+function landAngles(n){
+  const idx=WHEEL.indexOf(n);
+  const targetMod=(((-(idx*SEG))%360)+360)%360, cur=((discA%360)+360)%360, add=(targetMod-cur+360)%360;
+  discA += 4*360 + add;                        // 轮盘顺时针转 4 圈后，让中奖格停到正上方
+  ballA -= (((ballA%360)+360)%360) + 7*360;    // 珠子反向多转几圈，回到正上方（= 中奖格）
+}
+function setWheel(d,b){
+  document.getElementById('disc').setAttribute('transform','rotate('+d.toFixed(2)+' 110 110)');
+  document.getElementById('ballLayer').setAttribute('transform','rotate('+b.toFixed(2)+' 110 110)');
+}
+function animateWheel(fromD,toD,fromB,toB,dur,done){
+  const t0=performance.now();
+  function frame(now){
+    let t=(now-t0)/dur; if(t>1)t=1;
+    const e=1-Math.pow(1-t,3);                 // cubic ease-out：先快后慢，像真轮盘减速
+    setWheel(fromD+(toD-fromD)*e, fromB+(toB-fromB)*e);
+    if(t<1) requestAnimationFrame(frame); else if(done) done();
+  }
+  requestAnimationFrame(frame);
+}
+function showResult(n){
+  const c=color(n), cn=c==='green'?'绿':(c==='red'?'红':'黑');
+  const hub=document.getElementById('hubNum'); hub.textContent=n;
+  hub.setAttribute('fill', c==='green'?'#34d17e':(c==='red'?'#ff6a7c':'#eaf2ff'));
+  document.getElementById('reslabel').innerHTML=`开出 <span class="rn ${c}">${n}</span> · ${cn}`;
+  document.getElementById('mtitle').textContent='🎉 开奖';
+}
+function renderOutcomes(v){
+  const bet=s=>s.owner===v.me ? (s.last_bets&&Object.keys(s.last_bets).length) : s.had_bet_last;
+  document.getElementById('outcomes').innerHTML=(v.seats||[]).filter(bet).map(s=>{
+    const n=s.last_net||0, cls=n>0?'up':(n<0?'down':'zero'), net=n>0?'+'+n:(n<0?String(n):'±0');
+    let av=''; try{av=petSVG({version:s.version,stage:'adult',hat:s.hat,outfit:s.outfit,hair:s.hair,skin:s.skin,clothes:s.clothes});}catch(e){}
+    return `<div class="orow ${s.owner===v.me?'me':''}">${av}<div class="onm">${s.owner===v.me?'你':s.name}</div><div class="onet ${cls}">${net}</div></div>`;
+  }).join("") || '<div style="text-align:center;color:#8fa0c8;font-size:12px">这一轮没人下注</div>';
+}
+function openModal(){ modalOpen=true; document.getElementById('spinModal').hidden=false;
+  document.getElementById('outcomes').innerHTML=''; document.getElementById('mcont').hidden=true; document.getElementById('mnext').textContent=''; }
+function closeModal(){ modalOpen=false; document.getElementById('spinModal').hidden=true; }
+document.getElementById('mcont').addEventListener('click',closeModal);
+
+function spinTo(n,instant){
+  const fromD=discA, fromB=ballA;
+  landAngles(n); openModal();
+  if(instant){ setWheel(discA,ballA); showResult(n); settled=true; if(curV)renderOutcomes(curV);
+    document.getElementById('mcont').hidden=false; return; }
+  document.getElementById('hubNum').textContent=''; document.getElementById('mtitle').textContent='🎡 转动中…';
+  document.getElementById('reslabel').innerHTML='🪙 小珠子转动中…';
+  settled=false;
+  animateWheel(fromD,discA,fromB,ballA,5000,()=>{ settled=true; showResult(n); if(curV)renderOutcomes(curV);
+    document.getElementById('mcont').hidden=false; });
+}
+
+// 静态盘面
+document.getElementById('chips').addEventListener('click',e=>{const c=e.target.closest('.chip');if(!c)return;
+  selChip=+c.dataset.v;document.querySelectorAll('.chip').forEach(x=>x.classList.toggle('sel',x===c));});
+(function(){
+  document.getElementById('evens').innerHTML=EVENS.map(([k,lbl])=>{const cls=k==="red"?"red":(k==="black"?"black":"");
+    return `<div class="spot ${cls}" data-bet="${k}">${lbl}<span class="stake" data-for="${k}" hidden></span></div>`;}).join("");
+  let s=`<div class="num g num0" data-bet="num:0">0<span class="stake" data-for="num:0" hidden></span></div>`;
+  for(let n=1;n<=36;n++){s+=`<div class="num ${RED.has(n)?'r':'b'}" data-bet="num:${n}">${n}<span class="stake" data-for="num:${n}" hidden></span></div>`;}
+  document.getElementById('nums').innerHTML=s;
+})();
+document.querySelector('.board').addEventListener('click',e=>{const sp=e.target.closest('[data-bet]');if(!sp)return;
+  if(phase!=="betting"){toast("本轮已封盘");return;} placeBet(sp.dataset.bet,selChip);});
+
+async function api(path,body){const opt={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})};
+  return (await fetch('/casino/roulette/'+RID+path, path==='/state'?undefined:opt)).json();}
+async function placeBet(bet,amt){const s=await api('/bet',{bet,amount:amt});if(s.msg&&s.msg!=='下注成功')toast(s.msg);apply(s);}
+document.getElementById('btnClear').addEventListener('click',async()=>{const s=await api('/clear');if(s.msg)toast(s.msg);apply(s);});
+document.getElementById('btnSpin').addEventListener('click',async()=>{apply(await api('/spin'));});
+document.getElementById('leave').addEventListener('click',async()=>{await api('/leave');location.href='/casino';});
+
+// ===== 饮品栏 =====
+let DCAT={};   // kind -> {name,emoji,cost,desc}
+async function useDrink(kind){
+  const s=await api('/drink',{kind});
+  if(s.msg) toast(s.msg);
+  apply(s);
+}
+function renderDrinks(v){
+  (v.drinks_catalog||[]).forEach(d=>{DCAT[d.kind]=d;});
+  const bar=document.getElementById('drinkbar');
+  const inv=v.my_drinks||[], active=v.my_active||[], can=!!v.can_drink;
+  // 只有下注阶段能喝；结果阶段收起饮品栏
+  if(v.phase!=='betting'){ bar.hidden=true; return; }
+  // 背包空且这一轮也没喝过 → 给个去买的提示
+  if(inv.length===0 && active.length===0){
+    bar.hidden=false;
+    document.getElementById('drinkLock').hidden=true;
+    document.getElementById('dchips').innerHTML='<span class="dempty">背包里没饮品 · 回<a href="/casino">大厅找老江</a>用SAN值购买</span>';
+    document.getElementById('dactiveWrap').hidden=true;
+    return;
+  }
+  bar.hidden=false;
+  const lock=document.getElementById('drinkLock');
+  if(!can){ lock.hidden=false; lock.textContent='🔒 需 2 个真人玩家'; }
+  else lock.hidden=true;
+  const nm=k=>{const c=DCAT[k]||{};return (c.emoji||'🍶')+(c.name||k);};
+  document.getElementById('dchips').innerHTML = inv.length
+    ? inv.map(k=>`<button class="dchip" data-k="${k}" ${can?'':'disabled'} title="${(DCAT[k]||{}).desc||''}">${nm(k)}</button>`).join("")
+    : '<span class="dempty">背包这一轮的饮品都喝了</span>';
+  document.querySelectorAll('#dchips .dchip').forEach(b=>b.addEventListener('click',()=>useDrink(b.dataset.k)));
+  const aw=document.getElementById('dactiveWrap');
+  if(active.length){ aw.hidden=false; document.getElementById('dactive').innerHTML=active.map(k=>`<span class="dactive">${nm(k)}</span>`).join(""); }
+  else aw.hidden=true;
+}
+
+function seatSVG(s){try{return petSVG({version:s.version,stage:'adult',hat:s.hat,outfit:s.outfit,hair:s.hair,skin:s.skin,clothes:s.clothes});}catch(e){return '';}}
+function renderSeats(v){
+  const showReady = !v.can_start_now && v.phase==='betting';   // 多真人房下注阶段才显示“已准备”
+  document.getElementById('seats').innerHTML=(v.seats||[]).map(s=>{
+    let tag='<div class="bot">&nbsp;</div>';
+    if(s.isBot) tag='<div class="bot">机器人</div>';
+    else if(showReady && s.ready) tag='<div class="bot rdy">✅已准备</div>';
+    return `<div class="seat ${s.owner===v.me?'me':''}">${seatSVG(s)}<div class="nm">${s.owner===v.me?'你':s.name}</div>${tag}</div>`;
+  }).join("");
+}
+
+function apply(v){
+  if(!v||v.error){toast(v&&v.error||'房间没了');setTimeout(()=>location.href='/casino',1200);return;}
+  curV=v; phase=v.phase; myBets=v.my_bets||{};
+  document.getElementById('coin').textContent=Math.floor(v.coins||0);
+  document.getElementById('win').textContent=v.top_winner?(v.top_winner.owner+' +'+v.top_winner.net):'虚位以待';
+  const ph=document.getElementById('phase');
+  const spin=document.getElementById('btnSpin');
+  if(phase==='betting'){
+    const extra = v.can_start_now ? '' : ` · 已准备 ${v.ready_count||0}/${v.ready_total||0}`;
+    ph.innerHTML=`<span class="t">下注中</span> · ${v.bet_secs_left}s 后自动开 · 第 ${v.round} 轮${extra}`;
+  } else {
+    ph.innerHTML=`<span class="t">开奖中</span> · ${v.result_secs_left}s 后进入下一轮`;
+  }
+  // 单人房：直接“开始转动”；多真人房：切换“准备好了”，等大家都准备好或时间到才开
+  if(v.can_start_now){ spin.textContent='🎡 开始转动'; spin.classList.remove('rdy'); }
+  else { spin.textContent = v.my_ready ? '✅ 已准备 · 点击取消' : '✅ 我下好了'; spin.classList.toggle('rdy', !!v.my_ready); }
+  spin.disabled=(phase!=='betting');
+  document.getElementById('btnClear').disabled=(phase!=='betting');
+  document.getElementById('mnext').textContent = phase!=='betting' ? `${v.result_secs_left}s 后进入下一轮` : '';
+
+  // 开奖 → 弹大画面滚珠；回到下注 → 关闭弹框
+  if(phase==='result' && v.result!=null && v.result!==animResult){ animResult=v.result; spinTo(v.result, first); }
+  if(phase==='betting'){ animResult=null; settled=true; if(modalOpen) closeModal();
+    document.getElementById('lastres').innerHTML = (v.round>1) ? '' : ''; }
+  first=false;
+
+  // 更新弹框里的结算（例如中途进来时）
+  if(phase==='result' && settled && modalOpen) renderOutcomes(v);
+
+  renderSeats(v);
+  renderDrinks(v);
+  document.querySelectorAll('.stake').forEach(b=>{const a=myBets[b.dataset.for];if(a){b.textContent=a;b.hidden=false;}else{b.hidden=true;}});
+  document.getElementById('staked').textContent=v.my_staked||0;
+  document.getElementById('log').innerHTML=(v.log||[]).map(x=>`<div>${x}</div>`).join("");
+}
+
+async function poll(){try{apply(await api('/state'));}catch(e){}}
+poll(); setInterval(poll,1600);
+</script>
+</body>
+</html>

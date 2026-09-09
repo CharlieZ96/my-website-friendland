@@ -14,6 +14,7 @@ import json
 from bot_actions import (ensure_bot, on_new_post, on_new_comment,
                          chat as bot_chat, maybe_bot_join, bot_fill_deck_if_needed)
 import pet
+import casino
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -312,6 +313,8 @@ def resolve_battle(deck1_ids, deck2_ids, conn):
 init_db()
 ensure_bot()                                     # 程序一启动就执行一次
 pet.ensure_pet_tables()      # ← 加这行
+casino.ensure_casino_tables()
+
 # 守卫：贴在哪个页面上，哪个页面就必须登录才能进
 def login_required(f):
     @wraps(f)
@@ -929,6 +932,73 @@ def plaza_pets():
 def pet_records_page():
     return render_template("pet_records.html")
 
+@app.route("/casino")
+@login_required
+def casino_page():
+    # 首次进场发 30 礼金，并决定要不要弹老涵教学
+    r = casino.enter_casino(session["username"])
+    return render_template("casino.html", show_tutorial=r["welcomed_now"])
+ 
+@app.route("/casino/lobby")
+@login_required
+def casino_lobby():
+    return casino.lobby_data(session["username"])
+ 
+@app.route("/casino/roulette/create", methods=["POST"])
+@login_required
+def casino_roulette_create():
+    data = request.get_json(silent=True) or {}
+    mode = "solo" if data.get("mode") == "solo" else "public"
+    return {"room": casino.create_room(session["username"], mode)}
+ 
+@app.route("/casino/roulette/join", methods=["POST"])
+@login_required
+def casino_roulette_join():
+    return {"room": casino.quick_join(session["username"])}
+ 
+@app.route("/casino/roulette/<int:rid>")
+@login_required
+def casino_roulette_page(rid):
+    return render_template("casino_roulette.html", rid=rid)
+ 
+@app.route("/casino/roulette/<int:rid>/state")
+@login_required
+def casino_roulette_state(rid):
+    return casino.get_room(session["username"], rid)
+ 
+@app.route("/casino/roulette/<int:rid>/bet", methods=["POST"])
+@login_required
+def casino_roulette_bet(rid):
+    d = request.get_json(silent=True) or {}
+    return casino.place_bet(session["username"], rid, d.get("bet", ""), d.get("amount", 0))
+ 
+@app.route("/casino/roulette/<int:rid>/clear", methods=["POST"])
+@login_required
+def casino_roulette_clear(rid):
+    return casino.clear_bets(session["username"], rid)
+ 
+@app.route("/casino/roulette/<int:rid>/spin", methods=["POST"])
+@login_required
+def casino_roulette_spin(rid):
+    return casino.start_spin(session["username"], rid)
+ 
+@app.route("/casino/roulette/<int:rid>/leave", methods=["POST"])
+@login_required
+def casino_roulette_leave(rid):
+    return casino.leave_room(session["username"], rid)
+ 
+# —— 饮品：在酒保处买（花宠物精神值），和在房间下注阶段喝掉 ——
+@app.route("/casino/drinks/buy", methods=["POST"])
+@login_required
+def casino_drink_buy():
+    d = request.get_json(silent=True) or {}
+    return casino.buy_drink(session["username"], d.get("kind", ""))
+ 
+@app.route("/casino/roulette/<int:rid>/drink", methods=["POST"])
+@login_required
+def casino_roulette_drink(rid):
+    d = request.get_json(silent=True) or {}
+    return casino.use_drink(session["username"], rid, d.get("kind", ""))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=False, port=5000)
