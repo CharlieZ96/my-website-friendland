@@ -14,9 +14,11 @@
   .coins{font-weight:800;background:#141c38;border:2px solid var(--amber);color:var(--amber);border-radius:999px;padding:4px 12px;
     box-shadow:0 0 12px rgba(255,181,77,.4)}
 
-  .scene{position:relative;height:340px;border-radius:14px;overflow:hidden;image-rendering:pixelated;
+  .scene{position:relative;aspect-ratio:480 / 340;border-radius:14px;overflow:hidden;image-rendering:pixelated;
     background:linear-gradient(#0c1330 0 55%, #0a0f24 55% 70%, #070a18 70% 100%);
     box-shadow:0 14px 40px rgba(0,0,0,.6), inset 0 0 70px rgba(160,107,255,.14)}
+  /* 舞台：固定 480×340 的一套构图，再整体等比缩放到当前宽度，手机/电脑同一构图不挤 */
+  .stage{position:absolute;top:0;left:0;width:480px;height:340px;transform-origin:top left}
 
   /* 窗外霓虹城市 */
   .city{position:absolute;left:0;right:0;top:0;height:56%;overflow:hidden}
@@ -70,11 +72,11 @@
   /* 可点击的游戏机器 */
   .machine{cursor:pointer;transition:transform .12s, filter .12s}
   .machine:hover{transform:translateY(-3px);filter:drop-shadow(0 0 10px var(--cyan))}
-  .roul{right:150px;bottom:24%;width:100px;height:70px}
-  .bj{right:20px;bottom:23%;width:110px;height:66px}
+  .roul{right:146px;bottom:14%;width:118px;height:90px}
+  .bj{right:14px;bottom:14%;width:118px;height:90px}
   .wheel{transform-origin:50% 50%;animation:roll 5s linear infinite}
   @keyframes roll{to{transform:rotate(360deg)}}
-  .mlabel{position:absolute;font-size:11px;font-weight:800;background:rgba(10,14,26,.85);border:1px solid var(--cyan);
+  .mlabel{position:absolute;z-index:4;font-size:11px;font-weight:800;background:rgba(10,14,26,.85);border:1px solid var(--cyan);
     color:var(--cyan);border-radius:6px;padding:2px 7px;white-space:nowrap;transform:translateX(-50%);box-shadow:0 0 8px rgba(39,227,255,.4)}
 
   /* 玩家 JZH（往下站，别挡住轮盘/老虎机；会在赌场底部走来走去） */
@@ -133,7 +135,8 @@
   .mbtn:active{transform:translate(3px,3px);box-shadow:0 0 0 #000}
   .mbtn.solo{background:linear-gradient(#ff8fbf,#ff2e88);color:#2a0a1a}
   .mbtn.multi{background:linear-gradient(#8fe6ff,#27e3ff)}
-  .mbtn.cancel{background:#1a2138;color:#9fb0d8;border-color:#2a3350;box-shadow:none}
+  .mbtn.cancel{background:#141a2e;color:#8fa0c8;border:1.5px solid #2a3350;box-shadow:none;
+    font-size:13px;font-weight:700;padding:6px 22px;width:auto;align-self:center;border-radius:999px;margin-top:2px}
   /* 饮品商店 */
   .drinklist{display:flex;flex-direction:column;gap:10px;margin:4px 0 14px}
   .drinkcard{display:flex;gap:10px;align-items:center;text-align:left;background:#111634;border:1px solid #26305a;
@@ -155,6 +158,7 @@
   <div class="top"><a href="/hub">← 回主页</a><span class="coins">🪙 <span id="coin">…</span> <span style="opacity:.55">·</span> 🧠 <span id="spirit">…</span></span></div>
 
   <div class="scene" id="scene">
+   <div class="stage" id="stage">
     <div class="sign">JZH <b>CASINO</b></div>
     <div class="winboard">🏆 Today's Big Winner <b id="topWinner">—</b> <span class="amt" id="topAmt"></span></div>
     <div class="toast" id="toast"></div>
@@ -163,19 +167,36 @@
     <div class="city">
       <div class="win-frame">
         <svg width="100%" height="100%" viewBox="0 0 460 180" preserveAspectRatio="none" style="position:absolute;inset:0">
-          <rect width="460" height="180" fill="#0a1130"/>
-          <!-- 楼 -->
-          <g fill="#0e1638">
-            <rect x="10" y="70" width="46" height="110"/><rect x="66" y="40" width="34" height="140"/>
-            <rect x="110" y="90" width="40" height="90"/><rect x="160" y="30" width="30" height="150"/>
-            <rect x="330" y="60" width="44" height="120"/><rect x="384" y="36" width="30" height="144"/>
-            <rect x="420" y="80" width="34" height="100"/>
+          <defs>
+            <linearGradient id="citySky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#090f2c"/><stop offset="55%" stop-color="#131a42"/><stop offset="100%" stop-color="#25184a"/>
+            </linearGradient>
+          </defs>
+          <rect width="460" height="180" fill="url(#citySky)"/>
+          <!-- 月亮 + 星星 -->
+          <circle cx="398" cy="28" r="12" fill="#eef0ff" opacity=".9"/><circle cx="393" cy="25" r="10" fill="#101838"/>
+          <g fill="#dbe6ff">
+            <circle cx="60" cy="22" r="1"/><circle cx="120" cy="15" r="1"/><circle cx="205" cy="20" r="1"/><circle cx="300" cy="16" r="1"/><circle cx="150" cy="33" r="1"/><circle cx="255" cy="30" r="1"/><circle cx="352" cy="44" r="1"/><circle cx="35" cy="40" r="1"/>
           </g>
-          <!-- 楼上的窗（部分闪烁） -->
-          <g fill="#ffcf6a"></g>
+          <!-- 远景天际线 -->
+          <g fill="#182150">
+            <rect x="110" y="128" width="20" height="52"/><rect x="150" y="120" width="26" height="60"/><rect x="230" y="108" width="30" height="72"/><rect x="266" y="126" width="22" height="54"/><rect x="376" y="118" width="24" height="62"/>
+          </g>
+          <!-- 近景高楼 -->
+          <g fill="#0c1330">
+            <rect x="6" y="86" width="40" height="94"/><rect x="52" y="58" width="30" height="122"/><rect x="88" y="104" width="34" height="76"/><rect x="128" y="44" width="28" height="136"/><rect x="196" y="96" width="36" height="84"/><rect x="300" y="72" width="40" height="108"/><rect x="346" y="50" width="26" height="130"/><rect x="404" y="90" width="34" height="90"/>
+          </g>
+          <!-- 抽象霓虹广告牌（发光色块，无文字/汉字） -->
+          <g>
+            <rect x="49" y="64" width="14" height="22" fill="#ff2e88" opacity=".22"/><rect x="52" y="64" width="8" height="22" fill="#ff2e88" opacity=".9"/>
+            <rect x="132" y="58" width="20" height="4" fill="#27e3ff" opacity=".5"/><rect x="128" y="52" width="28" height="4" fill="#27e3ff" opacity=".95"/>
+            <rect x="346" y="56" width="26" height="5" fill="#ffb54d" opacity=".9"/><rect x="352" y="63" width="14" height="3" fill="#ffb54d" opacity=".5"/>
+            <rect x="300" y="80" width="6" height="16" fill="#a06bff" opacity=".85"/>
+          </g>
+          <!-- 楼窗灯光（JS 生成，部分闪烁） -->
+          <g id="winLights"></g>
         </svg>
-        <!-- 招牌霓虹 -->
-        <div style="position:absolute;left:120px;top:60px;font-size:10px;font-weight:900;color:var(--pink);text-shadow:0 0 8px var(--pink);animation:flick 3s infinite">涵</div>
+        <!-- 招牌霓虹（英文品牌，无汉字装饰） -->
         <div style="position:absolute;left:250px;top:40px;font-size:9px;font-weight:900;color:var(--cyan);text-shadow:0 0 8px var(--cyan);animation:flick 5s infinite">JZH</div>
         <div class="flyer"></div>
         <!-- 窗外街上走过的路人剪影 -->
@@ -206,35 +227,75 @@
       <g class="arm"><rect x="34" y="24" width="10" height="4" fill="#e9c39c"/><rect x="42" y="22" width="6" height="6" fill="#cfe0ff"/></g>
     </svg>
 
-    <!-- 轮盘机器（可点击） -->
-    <svg class="pix machine roul" id="mRoul" viewBox="0 0 100 70">
-      <ellipse cx="50" cy="54" rx="46" ry="12" fill="#123a2a"/>
-      <ellipse cx="50" cy="52" rx="46" ry="12" fill="#1c5a40"/>
-      <g class="wheel" style="transform-box:fill-box">
-        <circle cx="50" cy="30" r="22" fill="#2a1428"/><circle cx="50" cy="30" r="18" fill="#0b0a14"/>
-        <path d="M50 30 L50 12 A18 18 0 0 1 63 17 Z" fill="#ff2e88"/>
-        <path d="M50 30 L63 17 A18 18 0 0 1 68 30 Z" fill="#0b0a14"/>
-        <path d="M50 30 L68 30 A18 18 0 0 1 63 43 Z" fill="#ff2e88"/>
-        <path d="M50 30 L63 43 A18 18 0 0 1 50 48 Z" fill="#0b0a14"/>
-        <path d="M50 30 L50 48 A18 18 0 0 1 37 43 Z" fill="#ff2e88"/>
-        <path d="M50 30 L37 43 A18 18 0 0 1 32 30 Z" fill="#0b0a14"/>
-        <path d="M50 30 L32 30 A18 18 0 0 1 37 17 Z" fill="#27e3ff"/>
-        <path d="M50 30 L37 17 A18 18 0 0 1 50 12 Z" fill="#0b0a14"/>
-        <circle cx="50" cy="30" r="4" fill="var(--amber)"/>
+    <!-- 轮盘赌桌（庄家站桌后，可点击进入） -->
+    <svg class="pix machine roul" id="mRoul" viewBox="0 0 120 90">
+      <!-- 庄家（荷官） -->
+      <g>
+        <rect x="51" y="3" width="18" height="9" fill="#241b30"/>
+        <rect x="52" y="10" width="16" height="10" fill="#e9c39c"/>
+        <rect x="55" y="13" width="3" height="2" fill="#222"/><rect x="62" y="13" width="3" height="2" fill="#222"/>
+        <rect x="47" y="20" width="26" height="26" fill="#151828"/>
+        <rect x="58" y="20" width="4" height="26" fill="#e6edff"/>
+        <rect x="54" y="21" width="12" height="3" fill="var(--pink)"/>
+        <rect x="41" y="23" width="7" height="4" fill="#e9c39c"/><rect x="72" y="23" width="7" height="4" fill="#e9c39c"/>
+        <rect x="77" y="18" width="18" height="2" rx="1" fill="#caa06a" transform="rotate(28 77 20)"/>  <!-- 收耙子 -->
       </g>
+      <!-- 桌子（立体：木边 + 侧板 + 桌腿 + 绿绒台面） -->
+      <ellipse cx="60" cy="66" rx="56" ry="17" fill="#3a2418"/>
+      <path d="M5 66 L7 80 Q60 90 113 80 L115 66 Z" fill="#2b1a10"/>
+      <rect x="20" y="78" width="5" height="10" fill="#241108"/><rect x="95" y="78" width="5" height="10" fill="#241108"/>
+      <ellipse cx="60" cy="64" rx="52" ry="15" fill="#1c5a40"/>
+      <ellipse cx="60" cy="64" rx="52" ry="15" fill="none" stroke="#2f7a58" stroke-width="1"/>
+      <!-- 轮盘（台面左侧，转动） -->
+      <g>
+        <circle cx="34" cy="63" r="14" fill="#241026"/><circle cx="34" cy="63" r="11" fill="#0b0a14"/>
+        <g>
+          <path d="M34 63 L34 52 A11 11 0 0 1 42 56 Z" fill="#ff2e88"/>
+          <path d="M34 63 L42 56 A11 11 0 0 1 45 63 Z" fill="#0b0a14"/>
+          <path d="M34 63 L45 63 A11 11 0 0 1 42 70 Z" fill="#27e3ff"/>
+          <path d="M34 63 L42 70 A11 11 0 0 1 34 74 Z" fill="#0b0a14"/>
+          <path d="M34 63 L34 74 A11 11 0 0 1 26 70 Z" fill="#ff2e88"/>
+          <path d="M34 63 L26 70 A11 11 0 0 1 23 63 Z" fill="#0b0a14"/>
+          <path d="M34 63 L23 63 A11 11 0 0 1 26 56 Z" fill="#27e3ff"/>
+          <path d="M34 63 L26 56 A11 11 0 0 1 34 52 Z" fill="#0b0a14"/>
+          <animateTransform attributeName="transform" type="rotate" from="0 34 63" to="360 34 63" dur="6s" repeatCount="indefinite"/>
+        </g>
+        <circle cx="34" cy="63" r="3" fill="var(--amber)"/>
+      </g>
+      <!-- 下注格 + 筹码 -->
+      <g>
+        <rect x="56" y="57" width="7" height="6" fill="#c02033"/><rect x="64" y="57" width="7" height="6" fill="#141a2e"/><rect x="72" y="57" width="7" height="6" fill="#c02033"/><rect x="80" y="57" width="7" height="6" fill="#141a2e"/>
+        <rect x="56" y="64" width="7" height="6" fill="#141a2e"/><rect x="64" y="64" width="7" height="6" fill="#c02033"/><rect x="72" y="64" width="7" height="6" fill="#141a2e"/><rect x="80" y="64" width="7" height="6" fill="#c02033"/>
+      </g>
+      <ellipse cx="99" cy="66" rx="4" ry="3" fill="#ffd85a" stroke="#b9902f"/><ellipse cx="99" cy="62" rx="4" ry="3" fill="#ff5da2" stroke="#a83b6a"/>
     </svg>
-    <div class="mlabel" style="left:calc(100% - 200px);bottom:20%">🎡轮盘赌 · 点击进入</div>
 
-    <!-- 21点机器（可点击） -->
-    <svg class="pix machine bj" id="mBj" viewBox="0 0 110 66">
-      <ellipse cx="55" cy="52" rx="52" ry="12" fill="#123a2a"/>
-      <ellipse cx="55" cy="50" rx="52" ry="12" fill="#1c5a40"/>
-      <!-- 两张牌 -->
-      <g transform="rotate(-10 40 34)"><rect x="30" y="20" width="22" height="30" rx="3" fill="#f4f7ff"/><text x="41" y="40" font-size="16" text-anchor="middle" fill="#ff2e88">A</text></g>
-      <g transform="rotate(8 70 34)"><rect x="60" y="20" width="22" height="30" rx="3" fill="#f4f7ff"/><text x="71" y="40" font-size="16" text-anchor="middle" fill="#111">K</text></g>
-      <text x="55" y="16" font-size="12" text-anchor="middle" fill="var(--cyan)">21</text>
+    <!-- 21点赌桌（半圆桌，庄家站桌后发牌，可点击进入） -->
+    <svg class="pix machine bj" id="mBj" viewBox="0 0 120 90">
+      <!-- 庄家（荷官，手里两张牌） -->
+      <g>
+        <rect x="51" y="3" width="18" height="9" fill="#241b30"/>
+        <rect x="52" y="10" width="16" height="10" fill="#e9c39c"/>
+        <rect x="55" y="13" width="3" height="2" fill="#222"/><rect x="62" y="13" width="3" height="2" fill="#222"/>
+        <rect x="47" y="20" width="26" height="24" fill="#151828"/>
+        <rect x="58" y="20" width="4" height="24" fill="#e6edff"/>
+        <rect x="54" y="21" width="12" height="3" fill="var(--pink)"/>
+        <rect x="41" y="24" width="7" height="4" fill="#e9c39c"/><rect x="72" y="24" width="7" height="4" fill="#e9c39c"/>
+        <g transform="rotate(-10 52 40)"><rect x="46" y="31" width="12" height="16" rx="2" fill="#f4f7ff"/><rect x="46" y="31" width="12" height="16" rx="2" fill="none" stroke="#c9d3e6"/></g>
+        <g transform="rotate(10 68 40)"><rect x="62" y="31" width="12" height="16" rx="2" fill="#b23048"/></g>
+      </g>
+      <!-- 半圆桌（立体：外木边 + 绿绒） -->
+      <path d="M6 55 L114 55 Q114 82 60 88 Q6 82 6 55 Z" fill="#3a2418"/>
+      <path d="M7 53 L113 53 Q113 78 60 84 Q7 78 7 53 Z" fill="#1c5a40"/>
+      <path d="M7 53 L113 53 Q113 78 60 84 Q7 78 7 53 Z" fill="none" stroke="#2f7a58" stroke-width="1"/>
+      <text x="60" y="50" font-size="8" text-anchor="middle" fill="#ffd85a" font-weight="800" letter-spacing="1">BLACKJACK</text>
+      <!-- 下注圈 -->
+      <ellipse cx="30" cy="70" rx="7" ry="3.4" fill="none" stroke="#ffb54d" stroke-width="1.3"/>
+      <ellipse cx="90" cy="70" rx="7" ry="3.4" fill="none" stroke="#ffb54d" stroke-width="1.3"/>
+      <!-- 桌面两张牌 A / K -->
+      <g transform="rotate(-9 46 66)"><rect x="40" y="57" width="14" height="19" rx="2" fill="#f4f7ff"/><text x="47" y="70" font-size="11" text-anchor="middle" fill="#ff2e88" font-weight="800">A</text></g>
+      <g transform="rotate(9 74 66)"><rect x="67" y="57" width="14" height="19" rx="2" fill="#f4f7ff"/><text x="74" y="70" font-size="11" text-anchor="middle" fill="#111" font-weight="800">K</text></g>
     </svg>
-    <div class="mlabel" style="left:calc(100% - 65px);bottom:18%">🃏21点 · 点击进入</div>
 
     <!-- 背景装饰老虎机（亮屏转轮，纯氛围） -->
     <svg class="dslot" style="left:112px;bottom:30%;width:28px;height:44px" viewBox="0 0 28 46">
@@ -253,14 +314,6 @@
       <rect x="5" y="19" width="18" height="1" fill="#ff2e88" opacity=".8"/>
       <rect x="6" y="31" width="16" height="4" rx="1" fill="#27e3ff" opacity=".7"/>
       <rect x="25" y="15" width="3" height="9" rx="1" fill="#ffb54d"/><circle cx="26" cy="14" r="2" fill="#27e3ff"/></svg>
-    <svg class="dslot" style="left:300px;bottom:32%;width:26px;height:40px" viewBox="0 0 28 46">
-      <rect x="2" y="8" width="24" height="38" rx="3" fill="#1c0f2e"/><rect x="2" y="8" width="24" height="38" rx="3" fill="none" stroke="#3a2a5a" stroke-width="2"/>
-      <circle class="dbulb" cx="8" cy="6" r="2" fill="#a06bff"/><circle class="dbulb" cx="14" cy="5" r="2" fill="#ffb54d"/><circle class="dbulb" cx="20" cy="6" r="2" fill="#27e3ff"/>
-      <rect x="5" y="13" width="18" height="13" fill="#07131f"/><rect x="5" y="13" width="18" height="13" fill="none" stroke="#a06bff" stroke-width="1" opacity=".7"/>
-      <rect class="reel-sym b" x="7" y="16" width="4" height="7" fill="#ffd85a"/><rect class="reel-sym c" x="12" y="16" width="4" height="7" fill="#5de1ff"/><rect class="reel-sym" x="17" y="16" width="4" height="7" fill="#ff5da2"/>
-      <rect x="5" y="19" width="18" height="1" fill="#a06bff" opacity=".8"/>
-      <rect x="6" y="31" width="16" height="4" rx="1" fill="#ffb54d" opacity=".7"/>
-      <rect x="25" y="15" width="3" height="9" rx="1" fill="#ffb54d"/><circle cx="26" cy="14" r="2" fill="#a06bff"/></svg>
 
     <!-- 站在老虎机前玩的顾客 -->
     <svg class="slotguy" style="left:92px" viewBox="0 0 22 36">
@@ -273,6 +326,7 @@
 
     <!-- 玩家JZH（真实版：显示你自己的JZH） -->
     <div class="pix player" id="playerJZH"></div>
+   </div><!-- /stage -->
   </div>
 
   <!-- 向导对话 -->
@@ -318,9 +372,9 @@
   <div class="modal">
     <h3 id="rmTitle">进入轮盘赌</h3>
     <p>一个人玩会自动配 2 个机器人陪你；也可以进公共房和别人一起。</p>
-    <div class="mrow" style="flex-direction:column;gap:10px">
-      <button class="mbtn solo">🎲 单人开一局</button>
-      <button class="mbtn multi">👥 快速3人房</button>
+    <div class="mrow" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center">
+      <button class="mbtn solo" style="flex:1 1 40%">🎲 单人开一局</button>
+      <button class="mbtn multi" style="flex:1 1 40%">👥 快速3人房</button>
       <button class="mbtn cancel">取消</button>
     </div>
   </div>
@@ -335,7 +389,37 @@
     d.style.animationDuration=(0.5+Math.random()*0.5)+'s';d.style.animationDelay=(Math.random())+'s';
     d.style.opacity=0.3+Math.random()*0.5;rain.appendChild(d);}
 
+  // 窗外高楼的窗户灯光（随机点亮，部分闪烁）
+  (function(){
+    const g=document.getElementById('winLights'); if(!g) return;
+    const NS='http://www.w3.org/2000/svg';
+    const blds=[[6,86,40,94],[52,58,30,122],[88,104,34,76],[128,44,28,136],[196,96,36,84],[300,72,40,108],[346,50,26,130],[404,90,34,90]];
+    const cols=['#ffcf6a','#ffd98a','#8fe6ff','#ff9ec8'];
+    blds.forEach(([bx,by,bw,bh])=>{
+      for(let y=by+7; y<by+bh-5; y+=9){
+        for(let x=bx+5; x<bx+bw-4; x+=8){
+          if(Math.random()<0.45) continue;                 // 部分窗不亮
+          const r=document.createElementNS(NS,'rect');
+          r.setAttribute('x',x); r.setAttribute('y',y); r.setAttribute('width',3); r.setAttribute('height',4);
+          r.setAttribute('fill',cols[Math.floor(Math.random()*cols.length)]);
+          r.setAttribute('opacity',(0.45+Math.random()*0.5).toFixed(2));
+          if(Math.random()<0.22){ r.setAttribute('class','blink'); r.style.animationDelay=(Math.random()*3).toFixed(2)+'s'; }
+          g.appendChild(r);
+        }
+      }
+    });
+  })();
+
   function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('on'),1800);}
+
+  // 让整个赌场场景等比缩放到当前宽度：手机/电脑保持同一套构图，宽度变窄也不会挤在一起
+  function fitStage(){
+    const scene=document.getElementById('scene'), stage=document.getElementById('stage');
+    if(!scene||!stage) return;
+    stage.style.transform='scale('+(scene.clientWidth/480)+')';
+  }
+  fitStage();
+  window.addEventListener('resize', fitStage);
 
   // 读大厅数据：金币 / 精神值 / 今日大赢家 / 你自己的 JZH / 饮品菜单+背包
   let LOBBY = {my_drinks:[], drinks_catalog:[], drink_hold_max:2, spirit:0};
@@ -367,11 +451,12 @@
   function startWander(el){
     if(el._walking) return;                 // 只启动一次
     el._walking=true;
-    const scene=document.getElementById('scene');
-    el.style.left=Math.round(scene.clientWidth*0.4)+'px';   // 初始站中间偏左
+    const stage=document.getElementById('stage');
+    const DW=(stage&&stage.offsetWidth)||480;               // 舞台设计宽度(480，不受缩放影响)
+    el.style.left=Math.round(DW*0.4)+'px';                  // 初始站中间偏左
     function step(){
       if(!document.body.contains(el)){ el._walking=false; return; }
-      const W=Math.max(20, scene.clientWidth-70);            // 留出小人宽度，别走出画面
+      const W=Math.max(20, DW-70);                          // 留出小人宽度，别走出画面
       const nx=Math.random()*W;
       const cur=parseFloat(el.style.left)||0;
       el._face=(nx<cur?'scaleX(-1)':'scaleX(1)');            // 朝着走的方向
