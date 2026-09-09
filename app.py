@@ -924,6 +924,11 @@ def plaza_page():
 def plaza_pets():
     return pet.plaza_data(session["username"])
 
+@app.route("/pet/records")
+@login_required
+def pet_records_page():
+    return render_template("pet_records.html")
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True, port=5000)
+    app.run(host="0.0.0.0", debug=False, port=5000)

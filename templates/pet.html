@@ -28,7 +28,7 @@
   .fill{height:100%;border-radius:999px;transition:width .4s}
   .bar span:last-child{color:var(--muted);text-align:right}
   .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-  .btn{font-weight:700;font-size:14px;cursor:pointer;flex:1 1 auto;border:2px solid var(--ink);border-radius:12px;padding:10px 12px;background:#fff;color:var(--ink);box-shadow:3px 3px 0 var(--ink);transition:transform .1s,box-shadow .1s}
+  .btn{font-weight:700;font-size:14px;cursor:pointer;flex:1 1 132px;min-width:0;border:2px solid var(--ink);border-radius:12px;padding:10px 12px;background:#fff;color:var(--ink);box-shadow:3px 3px 0 var(--ink);transition:transform .1s,box-shadow .1s;text-align:center}
   .btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
   .btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
   .btn.y{background:var(--marigold)}.btn.c{background:var(--coral)}.btn.g{background:var(--green)}.btn.p{background:var(--grape);color:#fff}
@@ -51,6 +51,14 @@
   .fam small{color:var(--muted);font-size:10px;display:block}
   .sprite{animation:float 3.2s ease-in-out infinite alternate}
   @keyframes float{from{transform:translateY(0)}to{transform:translateY(-6px)}}
+  .cbtn .price{font-size:10px;opacity:.85;margin-left:2px}
+  .modal-bg{position:fixed;inset:0;background:rgba(38,43,51,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal-bg[hidden]{display:none}   /* 关键：隐藏时真的不显示（否则 display:flex 会盖掉 hidden） */
+  .modal{background:#fff;border-radius:18px;padding:20px 18px;max-width:300px;width:100%;box-shadow:0 16px 40px rgba(0,0,0,.25);text-align:center}
+  .modal h3{margin:0 0 8px;font-size:17px}
+  .modal p{margin:0 0 16px;color:var(--muted);font-size:14px}
+  .modal .mrow{display:flex;gap:10px}
+  .modal .mrow .btn{flex:1 1 0}
 </style>
 </head>
 <body>
@@ -67,13 +75,24 @@
     <p class="lbl">上衣</p><div class="swatches" id="swOutfit"></div>
     <p class="lbl">发色</p><div class="swatches" id="swHair"></div>
     <p class="lbl">肤色</p><div class="swatches" id="swSkin"></div>
+    <p class="lbl">衣服（打工赚金币购买解锁）</p><div class="row" id="clothesRow" style="margin-top:0"></div>
     <a class="plazalink" href="/plaza">🌿 去牧场看看大家的JZH →</a>
   </div>
   <div class="panel" style="margin-top:14px">
-    <h2 style="margin-top:0">📖 成长记录册</h2>
-    <div id="logbook" class="logbook"></div>
+    <a class="plazalink" href="/pet/records" style="margin-top:0">📖 打开成长记录册（每只JZH的完整故事）→</a>
     <h2>👶 家族相册 · 后代</h2>
     <div id="family" class="famgrid"></div>
+  </div>
+</div>
+
+<div id="buyModal" class="modal-bg" hidden>
+  <div class="modal">
+    <h3 id="buyTitle">要购买这件衣服吗？</h3>
+    <p id="buyDesc"></p>
+    <div class="mrow">
+      <button class="btn" id="buyCancel">取消</button>
+      <button class="btn y" id="buyOk">确认购买</button>
+    </div>
   </div>
 </div>
 
@@ -88,7 +107,8 @@ const STAGE_NAME={cocoon:"睡袋",kid:"幼年",adult:"成年",old:"老年",cloud
 
 function render(){
   document.getElementById('coins').textContent="🪙 "+Math.floor(S.coins||0);
-  document.getElementById('petView').innerHTML=petSVG(S);
+  try{ document.getElementById('petView').innerHTML=petSVG(S); }
+  catch(err){ document.getElementById('petView').innerHTML=''; console.error('❌ 像素图渲染失败，多半是 pet_sprite.js 没加载或有语法错误：', err); }
   document.getElementById('petName').textContent=S.name||"新的JZH";
   document.getElementById('stageTag').textContent=STAGE_NAME[S.stage]||S.stage;
 
@@ -126,46 +146,50 @@ function render(){
       ? `<button class="btn y" data-act="collect">${S.status==="working"?"💰 收工领钱":"🛍️ 收下战利品"}</button>`
       : `<button class="btn" disabled>${label}中… ${fmt(S.out_in)}后回来</button>`;
   }else{
-    // 幼年/成年/老年在家：核心照料一直有；打工/购物/托管只有非老年才有
+    // 幼年/成年/老年在家：所有按钮都可用（喂食/洗澡/摸头/互动/掉落/打工/购物/托管）
     acts = `<button class="btn y" data-act="feed" ${S.can_feed?"":"disabled"}>${S.can_feed?"喂食":"喂食 "+fmt(S.feed_in)+"后"}</button>
        <button class="btn g" data-act="wash">洗澡</button>
        <button class="btn c" data-act="pet" ${S.can_pet?"":"disabled"}>${S.can_pet?"摸摸头":"摸头 "+fmt(S.pet_in)+"后"}</button>
        <button class="btn p" data-act="play" ${S.can_play?"":"disabled"}>${S.can_play?"互动":"互动 "+fmt(S.play_in)+"后"}</button>
-       <button class="btn" data-act="drop" ${S.can_drop?"":"disabled"}>${S.can_drop?"🎁 领掉落":(S.has_locked?"掉落 "+fmt(S.drop_in)+"后":"装扮已集齐")}</button>`;
-    if(S.stage!=="old"){
-      acts += `
+       <button class="btn" data-act="drop" ${S.can_drop?"":"disabled"}>${S.can_drop?"🎁 领掉落":(S.has_locked?"掉落 "+fmt(S.drop_in)+"后":"装扮已集齐")}</button>
        <button class="btn c" data-act="work">🛠️ 出去打工</button>
        <button class="btn p" data-act="shop">🛍️ 出去购物 🪙${S.shop_cost}</button>
        <button class="btn g" data-act="consign">🌿 送去牧场托管</button>`;
-    }
   }
   document.getElementById('actions').innerHTML = acts;
 
   // 换装（只有已解锁的能点，锁着的变灰 🔒）
   const owned = S.owned || {hat:[],outfit:[],hair:[],skin:[]};
-  document.getElementById('hats').innerHTML = Object.keys(HATS).map(h=>{
-    const has=(owned.hat||[]).includes(h);
-    return `<button class="btn sm ${S.hat===h?'p':''}" data-hat="${h}" ${has?'':'disabled'}>${has?h:'🔒'+h}</button>`;
-  }).join("");
-  const sw=(arr,key,colorOf)=>arr.map((x,i)=>{
-    const has=(owned[key]||[]).includes(i);
-    if(has) return `<button class="sw" data-set="${key}" data-i="${i}" style="background:${colorOf(x)}" aria-pressed="${(S[key]||0)===i}"></button>`;
-    return `<button class="sw locked" data-set="${key}" data-i="${i}" disabled title="未解锁">🔒</button>`;
-  }).join("");
-  document.getElementById('swOutfit').innerHTML=sw(OUTFITS,"outfit",x=>x.main);
-  document.getElementById('swHair').innerHTML=sw(HAIRS,"hair",x=>x.k);
-  document.getElementById('swSkin').innerHTML=sw(SKINS,"skin",x=>x.s);
+  try{
+    document.getElementById('hats').innerHTML = Object.keys(HATS).map(h=>{
+      const has=(owned.hat||[]).includes(h);
+      return `<button class="btn sm ${S.hat===h?'p':''}" data-hat="${h}" ${has?'':'disabled'}>${has?h:'🔒'+h}</button>`;
+    }).join("");
+    const sw=(arr,key,colorOf)=>arr.map((x,i)=>{
+      const has=(owned[key]||[]).includes(i);
+      if(has) return `<button class="sw" data-set="${key}" data-i="${i}" style="background:${colorOf(x)}" aria-pressed="${(S[key]||0)===i}"></button>`;
+      return `<button class="sw locked" data-set="${key}" data-i="${i}" disabled title="未解锁">🔒</button>`;
+    }).join("");
+    document.getElementById('swOutfit').innerHTML=sw(OUTFITS,"outfit",x=>x.main);
+    document.getElementById('swHair').innerHTML=sw(HAIRS,"hair",x=>x.k);
+    document.getElementById('swSkin').innerHTML=sw(SKINS,"skin",x=>x.s);
+    // 衣服：已买的能穿（点=换上），没买的显示价格（点=弹框购买）
+    const ownedClo=(owned.clothes||["无"]), price=(S.clothes_price||{});
+    document.getElementById('clothesRow').innerHTML = Object.keys(CLOTHES).map(name=>{
+      const has = name==="无" || ownedClo.includes(name);
+      const on  = (S.clothes||"无")===name;
+      if(has) return `<button class="btn sm cbtn ${on?'p':''}" data-clo="${name}">${name==="无"?"不穿":name}</button>`;
+      return `<button class="btn sm cbtn" data-buy="${name}">🔒${name}<span class="price">${price[name]||''}🪙</span></button>`;
+    }).join("");
+  }catch(err){ console.error('❌ 换装区渲染失败（pet_sprite.js 里的 HATS/OUTFITS/CLOTHES 等没加载）：', err); }
 
-  // 成长记录册
-  const lb=document.getElementById('logbook');
-  if(S.log&&S.log.length){ lb.innerHTML=S.log.map(e=>`<div>${e.text}<span class="t">${e.t||''}</span></div>`).join(""); }
-  else{ lb.innerHTML='<div class="empty">还没有记录～把JZH托管到牧场，它会遇到别的JZH、留下故事。</div>'; }
+  // 成长记录册已独立成 /pet/records 页面，这里只保留入口链接
 
   // 家族相册（后代）
   const fg=document.getElementById('family');
   if(S.family&&S.family.length){
     fg.innerHTML=S.family.map(c=>{
-      const svg=petSVG({version:c.version||'v1',stage:'kid',hat:'光头',outfit:0,hair:0,skin:0});
+      let svg=''; try{ svg=petSVG({version:c.version||'v1',stage:'kid',hat:'光头',outfit:0,hair:0,skin:0}); }catch(err){ svg=''; }
       return `<div class="fam">${svg}<b>${c.name||'未命名'}</b><small>${(c.parents||[]).join('×')}</small><small>${c.version||'v1'}</small></div>`;
     }).join("");
   }else{
@@ -177,16 +201,33 @@ async function doAct(action){const r=await apiAct(action);const msg=r.msg;S=r;re
 
 document.addEventListener('click',e=>{
   const t=e.target.closest('button'); if(!t||!S)return;
+  if(t.id==='buyOk'||t.id==='buyCancel') return;   // 弹框按钮有各自的监听
   if(t.id==='nameBtn'){ const v=(document.getElementById('nameInput').value||'').trim(); if(v) return doAct('name:'+v); return; }
   const d=t.dataset;
   if(d.act) return doAct(d.act);
   if(d.hat) return doAct('dress:hat:'+d.hat);
   if(d.set) return doAct('dress:'+d.set+':'+d.i);
+  if(d.clo) return doAct('dress:clothes:'+d.clo);   // 已买的衣服：点=换上/脱下
+  if(d.buy) return openBuy(d.buy);                  // 没买的衣服：点=弹框购买
 });
 document.getElementById('stage').addEventListener('click',e=>{
   if(e.target.closest('button')||!S)return;
   doAct('say');   // 点身体一律说话（睡袋会说梦话，唤醒用按钮）
 });
+
+// —— 购买衣服的确认弹框 ——
+let pendingBuy=null;
+function openBuy(name){
+  pendingBuy=name;
+  const price=(S.clothes_price||{})[name]||0;
+  document.getElementById('buyTitle').textContent=`要购买【${name}】吗？`;
+  document.getElementById('buyDesc').innerHTML=`花费 <b>${price}</b> 🪙　（你现在有 ${Math.floor(S.coins||0)} 🪙）`;
+  document.getElementById('buyModal').hidden=false;
+}
+function closeBuy(){ pendingBuy=null; document.getElementById('buyModal').hidden=true; }
+document.getElementById('buyCancel').addEventListener('click',closeBuy);
+document.getElementById('buyOk').addEventListener('click',()=>{ const n=pendingBuy; closeBuy(); if(n) doAct('buy_clothes:'+n); });
+document.getElementById('buyModal').addEventListener('click',e=>{ if(e.target.id==='buyModal') closeBuy(); });
 
 (async function(){ S=await apiState(); render();
   setInterval(async()=>{ S=await apiState(); render(); }, 30000);

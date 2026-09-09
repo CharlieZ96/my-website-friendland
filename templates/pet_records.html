@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>成长记录册 · 像素JZH</title>
+<style>
+  :root{--sky:#D9E2EC;--paper:#fff;--ink:#262B33;--muted:#6B7683;--grape:#6D4FA3;--marigold:#F5A623;--coral:#FF7A59;--line:#C6D0DA;--green:#5FBF8F;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--sky);color:var(--ink);font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;padding:18px 12px 50px}
+  .wrap{max-width:520px;margin:0 auto}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  h1{font-size:22px;margin:0}
+  h1 em{font-style:normal;color:var(--grape)}
+  .back{font-size:13px;color:var(--muted);text-decoration:none}
+  .count{text-align:center;color:var(--muted);font-size:13px;margin:0 0 10px}
+  .tools{display:flex;justify-content:center;gap:8px;margin-bottom:14px}
+  .tbtn{font-size:12px;font-weight:700;cursor:pointer;border:2px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:5px 14px}
+  .tbtn:active{transform:translateY(1px)}
+
+  .life{background:var(--paper);border-radius:20px;box-shadow:0 10px 26px rgba(38,43,51,.10);margin-bottom:14px;border:2px solid transparent;overflow:hidden}
+  .life.current{border-color:var(--green)}
+  /* 折叠标题：点一下展开/收起 */
+  summary.lhead{display:flex;align-items:center;gap:12px;cursor:pointer;list-style:none;padding:14px 16px;user-select:none}
+  summary.lhead::-webkit-details-marker{display:none}
+  summary.lhead:hover{background:#FAFBFD}
+  .lhead svg{width:60px;height:60px;image-rendering:pixelated;flex:0 0 auto}
+  .lmeta{flex:1 1 auto;min-width:0}
+  .lname{font-size:18px;font-weight:800;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+  .gen{font-size:12px;background:var(--grape);color:#fff;border-radius:999px;padding:2px 9px;font-weight:700}
+  .ver{font-size:11px;background:#EDF1F5;color:var(--muted);border-radius:999px;padding:2px 8px;font-weight:700}
+  .alive{font-size:11px;background:var(--green);color:#fff;border-radius:999px;padding:2px 8px;font-weight:700}
+  .lsub{color:var(--muted);font-size:12px;margin-top:4px;line-height:1.6}
+  .chev{flex:0 0 auto;color:var(--muted);font-size:15px;transition:transform .18s;margin-left:4px}
+  details[open] > summary .chev{transform:rotate(90deg)}
+
+  .logs{padding:2px 16px 14px;font-size:13px;line-height:1.85;color:#4a5561;max-height:360px;overflow:auto}
+  .logs .inner{border-top:1px dashed var(--line);padding-top:10px}
+  .logs div.e{padding:1px 0}
+  .logs .t{color:#9aa0ab;font-size:11px;margin-left:6px}
+  .logs .none{color:#9aa0ab;font-size:12px}
+  .empty{background:var(--paper);border-radius:20px;padding:26px 16px;text-align:center;color:#9aa0ab;box-shadow:0 10px 26px rgba(38,43,51,.10)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar"><h1>📖 成长<em>记录册</em></h1><a class="back" href="/pet">← 回养成页</a></div>
+  <p class="count" id="count"></p>
+  <div class="tools" id="tools" hidden>
+    <button class="tbtn" id="openAll">展开全部</button>
+    <button class="tbtn" id="closeAll">收起全部</button>
+  </div>
+  <div id="list"></div>
+</div>
+
+<script src="/static/pet_sprite.js"></script>
+<script>
+const CAUSE = {
+  neglect: "疏于照顾，没能留住它 😢",
+  natural: "寿终正寝，自然老去 🌥️",
+  bred:    "养育后代之后，安然老去 🌥️",
+  "":      "化作了一朵云 🌥️",
+};
+
+async function load(){
+  let S;
+  try{ S = await (await fetch('/pet/state')).json(); }
+  catch(e){ document.getElementById('list').innerHTML='<div class="empty">读取失败，稍后再试～</div>'; return; }
+
+  const lives = (S.lives||[]).slice();       // 每只JZH一段生平
+  const listEl = document.getElementById('list');
+  const cntEl  = document.getElementById('count');
+
+  // 过滤掉完全空白（没名字、没记录）的生平，避免刷屏
+  const shown = lives.filter(l => (l.name && l.name.length) || (l.log && l.log.length));
+  if(!shown.length){
+    cntEl.textContent = "";
+    listEl.innerHTML = '<div class="empty">还没有记录～给JZH起个名字、带它去牧场，故事就开始啦。</div>';
+    return;
+  }
+  cntEl.textContent = `至今一共养育过 ${shown.length} 只JZH · 点标题可展开/收起`;
+  document.getElementById('tools').hidden = false;
+
+  // 从新到旧：最后一段（当前这只）排最上面
+  const ordered = shown.slice().reverse();
+  const lastNo = lives.length ? lives[lives.length-1].no : -1;
+
+  listEl.innerHTML = ordered.map((l, idx)=>{
+    const isCurrent = (l.no === lastNo) && !l.died;
+    const openThis  = isCurrent || idx === 0;   // 当前这只（或最新一只）默认展开，其余收起
+    const svg = avatar(l, isCurrent, S);
+    const name = l.name && l.name.length ? l.name : '未命名';
+    const gen  = `第 ${l.no} 代`;
+    const ver  = l.version || 'v1';
+    const born = l.born_str ? ('出生于 ' + l.born_str) : '';
+    const n    = (l.log && l.log.length) ? l.log.length : 0;
+    let status;
+    if(l.died){ status = '结局：' + (CAUSE[l.cause] || CAUSE['']); }
+    else { status = '目前在世，正在被你养育中'; }
+    const sub = [born, status, `${n} 条记录`].filter(Boolean).join(' · ');
+
+    const logs = n
+      ? l.log.map(e=>`<div class="e">${esc(e.text)}<span class="t">${esc(e.t||'')}</span></div>`).join("")
+      : '<div class="none">这一只还没有留下记录～</div>';
+
+    return `<details class="life ${isCurrent?'current':''}" ${openThis?'open':''}>
+      <summary class="lhead">${svg}
+        <div class="lmeta">
+          <div class="lname">${esc(name)} <span class="gen">${gen}</span> <span class="ver">${ver}</span>${isCurrent?'<span class="alive">在世</span>':''}</div>
+          <div class="lsub">${esc(sub)}</div>
+        </div>
+        <span class="chev">▸</span>
+      </summary>
+      <div class="logs"><div class="inner">${logs}</div></div>
+    </details>`;
+  }).join("");
+
+  // 全部展开 / 全部收起
+  document.getElementById('openAll').onclick  = ()=>document.querySelectorAll('details.life').forEach(d=>d.open=true);
+  document.getElementById('closeAll').onclick = ()=>document.querySelectorAll('details.life').forEach(d=>d.open=false);
+}
+
+// 画头像：化云的显示云；当前在世的用它现在真实的样子；其它用该版本的成年默认样子
+function avatar(life, isCurrent, S){
+  try{
+    if(life.died) return petSVG({version:life.version||'v1', stage:'cloud'});
+    if(isCurrent) return petSVG(S);
+    return petSVG({version:life.version||'v1', stage:'adult', hat:'光头', outfit:0, hair:0, skin:0});
+  }catch(e){ return '<svg width="60" height="60"></svg>'; }
+}
+
+function esc(s){ return String(s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+load();
+</script>
+</body>
+</html>

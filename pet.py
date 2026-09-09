@@ -13,7 +13,7 @@ DB = "users.db"
 #   1) 在 pet.html 的 VERSIONS 里加一张新的字符网格（比如 "v2": [...]）
 #   2) 把这里的名字加上 "v2"
 # 新版本就自动进入随机池，老逻辑一律不用动。
-PET_VERSIONS = ["v1", "v2", "v3"]
+PET_VERSIONS = ["v1", "v2", "v3", "v4", "v5", "v6", "v7"]
  
 # ====== 说话库（点击JZH随机说一句，随时增删）======
 SAYINGS = {
@@ -25,7 +25,7 @@ SAYINGS = {
 # ====== 节奏参数（随时调）======
 WAKE_GAP        = 30      # 唤醒间隔：4分钟（秒）
 WAKES_NEED      = 2       # 唤醒几次进幼年
-FEED_GAP        = 1800     # 喂食间隔：半小时（秒）
+FEED_GAP        = 1200     # 喂食间隔：20分钟（秒）
 GROWTH_TO_ADULT = 100      # 幼年→成年所需成长值（每次喂食 +20，约 5 次）
 SPIRIT_MAX      = 100
 PET_GAP         = 60       # 摸头间隔：60 秒（不能猛点）
@@ -40,7 +40,8 @@ WORK_COINS      = (30, 50) # 打工收入区间（随机取一个）
 WORK_DECO_CHANCE = 0.03    # 打工顺路捡到装饰的概率
 PARTNER_GAP      = 3600    # 结伴后多久诞生下一代：1 小时（秒）
 PLAZA_TICK_GAP   = 600     # 牧场事件最短间隔：10分钟（避免每次刷新都触发）
-LOG_KEEP         = 150     # 记录册最多保留多少条（保留较完整的成长故事）
+LOG_KEEP         = 150     # 每只JZH自己的记录最多保留多少条
+LIVES_KEEP       = 40      # 记录册最多保留多少"代"JZH的生平（超出丢最老的）
 ADULT_LIFESPAN  = 4 * 86400   # 成年多久自然变老：12 天（秒）
 BRED_TO_OLD     = 43200        # 生了后代后多久变老：半天（秒）
 OLD_LIFESPAN    = 43200        # 老年持续多久化云：1 天（秒）
@@ -50,8 +51,13 @@ REL_PARTNER_MIN = 10           # 结伴所需的最低好感
  
 # 可解锁的装扮池（帽子名字要和 pet.html 里 HATS 的键完全一致）
 HAT_POOL = ["光头", "蝴蝶结", "小花", "贝雷帽", "耳机", "毛线帽", "小丑鼻",
-            "墨镜", "小皇冠", "天使环", "猫耳", "鸭舌帽", "头巾", "呆毛", "花环", "恶魔角", "眼罩"]
-OUTFIT_N, HAIR_N, SKIN_N = 8, 5, 3   # 上衣/发色/肤色各有几种（和 pet.html 一致）
+            "墨镜", "小皇冠", "天使环", "猫耳", "鸭舌帽", "头巾", "呆毛", "花环", "恶魔角", "眼罩",
+            "独角兽角", "星星发卡", "西瓜帽", "派对尖帽"]
+OUTFIT_N, HAIR_N, SKIN_N = 8, 5, 7   # 上衣/发色/肤色各有几种（和 pet_sprite.js 里的 OUTFITS/HAIRS/SKINS 数量一致）
+
+# 衣服款式与解锁价格（用打工赚的金币购买；名字要和 pet_sprite.js 的 CLOTHES 完全一致）
+# 想加新衣服：这里加一行价格，再去 pet_sprite.js 的 CLOTHES 里加对应图层即可。
+CLOTHES_PRICE = {"连帽衫": 50, "条纹衫": 50, "背带裤": 70, "西装领带": 200}
  
 def _now():   return time.time()
 def _clamp(v, a, b): return max(a, min(b, v))
@@ -81,8 +87,9 @@ def _fresh():
     ofit = random.randint(0, OUTFIT_N - 1)
     hr   = random.randint(0, HAIR_N - 1)
     sk   = random.randint(0, SKIN_N - 1)
+    ver  = random.choice(PET_VERSIONS)
     return {
-        "version": random.choice(PET_VERSIONS),
+        "version": ver,
         "name": "",                 # 空=还没起名，进养成页会先让用户取名
         "stage": "cocoon",          # cocoon睡袋 / kid幼年 / adult成年
         "wake": 0,
@@ -91,12 +98,16 @@ def _fresh():
         "hunger": 70, "clean": 70, "spirit": 60, "affection": 0,
         "hat": "光头",
         "outfit": ofit, "hair": hr, "skin": sk,
+        "clothes": "无",            # 当前穿的衣服款式（"无"=只穿基础上衣）
         "status": "home", "out_until": 0,
         "coins": 0,
-        # 已解锁的装扮：一开始只有光头 + 出生带的这套配色
-        "owned": {"hat": ["光头"], "outfit": [ofit], "hair": [hr], "skin": [sk]},
+        # 已解锁的装扮：一开始只有光头 + 出生带的这套配色 + 衣服只有"无"
+        "owned": {"hat": ["光头"], "outfit": [ofit], "hair": [hr], "skin": [sk], "clothes": ["无"]},
         "last_drop": 0,             # 0 = 出生后第一次掉落立刻可领
         "born": t, "last": t, "last_fed": 0,
+        # 每只JZH一份独立生平：名字/版本/出生/化云原因 + 它自己的成长记录 log
+        "lives": [{"no": 1, "name": "", "version": ver, "born": t,
+                   "born_str": _datestr(), "died": 0, "cause": "", "log": []}],
     }
  
  
@@ -109,6 +120,13 @@ def _migrate(s):
             "hair": [s.get("hair", 0)],
             "skin": [s.get("skin", 0)],
         }
+    # 衣服款式：老存档补默认"无"，并保证 owned 里有 clothes 分类
+    if "clothes" not in s:
+        s["clothes"] = "无"
+    if "clothes" not in s.setdefault("owned", {}):
+        s["owned"]["clothes"] = ["无"]
+    if "无" not in s["owned"]["clothes"]:
+        s["owned"]["clothes"].insert(0, "无")
     if "last_drop" not in s:
         s["last_drop"] = 0
     if "coins" not in s:
@@ -147,6 +165,18 @@ def _migrate(s):
         s["last_pet"] = 0
     if "last_play" not in s:
         s["last_play"] = 0
+    # 老存档没有"生平"结构：把它现有的流水记录，整体归到"当前这只JZH"名下
+    if "lives" not in s:
+        s["lives"] = [{
+            "no": 1,
+            "name": s.get("name", ""),
+            "version": s.get("version", "v1"),
+            "born": s.get("born", 0),
+            "born_str": "",
+            "died": (s.get("died_at", 0) if s.get("stage") == "cloud" else 0),
+            "cause": (s.get("death_cause", "") if s.get("stage") == "cloud" else ""),
+            "log": list(s.get("log", [])),
+        }]
     return s
  
  
@@ -154,12 +184,24 @@ def _datestr():
     return time.strftime("%m-%d %H:%M", time.localtime())
  
  
+def _current_life(s):
+    """取"当前这只JZH"的生平条目（没有就补一个，兼容老存档）。"""
+    lives = s.setdefault("lives", [])
+    if not lives:
+        lives.append({"no": 1, "name": s.get("name", ""), "version": s.get("version", "v1"),
+                      "born": s.get("born", 0), "born_str": "", "died": 0, "cause": "",
+                      "log": list(s.get("log", []))})
+    return lives[-1]
+
+
 def _addlog(s, text):
-    log = s.setdefault("log", [])
-    if log and log[0].get("text") == text:   # 和上一条完全相同就不重复记，避免刷屏
+    """记到"当前这只JZH"自己的记录里（相邻重复不记，避免刷屏）。"""
+    life = _current_life(s)
+    log = life.setdefault("log", [])
+    if log and log[0].get("text") == text:
         return
     log.insert(0, {"t": _datestr(), "text": text})
-    s["log"] = log[:LOG_KEEP]
+    life["log"] = log[:LOG_KEEP]
  
  
 def _getset(conn, k, d=""):
@@ -190,6 +232,9 @@ def _die(s, cause):
     s["stage"] = "cloud"
     s["death_cause"] = cause
     s["died_at"] = _now()
+    life = _current_life(s)          # 给这只JZH的生平盖上"化云"的时间与原因
+    life["died"] = _now()
+    life["cause"] = cause
  
  
 def _progress(s):
@@ -304,10 +349,13 @@ def _public(s):
     v["pet_in"]      = max(0, int(PET_GAP - (t - s.get("last_pet", 0))))
     v["can_play"]    = (t - s.get("last_play", 0)) >= PLAY_GAP
     v["play_in"]     = max(0, int(PLAY_GAP - (t - s.get("last_play", 0))))
-    v["log"]         = s.get("log", [])
+    v["lives"]       = s.get("lives", [])          # 每只JZH的生平（记录册页面用）
+    v["log"]         = _current_life(s).get("log", [])   # 兼容：当前这只的记录
     v["family"]      = s.get("family", [])
     v["friends_n"]   = len(s.get("friends", []))
     v["death_cause"] = s.get("death_cause", "")
+    v["clothes"]     = s.get("clothes", "无")
+    v["clothes_price"] = CLOTHES_PRICE            # 前端画价格/买衣服弹框用
     v["needs_name"]  = (not s.get("name")) and s.get("stage") != "cloud"
     return v
  
@@ -356,6 +404,39 @@ def _process_offspring(conn, pets, t):
         done.add(owner); done.add(p)
  
  
+# ====== 牧场事件库（随时增删，改完不用动别的逻辑）======
+# 成对事件：(权重, 好感变化, A的记录, B的记录)。{o} 会替换成对方主人的用户名。
+PLAZA_PAIR_EVENTS = [
+    (6,  2, "在牧场遇到了 {o} 的JZH",            "在牧场遇到了 {o} 的JZH"),
+    (5,  3, "和 {o} 的JZH一起晒了会儿太阳 ☀️",   "和 {o} 的JZH一起晒了会儿太阳 ☀️"),
+    (4,  4, "把零食分给了 {o} 的JZH 🍪",          "{o} 的JZH分了零食给它 🍪"),
+    (4,  5, "帮 {o} 的JZH理了理毛发",             "{o} 的JZH帮它理了理毛发，好舒服"),
+    (4,  4, "和 {o} 的JZH玩起了捉迷藏",           "和 {o} 的JZH玩起了捉迷藏"),
+    (3,  5, "夜里和 {o} 的JZH一起看星星 ✨",      "夜里和 {o} 的JZH一起看星星 ✨"),
+    (3,  3, "教 {o} 的JZH念了个新词儿",           "{o} 的JZH教了它一个新词儿"),
+    (3,  2, "和 {o} 的JZH比赛谁跑得快",           "和 {o} 的JZH比赛谁跑得快"),
+    (3,  5, "摘了朵小花送给 {o} 的JZH 🌼",        "收到了 {o} 的JZH送的小花 🌼"),
+    (2,  6, "和 {o} 的JZH合唱了一首歌 🎵",        "和 {o} 的JZH合唱了一首歌 🎵"),
+    (2,  4, "和 {o} 的JZH背靠背发了会儿呆",       "和 {o} 的JZH背靠背发了会儿呆"),
+    (3, -3, "和 {o} 的JZH抢零食，拌了两句嘴",     "和 {o} 的JZH抢零食，拌了两句嘴"),
+    (2, -4, "被 {o} 的JZH抢走了玩具，气鼓鼓",     "抢了 {o} 的JZH的玩具，得意了一下"),
+    (2, -6, "和 {o} 的JZH闹了别扭 😾",            "和 {o} 的JZH闹了别扭 😾"),
+]
+# 单只小事件：随机挑一只，纯氛围、不改好感。
+PLAZA_SOLO_EVENTS = [
+    "在牧场追了会儿蝴蝶 🦋",
+    "找了个角落打了个盹 💤",
+    "对着水面照了半天镜子",
+    "捡到一片好看的叶子 🍃",
+    "打了个大喷嚏，把自己吓一跳",
+    "在草地上打了几个滚",
+    "蹲在原地数天上的云",
+    "自个儿哼起了小曲儿 🎶",
+    "被一只路过的猫盯了很久",
+    "挖了个小坑又把它填上",
+]
+
+
 def plaza_tick(conn):
     """牧场后台事件：限频运行。随机遇见/交朋友，成年结伴，结伴满时生后代。"""
     t = _now()
@@ -376,24 +457,27 @@ def plaza_tick(conn):
             pass
     if len(pets) >= 2:
         n = len(pets)
-        for _ in range(min(3, n)):          # 每轮最多 3 次互动
+        pair_w = [e[0] for e in PLAZA_PAIR_EVENTS]
+        for _ in range(min(4, n)):          # 每轮最多 4 次事件
+            # 两成概率是"某只自己的小事件"，其余是"两只互动"
+            if random.random() < 0.2:
+                _, s_solo = pets[random.randrange(n)]
+                _addlog(s_solo, random.choice(PLAZA_SOLO_EVENTS))
+                continue
             a, b = random.sample(range(n), 2)
             oa, sa = pets[a]; ob, sb = pets[b]
-            roll = random.random()
-            if roll < 0.15:                                    # 吵架，降好感
-                _rel(sa, ob, -6); _rel(sb, oa, -6)
-                _addlog(sa, f"和 {ob} 的JZH闹了别扭😾")
-                _addlog(sb, f"和 {oa} 的JZH闹了别扭😾")
-            elif roll < 0.5 and ob not in sa.get("friends", []):  # 交朋友，好感大涨
+            # 还不是朋友、又已经比较熟：有机会正式成为朋友（好感大涨）
+            if ob not in sa.get("friends", []) and _relv(sa, ob) >= 6 and random.random() < 0.35:
                 sa.setdefault("friends", []).append(ob)
                 sb.setdefault("friends", []).append(oa)
                 _rel(sa, ob, 8); _rel(sb, oa, 8)
-                _addlog(sa, f"和 {ob} 的JZH成为了朋友🎏")
-                _addlog(sb, f"和 {oa} 的JZH成为了朋友🎏")
-            else:                                              # 遇见，好感小涨
-                _rel(sa, ob, 2); _rel(sb, oa, 2)
-                _addlog(sa, f"在牧场遇到了 {ob} 的JZH")
-                _addlog(sb, f"在牧场遇到了 {oa} 的JZH")
+                _addlog(sa, f"和 {ob} 的JZH成为了朋友 🎏")
+                _addlog(sb, f"和 {oa} 的JZH成为了朋友 🎏")
+            else:                                              # 从事件库里按权重随机挑一件
+                _, delta, ta, tb = random.choices(PLAZA_PAIR_EVENTS, weights=pair_w, k=1)[0]
+                _rel(sa, ob, delta); _rel(sb, oa, delta)
+                _addlog(sa, ta.format(o=ob))
+                _addlog(sb, tb.format(o=oa))
             # 结伴：都成年、都没伴侣、双方好感达标；概率随好感升高，吵过架的很难成
             if (sa.get("stage") == "adult" and sb.get("stage") == "adult"
                     and not sa.get("partner") and not sb.get("partner")):
@@ -595,8 +679,14 @@ def act(owner, action):
                 ns["version"] = heir["version"] if heir else _child_version(s, s)
                 ns["coins"] = s.get("coins", 0)           # 金币始终保留
                 ns["family"] = s.get("family", [])
-                ns["log"] = s.get("log", [])[:LOG_KEEP]
                 ns["rel"] = s.get("rel", {})
+                # 历代生平全部带过来，并给"这一只新的"开一段全新的生平（记录另起一段）
+                prev_lives = s.get("lives", [])
+                next_no = (prev_lives[-1]["no"] + 1) if prev_lives else 1
+                ns["lives"] = (prev_lives + [{
+                    "no": next_no, "name": "", "version": ns["version"],
+                    "born": _now(), "born_str": _datestr(), "died": 0, "cause": "", "log": [],
+                }])[-LIVES_KEEP:]
                 if inherit:
                     ns["owned"] = s.get("owned", ns["owned"])   # 继承已解锁的装饰+颜色
                     for k in ("outfit", "hair", "skin"):
@@ -604,6 +694,8 @@ def act(owner, action):
                             ns[k] = s[k]
                     if s.get("hat") in ns["owned"].get("hat", []):
                         ns["hat"] = s["hat"]
+                    if s.get("clothes") in ns["owned"].get("clothes", ["无"]):
+                        ns["clothes"] = s["clothes"]   # 买过的衣服也一并继承
                 if heir:
                     pa = heir.get("parents", ["?", "?"])
                     _addlog(ns, f"🌱 由 {pa[0]} 和 {pa[1]} 养育的后代来接替啦（{ns['version']}），继承了上一辈的装扮，快给它起名")
@@ -618,10 +710,31 @@ def act(owner, action):
             newname = action.split(":", 1)[1].strip()[:8]
             if newname:
                 s["name"] = newname
+                _current_life(s)["name"] = newname   # 名字同时记进它自己的生平
                 msg = f"就叫「{newname}」啦！"
             else:
                 msg = "名字不能是空的"
  
+        elif action.startswith("buy_clothes:"):   # 花金币购买/穿上一件衣服款式
+            name = action.split(":", 1)[1]
+            owned_clo = s.setdefault("owned", {}).setdefault("clothes", ["无"])
+            price = CLOTHES_PRICE.get(name)
+            if name == "无":
+                s["clothes"] = "无"; msg = "脱下啦～"
+            elif price is None:
+                msg = "没有这件衣服"
+            elif name in owned_clo:
+                s["clothes"] = name                # 已买过就直接穿上
+                msg = f"换上「{name}」～"
+            elif s.get("coins", 0) < price:
+                msg = f"金币不够（需要 {price}，先去打工赚点）"
+            else:
+                s["coins"] = s.get("coins", 0) - price
+                owned_clo.append(name)
+                s["clothes"] = name                # 买了直接穿上
+                _addlog(s, f"🛒 花 {price} 金币买了新衣服「{name}」")
+                msg = f"🛒 购买成功！花了 {price} 金币，穿上「{name}」"
+
         # 换装（前端传 dress:类别:值）——只能换已解锁的
         elif action.startswith("dress:"):
             _, key, val = action.split(":", 2)
@@ -631,6 +744,11 @@ def act(owner, action):
                     s["hat"] = val
                 else:
                     msg = "这个还没解锁"
+            elif key == "clothes":
+                if val == "无" or val in o.get("clothes", ["无"]):
+                    s["clothes"] = val
+                else:
+                    msg = "这件还没买"
             elif key in ("outfit", "hair", "skin"):
                 try:
                     iv = int(val)
