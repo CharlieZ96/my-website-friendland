@@ -77,8 +77,8 @@
   .mlabel{position:absolute;font-size:11px;font-weight:800;background:rgba(10,14,26,.85);border:1px solid var(--cyan);
     color:var(--cyan);border-radius:6px;padding:2px 7px;white-space:nowrap;transform:translateX(-50%);box-shadow:0 0 8px rgba(39,227,255,.4)}
 
-  /* 玩家 JZH */
-  .player{left:50%;bottom:18%;width:64px;height:82px;margin-left:-70px;animation:bob 2.8s ease-in-out infinite}
+  /* 玩家 JZH（往下站，别挡住轮盘/老虎机；会在赌场底部走来走去） */
+  .player{left:0;bottom:3%;width:64px;height:82px;z-index:3;transition:left 3.2s linear;animation:bob 2.8s ease-in-out infinite}
   #playerJZH svg{width:100%;height:100%;image-rendering:pixelated}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 
@@ -350,12 +350,38 @@
       else { document.getElementById('topWinner').textContent='虚位以待'; document.getElementById('topAmt').textContent=''; }
       if(s.sprite && typeof petSVG==='function'){
         const sp=s.sprite;
-        document.getElementById('playerJZH').innerHTML=petSVG({version:sp.version,stage:'adult',hat:sp.hat,outfit:sp.outfit,hair:sp.hair,skin:sp.skin,clothes:sp.clothes});
+        const el=document.getElementById('playerJZH');
+        const sig=JSON.stringify(sp);
+        if(sig!==el._sig){                      // 外观变了才重画（每 8 秒轮询时不打断走动）
+          el.innerHTML=petSVG({version:sp.version,stage:'adult',hat:sp.hat,outfit:sp.outfit,hair:sp.hair,skin:sp.skin,clothes:sp.clothes});
+          el._sig=sig;
+          const svg=el.querySelector('svg'); if(svg && el._face) svg.style.transform=el._face;  // 重画后保持朝向
+        }
+        startWander(el);                        // 只启动一次
       }
       const dm=document.getElementById('drinkModal');
       if(dm && !dm.hidden) renderShop();     // 商店开着就同步刷新
     }catch(e){ console.error('大厅数据读取失败',e); }
   }
+  // 玩家 JZH 在赌场底部走来走去（只左右移动，纵向永远贴最下面，不会挡到机器）
+  function startWander(el){
+    if(el._walking) return;                 // 只启动一次
+    el._walking=true;
+    const scene=document.getElementById('scene');
+    el.style.left=Math.round(scene.clientWidth*0.4)+'px';   // 初始站中间偏左
+    function step(){
+      if(!document.body.contains(el)){ el._walking=false; return; }
+      const W=Math.max(20, scene.clientWidth-70);            // 留出小人宽度，别走出画面
+      const nx=Math.random()*W;
+      const cur=parseFloat(el.style.left)||0;
+      el._face=(nx<cur?'scaleX(-1)':'scaleX(1)');            // 朝着走的方向
+      const svg=el.querySelector('svg'); if(svg) svg.style.transform=el._face;
+      el.style.left=nx+'px';
+      setTimeout(step, 3000+Math.random()*3500);
+    }
+    setTimeout(step, 600);
+  }
+
   loadLobby();
   setInterval(loadLobby, 8000);
 

@@ -231,7 +231,7 @@ function spinTo(n,instant){
   if(instant){ setWheel(discA,ballA); showResult(n); settled=true; if(curV)renderOutcomes(curV);
     document.getElementById('mcont').hidden=false; return; }
   document.getElementById('hubNum').textContent=''; document.getElementById('mtitle').textContent='🎡 转动中…';
-  document.getElementById('reslabel').innerHTML='🪙 小珠子转动中…';
+  document.getElementById('reslabel').innerHTML='🪙幸运轮盘转动中…';
   settled=false;
   animateWheel(fromD,discA,fromB,ballA,5000,()=>{ settled=true; showResult(n); if(curV)renderOutcomes(curV);
     document.getElementById('mcont').hidden=false; });

@@ -13,35 +13,194 @@
   h1 em{font-style:normal;color:#6D4FA3}
   .back{font-size:13px;color:#6B7683;text-decoration:none}
   .hint{text-align:center;color:#6B7683;font-size:12px;margin:2px 0 12px}
+  .scenetag{text-align:center;font-size:12px;color:#8a94a3;margin:0 0 8px}
+  .scenetag b{color:#6D4FA3}
   .field{position:relative;height:300px;border-radius:18px;overflow:hidden;
-    background:linear-gradient(180deg,#CDEBD0 0 62%,#A6DBA9 62%);box-shadow:inset 0 -10px 24px rgba(0,0,0,.06)}
+    background:#bfe0ff;box-shadow:inset 0 -10px 24px rgba(0,0,0,.10)}
+  /* 背景风景层（在小人后面） */
+  .scene{position:absolute;inset:0;z-index:0}
+  .scene svg{width:100%;height:100%;display:block}
   .pw{position:absolute;bottom:10px;width:72px;text-align:center;transition:left 3s linear;z-index:1}
-  .pw svg{width:72px;height:72px;image-rendering:pixelated;display:block;margin:0 auto}
+  .pw svg{width:72px;height:72px;image-rendering:pixelated;display:block;margin:0 auto;filter:drop-shadow(0 3px 3px rgba(0,0,0,.25))}
   .pw .nm{font-size:11px;background:#fff;border-radius:8px;padding:0 6px;display:inline-block;box-shadow:0 1px 3px rgba(0,0,0,.15)}
   .pw.me .nm{background:#F5A623;font-weight:700}
   .pw .bb{position:absolute;bottom:76px;left:50%;transform:translateX(-50%);background:#fff;border:1.5px solid #333;border-radius:10px;padding:2px 8px;font-size:11px;white-space:nowrap;opacity:0;transition:opacity .2s;z-index:2}
   .pw .bb.on{opacity:1}
-  .empty{text-align:center;color:#4a6b4a;padding-top:120px;font-size:14px}
+  .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:#f4f7ff;
+    font-size:14px;z-index:1;text-shadow:0 1px 4px rgba(0,0,0,.5);padding:20px}
+  /* 动画：星星闪、萤火虫、海面波光 */
+  @keyframes twk{0%,100%{opacity:.25}50%{opacity:1}}
+  @keyframes fly{0%,100%{opacity:.2}50%{opacity:1}}
+  @keyframes shim{0%,100%{opacity:.35}50%{opacity:.85}}
+  .star{animation:twk 2.6s ease-in-out infinite}
+  .fire{animation:fly 2.2s ease-in-out infinite}
+  .shim{animation:shim 3.2s ease-in-out infinite}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar"><h1>🌿 <em>牧场</em></h1><a class="back" href="/pet">← 回养成</a></div>
   <p class="hint">这里是大家托管的JZH。金色名字的是你自己的，回养成页可以把它领回。</p>
-  <div class="field" id="field"></div>
+  <p class="scenetag">当前风景：<b id="sceneName">…</b>（随时间自动变换）</p>
+  <div class="field" id="field"><div class="scene" id="scene"></div></div>
 </div>
 
 <script src="/static/pet_sprite.js"></script>
 <script>
 let PETS=[], SAY={}, ME="";
+const R=(a,b)=>a+Math.random()*(b-a);
+const rint=(a,b)=>Math.floor(R(a,b+1));
+
+/* ============ 四张风景（柔和插画风 · SVG）============ */
+function wrap(inner){return `<svg viewBox="0 0 520 300" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;}
+
+// —— 早上·樱花山谷 ——
+function sakura(){
+  const cloud=(x,y,s,o)=>`<g transform="translate(${x},${y}) scale(${s})" opacity="${o}"><ellipse cx="0" cy="0" rx="26" ry="12" fill="#fff"/><ellipse cx="20" cy="4" rx="20" ry="10" fill="#fff"/><ellipse cx="-20" cy="4" rx="18" ry="9" fill="#fff"/>
+    <animateTransform attributeName="transform" type="translate" from="${x} ${y}" to="${x+70} ${y}" dur="${R(38,60).toFixed(0)}s" additive="sum" repeatCount="indefinite"/></g>`;
+  const tree=(x,y,s)=>`<g transform="translate(${x},${y}) scale(${s})">
+    <rect x="-6" y="-30" width="12" height="34" rx="3" fill="#9c6a45"/>
+    <circle cx="0" cy="-44" r="26" fill="#ff9ec8"/><circle cx="-20" cy="-34" r="20" fill="#ffb3d6"/><circle cx="20" cy="-34" r="20" fill="#ffc9e2"/>
+    <circle cx="0" cy="-60" r="18" fill="#ffd4e8"/><circle cx="-13" cy="-50" r="15" fill="#ffbcda"/><circle cx="13" cy="-50" r="15" fill="#ffa9cf"/></g>`;
+  const petals=Array.from({length:16},()=>{
+    const x=R(6,514), d=R(5,10), dl=R(0,8), r=R(2.2,3.8), sway=R(-18,26);
+    return `<g transform="translate(${x.toFixed(0)},0)"><ellipse rx="${r.toFixed(1)}" ry="${(r*0.62).toFixed(1)}" fill="#ff9ec8" opacity=".9">
+      <animateTransform attributeName="transform" type="translate" values="0 -12; ${sway.toFixed(0)} 320" dur="${d.toFixed(1)}s" begin="${dl.toFixed(1)}s" repeatCount="indefinite"/></ellipse></g>`;
+  }).join('');
+  return wrap(`
+    <defs>
+      <linearGradient id="skS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe1ff"/><stop offset="52%" stop-color="#ffdcec"/><stop offset="100%" stop-color="#ffe8d6"/></linearGradient>
+      <radialGradient id="sunS" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff7e0" stop-opacity=".95"/><stop offset="100%" stop-color="#fff7e0" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="520" height="300" fill="url(#skS)"/>
+    <circle cx="428" cy="70" r="70" fill="url(#sunS)"/><circle cx="428" cy="70" r="24" fill="#fff4d4"/>
+    <path d="M0 150 Q120 108 250 140 T520 128 V300 H0 Z" fill="#cdb8e6" opacity=".7"/>
+    <path d="M0 172 Q150 130 300 164 T520 156 V300 H0 Z" fill="#b7a0da" opacity=".65"/>
+    ${cloud(120,64,1,.95)} ${cloud(330,44,.8,.9)}
+    <path d="M0 208 Q140 186 300 206 T520 200 V300 H0 Z" fill="#a7dd93"/>
+    <path d="M0 232 Q160 214 340 232 T520 226 V300 H0 Z" fill="#8ccf80"/>
+    ${tree(70,214,1)} ${tree(455,220,1.12)} ${tree(150,224,.72)}
+    ${petals}`);
+}
+
+// —— 早上·青青牧场 ——
+function meadow(){
+  const cloud=(x,y,s)=>`<g transform="translate(${x},${y}) scale(${s})"><ellipse cx="0" cy="0" rx="30" ry="13" fill="#fff"/><ellipse cx="24" cy="5" rx="22" ry="11" fill="#fff"/><ellipse cx="-24" cy="5" rx="20" ry="10" fill="#f4faff"/>
+    <animateTransform attributeName="transform" type="translate" from="${x} ${y}" to="${x+80} ${y}" dur="${R(40,64).toFixed(0)}s" additive="sum" repeatCount="indefinite"/></g>`;
+  const flowers=Array.from({length:26},()=>{
+    const x=R(10,510), y=R(232,286), c=["#ffffff","#ffe27a","#ff9ec8","#fff3b0"][rint(0,3)];
+    return `<g transform="translate(${x.toFixed(0)},${y.toFixed(0)})"><circle r="2.6" fill="${c}"/><circle r="1" fill="#ffd23c"/></g>`;
+  }).join('');
+  return wrap(`
+    <defs>
+      <linearGradient id="skM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6fbdff"/><stop offset="60%" stop-color="#bfe8ff"/><stop offset="100%" stop-color="#ecfbff"/></linearGradient>
+      <radialGradient id="sunM" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff8cf"/><stop offset="70%" stop-color="#fff2a8" stop-opacity=".6"/><stop offset="100%" stop-color="#fff2a8" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="520" height="300" fill="url(#skM)"/>
+    <g><circle cx="86" cy="66" r="66" fill="url(#sunM)"/><circle cx="86" cy="66" r="26" fill="#fff3ac"/>
+      <g stroke="#fff3ac" stroke-width="3" stroke-linecap="round" opacity=".75">
+        <line x1="86" y1="20" x2="86" y2="6"/><line x1="86" y1="112" x2="86" y2="126"/><line x1="40" y1="66" x2="26" y2="66"/><line x1="132" y1="66" x2="146" y2="66"/>
+        <line x1="53" y1="33" x2="43" y2="23"/><line x1="119" y1="99" x2="129" y2="109"/><line x1="119" y1="33" x2="129" y2="23"/><line x1="53" y1="99" x2="43" y2="109"/>
+        <animateTransform attributeName="transform" type="rotate" from="0 86 66" to="360 86 66" dur="90s" repeatCount="indefinite"/></g></g>
+    ${cloud(300,54,1)} ${cloud(180,92,.66)} ${cloud(430,110,.8)}
+    <path d="M0 196 Q130 172 280 194 T520 186 V300 H0 Z" fill="#8ed17c"/>
+    <path d="M0 220 Q150 200 330 220 T520 214 V300 H0 Z" fill="#6fc266"/>
+    <path d="M0 246 Q160 230 340 248 T520 242 V300 H0 Z" fill="#57b25a"/>
+    <!-- 小风车（牧场感） -->
+    <g transform="translate(452,150)"><rect x="-3" y="0" width="6" height="66" fill="#c9a26a"/><circle cx="0" cy="0" r="4" fill="#7a5636"/>
+      <g fill="#f4f7fb" stroke="#d7dee8" stroke-width="1">
+        <path d="M0 0 L4 -30 L-4 -30 Z"/><path d="M0 0 L30 4 L30 -4 Z"/><path d="M0 0 L-4 30 L4 30 Z"/><path d="M0 0 L-30 -4 L-30 4 Z"/>
+        <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="7s" repeatCount="indefinite"/></g></g>
+    ${flowers}`);
+}
+
+// —— 傍晚·海边黄昏 ——
+function sea(){
+  const shimmer=Array.from({length:7},(_,i)=>{
+    const y=196+i*10, w=30-i*2;
+    return `<ellipse class="shim" cx="262" cy="${y}" rx="${w}" ry="2.4" fill="#ffd98a" style="animation-delay:${(i*0.25).toFixed(2)}s"/>`;
+  }).join('');
+  const bird=(x,y,s)=>`<path d="M${x} ${y} q6 -6 12 0 q6 -6 12 0" fill="none" stroke="#3a2a44" stroke-width="1.6" transform="scale(${s})" opacity=".7"/>`;
+  return wrap(`
+    <defs>
+      <linearGradient id="skD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2f74"/><stop offset="34%" stop-color="#7d4b9c"/><stop offset="62%" stop-color="#ff7e5f"/><stop offset="84%" stop-color="#ffb069"/><stop offset="100%" stop-color="#ffd98a"/></linearGradient>
+      <radialGradient id="sunD" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff3c8"/><stop offset="55%" stop-color="#ff9d4d"/><stop offset="100%" stop-color="#ff7e42" stop-opacity="0"/></radialGradient>
+      <linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c47a86"/><stop offset="55%" stop-color="#8f6aa6"/><stop offset="100%" stop-color="#5b5390"/></linearGradient>
+      <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#caa079"/><stop offset="100%" stop-color="#9a7250"/></linearGradient>
+    </defs>
+    <rect width="520" height="300" fill="url(#skD)"/>
+    <circle cx="262" cy="176" r="90" fill="url(#sunD)"/><circle cx="262" cy="176" r="34" fill="#ffe6a6"/>
+    <g>${bird(150,90,1)}${bird(210,70,1)}${bird(360,96,1)}</g>
+    <rect x="0" y="184" width="520" height="86" fill="url(#ocean)"/>
+    ${shimmer}
+    <path d="M0 256 Q130 244 270 256 T520 250 V300 H0 Z" fill="url(#sand)"/>
+    <path d="M0 268 Q160 258 340 270 T520 264 V300 H0 Z" fill="#8a6244" opacity=".7"/>`);
+}
+
+// —— 晚上·星空山丘 ——
+function night(){
+  const stars=Array.from({length:54},()=>{
+    const x=R(6,514), y=R(6,175), r=R(.7,1.8), dl=R(0,3);
+    return `<circle class="star" cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${r.toFixed(1)}" fill="#fff" style="animation-delay:${dl.toFixed(2)}s"/>`;
+  }).join('');
+  const spark=(x,y)=>`<g class="star" transform="translate(${x},${y})" style="animation-delay:${R(0,2).toFixed(2)}s"><path d="M0 -5 L1 -1 L5 0 L1 1 L0 5 L-1 1 L-5 0 L-1 -1 Z" fill="#fff6d8"/></g>`;
+  const fire=Array.from({length:9},()=>{
+    const x=R(20,500), y=R(230,285), dl=R(0,2.2);
+    return `<circle class="fire" cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="2" fill="#eaff8a" style="animation-delay:${dl.toFixed(2)}s"/>`;
+  }).join('');
+  return wrap(`
+    <defs>
+      <linearGradient id="skN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#070a20"/><stop offset="55%" stop-color="#141d45"/><stop offset="100%" stop-color="#26326a"/></linearGradient>
+      <radialGradient id="moonG" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fbf6d8" stop-opacity=".9"/><stop offset="100%" stop-color="#fbf6d8" stop-opacity="0"/></radialGradient>
+      <linearGradient id="aur" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5df2c0" stop-opacity="0"/><stop offset="55%" stop-color="#5df2c0" stop-opacity=".35"/><stop offset="100%" stop-color="#5aa0ff" stop-opacity="0"/></linearGradient>
+    </defs>
+    <rect width="520" height="300" fill="url(#skN)"/>
+    <path d="M-20 40 Q140 -6 300 46 T560 40 V150 H-20 Z" fill="url(#aur)" opacity=".8"><animate attributeName="opacity" values=".4;.85;.4" dur="6s" repeatCount="indefinite"/></path>
+    <path d="M-20 70 Q160 24 340 74 T560 66 V160 H-20 Z" fill="url(#aur)" opacity=".5"><animate attributeName="opacity" values=".6;.25;.6" dur="7.5s" repeatCount="indefinite"/></path>
+    ${stars}${spark(120,60)}${spark(300,40)}${spark(470,96)}
+    <circle cx="412" cy="62" r="46" fill="url(#moonG)"/><circle cx="412" cy="62" r="24" fill="#f7f2cf"/><circle cx="402" cy="56" r="20" fill="#eae3b8" opacity=".55"/>
+    <path d="M0 196 Q140 172 300 196 T520 188 V300 H0 Z" fill="#182a5c"/>
+    <path d="M0 222 Q150 202 330 224 T520 216 V300 H0 Z" fill="#0f1c40"/>
+    <path d="M0 250 Q160 236 340 252 T520 246 V300 H0 Z" fill="#0a1330"/>
+    ${fire}`);
+}
+
+const SCENES={sakura,meadow,sea,night};
+const SCENE_CN={sakura:"🌸 樱花山谷 · 清晨",meadow:"🌿 青青牧场 · 白天",sea:"🌅 海边黄昏 · 傍晚",night:"🌌 星空山丘 · 夜晚"};
+
+function pickSceneKey(){
+  const h=new Date().getHours();
+  if(h>=5 && h<17)  return Math.random()<0.5 ? "sakura" : "meadow";  // 早上/白天：樱花或草原随机
+  if(h>=17 && h<19) return "sea";                                    // 傍晚：海边黄昏
+  return "night";                                                    // 晚上：星空
+}
+let CUR_SCENE=null;
+function setScene(){
+  const key=pickSceneKey();
+  // 早上时段两张图随机，但一旦定了就别每分钟乱跳；只有跨到别的时段才换
+  const morning=["sakura","meadow"];
+  if(CUR_SCENE){
+    if(morning.includes(CUR_SCENE) && morning.includes(key)) return;
+    if(CUR_SCENE===key) return;
+  }
+  CUR_SCENE=key;
+  document.getElementById('scene').innerHTML=SCENES[key]();
+  const nm=document.getElementById('sceneName'); if(nm) nm.textContent=SCENE_CN[key];
+}
 
 async function loadPlaza(){
   try{
     const r=await fetch('/plaza/pets'); const d=await r.json();
     PETS=d.pets||[]; SAY=d.sayings||{}; ME=d.me||"";
   }catch(e){ return; }
-  const field=document.getElementById('field'); field.innerHTML="";
-  if(!PETS.length){ field.innerHTML='<div class="empty">牧场空荡荡的～<br>去养成页把你的JZH「送去牧场托管」吧</div>'; return; }
+  setScene();                                   // 顺便按当前时间更新风景
+  const field=document.getElementById('field');
+  field.querySelectorAll('.pw,.empty').forEach(n=>n.remove());   // 只清小人，保留背景层
+  if(!PETS.length){
+    const em=document.createElement('div'); em.className='empty';
+    em.innerHTML='牧场空荡荡的～<br>去养成页把你的JZH「送去牧场托管」吧';
+    field.appendChild(em); return;
+  }
   const W=Math.max(40, field.clientWidth-72);
   PETS.forEach(p=>{
     const node=document.createElement('div');
@@ -72,9 +231,10 @@ function chatter(){
   const bb=p._node&&p._node.querySelector('.bb');
   if(bb){ bb.textContent=pool[Math.floor(Math.random()*pool.length)]; bb.classList.add('on'); setTimeout(()=>bb.classList.remove('on'),2400); }
 }
+setScene();
 loadPlaza();
 setInterval(chatter, 2600);
-setInterval(loadPlaza, 60000);   // 每分钟刷新名单（有新托管进来会出现）
+setInterval(loadPlaza, 60000);   // 每分钟刷新名单 + 按时间更新风景
 </script>
 </body>
 </html>
