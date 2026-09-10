@@ -559,7 +559,7 @@
   const lines=[
     '哟，新面孔。欢迎来到JZH赌场——先送你 <b style="color:var(--amber)">30枚金币</b> 压压惊。',
     '这里的金币就是你打工赚的那份。赢了能拿去买装饰，输了…就当请我喝一杯咯。',
-    '想玩就点场景里的玩意儿：<b style="color:#27e3ff">🎡轮盘</b>是大家对着同一个盘下注一起开；<b style="color:#27e3ff">🃏21点</b>正在筹备中。',
+    '想玩就点场景里的玩意儿：<b style="color:#27e3ff">🎡轮盘</b>大家对着同一个盘开；<b style="color:#27e3ff">🃏21点</b>是和我(庄家)对牌；<b style="color:#27e3ff">🎰老虎机</b>一个人拉杆试手气。',
     '一个人来也不怕，我给你叫两个"机器人"陪你凑一桌。想约朋友就进3P房。',
     '对了，我这吧台还卖<b style="color:var(--amber)">一点神秘小玩意儿</b>——但那玩意儿可不是金币能买到的。想买或想再听规则，点我一下就行。'
   ];
@@ -576,19 +576,26 @@
   document.getElementById('barman').addEventListener('click', openShop);   // 点老江 → 开饮品店（里面能再听规则）
   if(window.__SHOW_TUT__) showDlg(); else hideDlg();
 
-  // 点机器 → 进房菜单
+  // 点机器 → 进房菜单（轮盘 / 21点 共用这个菜单，只是进的房不同）
   const modal=document.getElementById('roomModal');
-  document.getElementById('mRoul').addEventListener('click',()=>{ modal.hidden=false; });
-  document.getElementById('mBj').addEventListener('click',()=>toast('🃏21点马上就来，先玩轮盘吧~'));
+  let currentGame='roulette';
+  function openRoomModal(game){
+    currentGame=game;
+    document.getElementById('rmTitle').textContent = game==='bj' ? '进入 21点' : '进入轮盘赌';
+    modal.hidden=false;
+  }
+  document.getElementById('mRoul').addEventListener('click',()=>openRoomModal('roulette'));
+  document.getElementById('mBj').addEventListener('click',()=>openRoomModal('bj'));
   document.querySelectorAll('.slotgame').forEach(el=>el.addEventListener('click',()=>{ location.href='/casino/slots'; }));  // 点老虎机→进游戏
   modal.querySelector('.cancel').addEventListener('click',()=>{ modal.hidden=true; });
   modal.addEventListener('click',e=>{ if(e.target.id==='roomModal') modal.hidden=true; });
   async function enterRoom(mode){
     try{
-      const url = mode==='solo' ? '/casino/roulette/create' : '/casino/roulette/join';
+      const base = currentGame==='bj' ? '/casino/bj' : '/casino/roulette';
+      const url = mode==='solo' ? base+'/create' : base+'/join';
       const b = mode==='solo' ? JSON.stringify({mode:'solo'}) : '{}';
       const r=await (await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:b})).json();
-      if(r.room) window.location.href='/casino/roulette/'+r.room;
+      if(r.room) window.location.href=base+'/'+r.room;
       else toast('进房失败,稍后再试');
     }catch(e){ toast('进房失败,稍后再试'); }
   }

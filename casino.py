@@ -50,6 +50,14 @@ SLOT_WEIGHTS = [24, 24, 22, 16, 9, 5]                  # 每格出现的权重�
 SLOT_PAY3    = {"🍒": 3, "🍋": 5, "🔔": 8, "⭐": 13, "💎": 22, "7️⃣": 55}  # 三个同 → ×注
 SLOT_PAY2    = {"🍒": 2, "🍋": 1, "🔔": 1, "⭐": 1,  "💎": 2,  "7️⃣": 3}   # 恰好两个同 → ×注（1=退本金）
 
+# ====== 21点（多人一桌：和轮盘一样有 3人房/单人房；单人房不限时）======
+BJ_MIN_BET     = 5        # 单笔最小下注
+BJ_BET_SECS    = 30       # 公共房下注时间（单人房不限时）
+BJ_TURN_SECS   = 25       # 公共房每人决策时间（超时自动停牌；单人房不限时）
+BJ_RESULT_SECS = 12       # 公共房结果展示后自动开下一局（单人房等玩家点“再来一局”）
+BJ_SUITS = ["♠", "♥", "♦", "♣"]
+BJ_RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
+
 
 def _now(): return time.time()
 def _connect(): return pet._connect()
@@ -810,5 +818,562 @@ def use_drink(owner, room_id, kind):
         v = _augment(conn, _view(room, room_id, owner), owner)
         v["msg"] = msg
         return v
+    finally:
+        conn.close()
+
+
+# ============================================================
+#  21点（Blackjack）——多人一桌，和轮盘一样有 3人房/单人房；单人房不限时
+#  复用 casino_rooms 表（game='blackjack'）与 _save/_cleanup（僵尸房自动清理）
+# ============================================================
+def _bj_new_deck():
+    deck = [{"r": r, "s": s} for s in BJ_SUITS for r in BJ_RANKS]
+    random.shuffle(deck)
+    return deck
+
+
+def _bj_pop(room):
+    if not room.get("deck"):
+        room["deck"] = _bj_new_deck()
+    return room["deck"].pop()
+
+
+def _bj_value(cards):
+    """算点数：A 先按 11，爆了再按 1；J/Q/K/10 算 10。忽略暗牌。"""
+    total, aces = 0, 0
+    for c in cards:
+        if c.get("hidden"):
+            continue
+        r = c.get("r")
+        if r == "A":
+            total += 11; aces += 1
+        elif r in ("J", "Q", "K", "10"):
+            total += 10
+        elif r:
+            total += int(r)
+    while total > 21 and aces > 0:
+        total -= 10; aces -= 1
+    return total
+
+
+def _bj_is_blackjack(cards):
+    return len(cards) == 2 and _bj_value(cards) == 21
+
+
+def _bj_bot_seat(name):
+    ver = random.choice(pet.PET_VERSIONS)
+    return {"owner": "#bot:" + name, "name": name, "isBot": True,
+            "version": ver, "hat": random.choice(["光头", "墨镜", "贝雷帽", "鸭舌帽"]),
+            "outfit": random.randint(0, pet.OUTFIT_N - 1), "hair": random.randint(0, pet.HAIR_N - 1),
+            "skin": random.randint(0, pet.SKIN_N - 1), "clothes": random.choice(["无", "西装领带", "条纹衫"]),
+            "bet": 0, "cards": [], "done": False, "doubled": False, "result": "", "last_net": 0,
+            "ready": False, "chips": 500}
+
+
+def _bj_human_seat(conn, owner):
+    sp = _sprite_of(conn, owner)
+    return {"owner": owner, "name": owner, "isBot": False,
+            "version": sp["version"], "hat": sp["hat"], "outfit": sp["outfit"],
+            "hair": sp["hair"], "skin": sp["skin"], "clothes": sp["clothes"],
+            "bet": 0, "cards": [], "done": False, "doubled": False, "result": "", "last_net": 0, "ready": False}
+
+
+def _bj_ensure_fill(room):
+    """真人不够就补机器人到 MIN_PLAYERS；够了撤机器人（和轮盘一致）。"""
+    humans = [s for s in room["seats"] if not s.get("isBot")]
+    need = max(0, MIN_PLAYERS - len(humans))
+    need = min(need, MAX_SEATS - len(humans))
+    kept, kb = [], 0
+    for s in room["seats"]:
+        if s.get("isBot"):
+            if kb < need:
+                kept.append(s); kb += 1
+        else:
+            kept.append(s)
+    room["seats"] = kept
+    used = {s["name"] for s in room["seats"] if s.get("isBot")}
+    pool = [n for n in BOT_NAMES if n not in used] + [f"机器人·{i}" for i in range(1, 9)]
+    pi = 0
+    while len([s for s in room["seats"] if s.get("isBot")]) < need:
+        room["seats"].append(_bj_bot_seat(pool[pi])); pi += 1
+
+
+def _bj_bots_bet(room, only_empty=False):
+    for s in room["seats"]:
+        if not s.get("isBot"):
+            continue
+        if only_empty and s.get("bet"):
+            continue
+        s["bet"] = random.choice([5, 10, 10, 20, 50])
+
+
+def _bj_next_turn(room, after):
+    """下一个还需要行动的活跃座位（下过注、还没 done）。没有就返回 -1。"""
+    for i in range(after + 1, len(room["seats"])):
+        s = room["seats"][i]
+        if s.get("bet", 0) > 0 and not s.get("done"):
+            return i
+    return -1
+
+
+def _bj_humans(room):
+    return [s for s in room["seats"] if not s.get("isBot")]
+
+
+def _bj_timed(room):
+    """是否启用倒计时：只有“公共房 且 至少 2 个真人”时才计时；
+    否则（单人房，或公共房里只有 1 个真人）完全由玩家自己掌握节奏、不限时。"""
+    return room.get("mode") == "public" and len(_bj_humans(room)) >= 2
+
+
+def _bj_fresh_room(conn, owner, mode):
+    room = {
+        "game": "blackjack", "mode": mode, "round": 1, "phase": "betting",
+        "deadline": 0,     # 倒计时由 _bj_tick 按“是否够2真人”动态管理
+        "turn": -1, "turn_deadline": 0, "start_requested": False, "resolved_at": 0,
+        "dealer": {"cards": [], "reveal": False},
+        "deck": _bj_new_deck(),
+        "seats": [_bj_human_seat(conn, owner)],
+        "log": [f"🃏房间开好了，{'单人场（不限时；人不够用机器人补齐）' if mode=='solo' else '等朋友来，人不够用机器人补齐~'}"],
+    }
+    _bj_ensure_fill(room)
+    _bj_bots_bet(room)
+    return room
+
+
+def create_bj_room(owner, mode="solo"):
+    conn = _connect()
+    try:
+        _cleanup(conn)                      # 顺手清僵尸房，控制数据库体积
+        room = _bj_fresh_room(conn, owner, mode)
+        cur = conn.execute(
+            "INSERT INTO casino_rooms (game, mode, status, data, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+            ("blackjack", mode, "betting", json.dumps(room, ensure_ascii=False), _now(), _now()))
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def quick_join_bj(owner):
+    conn = _connect()
+    try:
+        _cleanup(conn)
+        rows = conn.execute(
+            "SELECT id, data FROM casino_rooms WHERE game='blackjack' AND mode='public' ORDER BY id DESC LIMIT 20").fetchall()
+        for rid, data in rows:
+            try:
+                room = json.loads(data)
+            except Exception:
+                continue
+            if any(s.get("owner") == owner for s in room["seats"]):
+                return rid
+            humans = [s for s in room["seats"] if not s.get("isBot")]
+            # 只在“下注阶段”让新人进，避免打断正在进行的一局
+            if room.get("phase") == "betting" and 1 <= len(humans) < MAX_SEATS:
+                room["seats"].append(_bj_human_seat(conn, owner))
+                _bj_ensure_fill(room)
+                _bj_bots_bet(room, only_empty=True)
+                room.setdefault("log", []).append(f"👋{owner} 进房了")
+                _save(conn, rid, room)
+                return rid
+        room = _bj_fresh_room(conn, owner, "public")
+        cur = conn.execute(
+            "INSERT INTO casino_rooms (game, mode, status, data, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+            ("blackjack", "public", "betting", json.dumps(room, ensure_ascii=False), _now(), _now()))
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def _bj_deal_round(room):
+    room["deck"] = _bj_new_deck()
+    room["dealer"] = {"cards": [_bj_pop(room), _bj_pop(room)], "reveal": False}
+    for s in room["seats"]:
+        if s.get("bet", 0) > 0:
+            s["cards"] = [_bj_pop(room), _bj_pop(room)]
+            s["done"] = False; s["doubled"] = False
+            if _bj_is_blackjack(s["cards"]):
+                s["result"] = "bj"; s["done"] = True   # 天生21点，自动停
+            else:
+                s["result"] = ""
+        else:
+            s["cards"] = []; s["done"] = True; s["result"] = "sit"   # 没下注，这局旁观
+    room["phase"] = "playing"
+    room["turn"] = _bj_next_turn(room, -1)
+    room["turn_deadline"] = 0 if room["mode"] == "solo" else _now() + BJ_TURN_SECS
+    room.setdefault("log", []).insert(0, "—— 发牌！——"); room["log"] = room["log"][:40]
+
+
+def _bj_bot_play(room, seat):
+    while _bj_value(seat["cards"]) < 17:      # 简单策略：<17 要牌
+        seat["cards"].append(_bj_pop(room))
+    seat["done"] = True
+    if _bj_value(seat["cards"]) > 21:
+        seat["result"] = "bust"
+
+
+def _bj_progress(conn, room):
+    """连续推进机器人回合；轮到真人就停下等操作；全部结束就庄家补牌+结算。"""
+    guard = 0
+    while room.get("phase") == "playing":
+        guard += 1
+        if guard > 50:
+            break
+        i = room.get("turn", -1)
+        if i < 0:
+            _bj_finish(conn, room)
+            return
+        s = room["seats"][i]
+        if s.get("isBot"):
+            _bj_bot_play(room, s)
+            room["turn"] = _bj_next_turn(room, i)
+            room["turn_deadline"] = 0 if room["mode"] == "solo" else _now() + BJ_TURN_SECS
+        else:
+            return   # 等真人操作
+
+
+def _bj_finish(conn, room):
+    d = room["dealer"]; d["reveal"] = True
+    alive = any(s.get("bet", 0) > 0 and s.get("result") != "sit" and _bj_value(s["cards"]) <= 21
+                for s in room["seats"])
+    if alive:
+        while _bj_value(d["cards"]) < 17:     # 庄家补到 17 停（软硬17都停）
+            d["cards"].append(_bj_pop(room))
+    _bj_settle(conn, room)
+    room["phase"] = "result"; room["resolved_at"] = _now(); room["turn"] = -1
+
+
+def _bj_settle(conn, room):
+    d = room["dealer"]; dv = _bj_value(d["cards"])
+    d_bj = _bj_is_blackjack(d["cards"]); d_bust = dv > 21
+    for s in room["seats"]:
+        bet = s.get("bet", 0)
+        if bet <= 0:
+            s["last_net"] = 0; continue
+        pv = _bj_value(s["cards"]); p_bj = (s.get("result") == "bj")
+        if pv > 21:
+            res, ret = "bust", 0
+        elif p_bj and not d_bj:
+            res, ret = "bj", bet + (bet * 3) // 2          # 黑杰克赔 1.5 倍（向下取整）
+        elif p_bj and d_bj:
+            res, ret = "push", bet
+        elif d_bj:
+            res, ret = "lose", 0
+        elif d_bust or pv > dv:
+            res, ret = "win", bet * 2
+        elif pv == dv:
+            res, ret = "push", bet
+        else:
+            res, ret = "lose", 0
+        net = ret - bet
+        s["result"] = res; s["last_net"] = net
+        if s.get("isBot"):
+            s["chips"] = s.get("chips", 500) + net
+        else:
+            if ret > 0:
+                _coins_add(conn, s["owner"], ret)
+            _bump_daily(conn, s["owner"], net)
+            tag = {"bj": "黑杰克! +", "win": "赢 +", "push": "平 ", "lose": "输 ", "bust": "爆牌 输 "}.get(res, "")
+            room.setdefault("log", []).insert(0, f"　{s['name']}：{tag}{net if net < 0 else abs(net)}")
+    room["log"] = room["log"][:40]
+
+
+def _bj_start_new_round(room):
+    room["round"] += 1; room["phase"] = "betting"
+    room["dealer"] = {"cards": [], "reveal": False}
+    room["deck"] = _bj_new_deck()
+    room["turn"] = -1; room["turn_deadline"] = 0
+    room["deadline"] = 0                                  # 由 _bj_tick 按是否够2真人动态管理
+    room["start_requested"] = False
+    for s in room["seats"]:
+        s["bet"] = 0; s["cards"] = []; s["done"] = False; s["doubled"] = False; s["result"] = ""; s["ready"] = False
+    _bj_ensure_fill(room)
+    _bj_bots_bet(room)
+    room.setdefault("log", []).insert(0, f"—— 第 {room['round']} 局，下注吧 ——"); room["log"] = room["log"][:40]
+
+
+def _bj_tick(conn, room):
+    """惰性状态机：下注→发牌→轮流决策→庄家结算→展示→下一局。
+    计时只在“公共房且≥2真人”时才跑；只有 1 个真人（或单人房）时不限时、等玩家自己操作。"""
+    t = _now(); ph = room.get("phase")
+    timed = _bj_timed(room)
+    if ph == "betting":
+        humans = _bj_humans(room)
+        # 倒计时管理：够2真人才开表；不够就停表（deadline=0），等其他真人 / 等唯一真人点发牌
+        if timed:
+            if not room.get("deadline"):
+                room["deadline"] = t + BJ_BET_SECS
+        else:
+            room["deadline"] = 0
+        ready = bool(humans) and all(s.get("ready") for s in humans)
+        due = timed and t >= room.get("deadline", t + 999)
+        if ready or due:
+            if any(s.get("bet", 0) > 0 for s in room["seats"]):
+                _bj_deal_round(room)
+                _bj_progress(conn, room)
+            elif timed:
+                room["deadline"] = t + BJ_BET_SECS      # 计时房到点却没人下注 → 顺延
+    elif ph == "playing":
+        _bj_progress(conn, room)
+        if room.get("phase") == "playing" and timed:     # 只有多真人房才有决策超时
+            i = room.get("turn", -1)
+            if i >= 0:
+                s = room["seats"][i]
+                if not s.get("isBot") and t >= room.get("turn_deadline", t + 999):
+                    s["done"] = True                    # 超时自动停牌
+                    room["turn"] = _bj_next_turn(room, i)
+                    room["turn_deadline"] = t + BJ_TURN_SECS
+                    _bj_progress(conn, room)
+    elif ph == "result":
+        if room.get("start_requested") or (timed and t - room.get("resolved_at", t) >= BJ_RESULT_SECS):
+            room["start_requested"] = False
+            _bj_start_new_round(room)
+
+
+def _bj_view(room, room_id, owner):
+    t = _now(); solo = room["mode"] == "solo"; ph = room.get("phase")
+    timed = _bj_timed(room); hc = len(_bj_humans(room))
+    v = {"id": room_id, "game": "blackjack", "mode": room["mode"], "round": room.get("round", 1),
+         "phase": ph, "me": owner, "min_bet": BJ_MIN_BET, "solo": solo, "log": room.get("log", [])[:40]}
+    v["human_count"] = hc
+    v["timed"] = timed
+    # 公共房里只有 1 个真人、还在下注 → 等其他玩家（不限时；也可直接发牌和机器人玩）
+    v["waiting_for_players"] = (room["mode"] == "public" and hc < 2 and ph == "betting")
+    v["bet_secs_left"] = (max(0, int(room.get("deadline", t) - t)) if (ph == "betting" and timed) else 0)
+    v["result_secs_left"] = (max(0, int(BJ_RESULT_SECS - (t - room.get("resolved_at", t)))) if (ph == "result" and timed) else 0)
+    # 庄家：未开牌时藏第二张
+    d = room.get("dealer", {"cards": [], "reveal": False})
+    if d.get("reveal"):
+        v["dealer"] = {"cards": d["cards"], "value": _bj_value(d["cards"]), "reveal": True,
+                       "blackjack": _bj_is_blackjack(d["cards"]), "bust": _bj_value(d["cards"]) > 21}
+    else:
+        shown = d["cards"][:1]
+        cards = shown + ([{"hidden": True}] if len(d["cards"]) >= 2 else [])
+        v["dealer"] = {"cards": cards, "value": _bj_value(shown), "reveal": False}
+    turn_i = room.get("turn", -1)
+    turn_owner = room["seats"][turn_i]["owner"] if ph == "playing" and 0 <= turn_i < len(room["seats"]) else None
+    v["turn_owner"] = turn_owner
+    seats = []
+    for idx, s in enumerate(room["seats"]):
+        seats.append({"owner": s.get("owner"), "name": s.get("name"), "isBot": s.get("isBot", False),
+                      "version": s.get("version", "v1"), "hat": s.get("hat", "光头"), "outfit": s.get("outfit", 0),
+                      "hair": s.get("hair", 0), "skin": s.get("skin", 0), "clothes": s.get("clothes", "无"),
+                      "bet": s.get("bet", 0), "cards": s.get("cards", []),
+                      "value": _bj_value(s.get("cards", [])) if s.get("cards") else 0,
+                      "done": s.get("done", False), "doubled": s.get("doubled", False),
+                      "result": s.get("result", ""), "last_net": s.get("last_net", 0),
+                      "ready": s.get("ready", False), "is_turn": (idx == turn_i and ph == "playing")})
+    v["seats"] = seats
+    mine = next((s for s in room["seats"] if s.get("owner") == owner), None)
+    v["my_bet"] = mine.get("bet", 0) if mine else 0
+    v["my_ready"] = bool(mine.get("ready")) if mine else False
+    v["my_turn"] = (turn_owner == owner)
+    v["can_double"] = bool(v["my_turn"] and mine and len(mine.get("cards", [])) == 2)
+    humans = [s for s in room["seats"] if not s.get("isBot")]
+    v["ready_total"] = len(humans)
+    v["ready_count"] = sum(1 for s in humans if s.get("ready"))
+    return v
+
+
+def _bj_augment(conn, v, owner):
+    v["coins"] = _coins_get(conn, owner)
+    v["top_winner"] = top_winner(conn)
+    return v
+
+
+def get_bj_room(owner, room_id):
+    conn = _connect()
+    try:
+        room = _load(conn, room_id)
+        if not room:
+            return {"error": "房间不存在或已解散"}
+        _bj_tick(conn, room)
+        _save(conn, room_id, room)
+        return _bj_augment(conn, _bj_view(room, room_id, owner), owner)
+    finally:
+        conn.close()
+
+
+def bj_bet(owner, room_id, amount):
+    conn = _connect()
+    try:
+        room = _load(conn, room_id)
+        if not room:
+            return {"error": "房间不存在"}
+        _bj_tick(conn, room)
+        seat = next((s for s in room["seats"] if s.get("owner") == owner), None)
+        msg = None
+        if not seat:
+            msg = "你不在这个房间里"
+        elif room.get("phase") != "betting":
+            msg = "本局已开始，等下一局"
+        else:
+            try:
+                amount = int(amount)
+            except (TypeError, ValueError):
+                amount = 0
+            if amount < BJ_MIN_BET:
+                msg = f"最少下 {BJ_MIN_BET} 币"
+            elif _coins_get(conn, owner) < amount:
+                msg = "金币不够啦，去打工赚点~"
+            else:
+                _coins_add(conn, owner, -amount)
+                seat["bet"] = seat.get("bet", 0) + amount
+                seat["ready"] = False
+                msg = "下注成功"
+        _save(conn, room_id, room)
+        v = _bj_augment(conn, _bj_view(room, room_id, owner), owner); v["msg"] = msg
+        return v
+    finally:
+        conn.close()
+
+
+def bj_clear(owner, room_id):
+    conn = _connect()
+    try:
+        room = _load(conn, room_id)
+        if not room:
+            return {"error": "房间不存在"}
+        _bj_tick(conn, room)
+        seat = next((s for s in room["seats"] if s.get("owner") == owner), None)
+        msg = "现在没有可撤回的下注"
+        if seat and room.get("phase") == "betting" and seat.get("bet", 0) > 0:
+            _coins_add(conn, owner, seat["bet"])
+            msg = f"已撤回，退还 {seat['bet']} 币"
+            seat["bet"] = 0; seat["ready"] = False
+        _save(conn, room_id, room)
+        v = _bj_augment(conn, _bj_view(room, room_id, owner), owner); v["msg"] = msg
+        return v
+    finally:
+        conn.close()
+
+
+def bj_deal(owner, room_id):
+    """开始发牌：切换自己的“准备好了”。所有真人都准备好（或公共房到点）就发牌。"""
+    conn = _connect()
+    try:
+        room = _load(conn, room_id)
+        if not room:
+            return {"error": "房间不存在"}
+        msg = None
+        if room.get("phase") == "betting":
+            seat = next((s for s in room["seats"] if s.get("owner") == owner), None)
+            if seat and seat.get("bet", 0) <= 0:
+                msg = "先下注再开始~"
+            elif seat:
+                seat["ready"] = not seat.get("ready", False)
+                msg = "准备好了，等发牌~" if seat["ready"] else "已取消准备"
+            _bj_tick(conn, room)
+        _save(conn, room_id, room)
+        v = _bj_augment(conn, _bj_view(room, room_id, owner), owner)
+        if msg:
+            v["msg"] = msg
+        return v
+    finally:
+        conn.close()
+
+
+def bj_action(owner, room_id, action):
+    conn = _connect()
+    try:
+        room = _load(conn, room_id)
+        if not room:
+            return {"error": "房间不存在"}
+        _bj_tick(conn, room)
+        msg = None
+        if room.get("phase") != "playing":
+            msg = "现在不能操作"
+        else:
+            i = room.get("turn", -1)
+            seat = room["seats"][i] if 0 <= i < len(room["seats"]) else None
+            if not seat or seat.get("owner") != owner:
+                msg = "还没轮到你~"
+            elif action == "hit":
+                seat["cards"].append(_bj_pop(room))
+                if _bj_value(seat["cards"]) >= 21:
+                    if _bj_value(seat["cards"]) > 21:
+                        seat["result"] = "bust"
+                    seat["done"] = True
+                    room["turn"] = _bj_next_turn(room, i)
+                    room["turn_deadline"] = 0 if room["mode"] == "solo" else _now() + BJ_TURN_SECS
+                    _bj_progress(conn, room)
+                else:
+                    room["turn_deadline"] = 0 if room["mode"] == "solo" else _now() + BJ_TURN_SECS
+                msg = "要牌"
+            elif action == "stand":
+                seat["done"] = True
+                room["turn"] = _bj_next_turn(room, i)
+                room["turn_deadline"] = 0 if room["mode"] == "solo" else _now() + BJ_TURN_SECS
+                _bj_progress(conn, room)
+                msg = "停牌"
+            elif action == "double":
+                if len(seat.get("cards", [])) != 2:
+                    msg = "只有前两张牌时才能双倍"
+                elif _coins_get(conn, owner) < seat.get("bet", 0):
+                    msg = "金币不够，双倍要再压一注"
+                else:
+                    _coins_add(conn, owner, -seat["bet"])
+                    seat["bet"] *= 2; seat["doubled"] = True
+                    seat["cards"].append(_bj_pop(room))
+                    if _bj_value(seat["cards"]) > 21:
+                        seat["result"] = "bust"
+                    seat["done"] = True
+                    room["turn"] = _bj_next_turn(room, i)
+                    room["turn_deadline"] = 0 if room["mode"] == "solo" else _now() + BJ_TURN_SECS
+                    _bj_progress(conn, room)
+                    msg = "双倍！再来一张"
+            else:
+                msg = "未知操作"
+        _save(conn, room_id, room)
+        v = _bj_augment(conn, _bj_view(room, room_id, owner), owner)
+        if msg:
+            v["msg"] = msg
+        return v
+    finally:
+        conn.close()
+
+
+def bj_next(owner, room_id):
+    """结果阶段点“再来一局”：展示够 ~2 秒就立刻开下一局。"""
+    conn = _connect()
+    try:
+        room = _load(conn, room_id)
+        if not room:
+            return {"error": "房间不存在"}
+        if room.get("phase") == "result" and (_now() - room.get("resolved_at", 0)) >= 2:
+            _bj_start_new_round(room)
+        else:
+            _bj_tick(conn, room)
+        _save(conn, room_id, room)
+        return _bj_augment(conn, _bj_view(room, room_id, owner), owner)
+    finally:
+        conn.close()
+
+
+def leave_bj_room(owner, room_id):
+    conn = _connect()
+    try:
+        room = _load(conn, room_id)
+        if not room:
+            return {"ok": True}
+        seat = next((s for s in room["seats"] if s.get("owner") == owner), None)
+        if seat:
+            if room.get("phase") == "betting" and seat.get("bet", 0) > 0:
+                _coins_add(conn, owner, seat["bet"])   # 退还未开局的注
+            room["seats"] = [s for s in room["seats"] if s.get("owner") != owner]
+        humans = [s for s in room["seats"] if not s.get("isBot")]
+        if not humans:
+            conn.execute("DELETE FROM casino_rooms WHERE id=?", (room_id,)); conn.commit()
+        else:
+            _bj_ensure_fill(room)
+            if room.get("phase") == "betting":
+                _bj_bots_bet(room, only_empty=True)
+            elif room.get("phase") == "playing":
+                room["turn"] = _bj_next_turn(room, -1)   # 有人走了，重算轮到谁
+                _bj_progress(conn, room)
+            _save(conn, room_id, room)
+        return {"ok": True}
     finally:
         conn.close()

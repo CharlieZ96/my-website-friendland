@@ -1012,5 +1012,60 @@ def casino_slots_spin():
     d = request.get_json(silent=True) or {}
     return casino.spin_slots(session["username"], d.get("bet", 0))
 
+# —— 21点（多人一桌：3人房/单人房，单人房不限时） ——
+@app.route("/casino/bj/create", methods=["POST"])
+@login_required
+def casino_bj_create():
+    data = request.get_json(silent=True) or {}
+    mode = "solo" if data.get("mode") == "solo" else "public"
+    return {"room": casino.create_bj_room(session["username"], mode)}
+ 
+@app.route("/casino/bj/join", methods=["POST"])
+@login_required
+def casino_bj_join():
+    return {"room": casino.quick_join_bj(session["username"])}
+ 
+@app.route("/casino/bj/<int:rid>")
+@login_required
+def casino_bj_page(rid):
+    return render_template("casino_bj.html", rid=rid)
+ 
+@app.route("/casino/bj/<int:rid>/state")
+@login_required
+def casino_bj_state(rid):
+    return casino.get_bj_room(session["username"], rid)
+ 
+@app.route("/casino/bj/<int:rid>/bet", methods=["POST"])
+@login_required
+def casino_bj_bet(rid):
+    d = request.get_json(silent=True) or {}
+    return casino.bj_bet(session["username"], rid, d.get("amount", 0))
+ 
+@app.route("/casino/bj/<int:rid>/clear", methods=["POST"])
+@login_required
+def casino_bj_clear(rid):
+    return casino.bj_clear(session["username"], rid)
+ 
+@app.route("/casino/bj/<int:rid>/deal", methods=["POST"])
+@login_required
+def casino_bj_deal(rid):
+    return casino.bj_deal(session["username"], rid)
+ 
+@app.route("/casino/bj/<int:rid>/action", methods=["POST"])
+@login_required
+def casino_bj_action(rid):
+    d = request.get_json(silent=True) or {}
+    return casino.bj_action(session["username"], rid, d.get("action", ""))
+ 
+@app.route("/casino/bj/<int:rid>/next", methods=["POST"])
+@login_required
+def casino_bj_next(rid):
+    return casino.bj_next(session["username"], rid)
+ 
+@app.route("/casino/bj/<int:rid>/leave", methods=["POST"])
+@login_required
+def casino_bj_leave(rid):
+    return casino.leave_bj_room(session["username"], rid)
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=False, port=5000)
