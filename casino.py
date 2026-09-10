@@ -30,6 +30,15 @@ EVEN_BETS = {
     "low":  ("小 1-18", 2), "high": ("大 19-36", 2),
 }
 
+# —— 轮盘对玩家的友好度（红黑/单双/大小这类等赔注）——
+# 开出 0（绿）时，退还这么多比例的本金，而不是全没收：
+#   0.0 = 全没收（欧式原版，庄家优势约 2.7%）
+#   0.5 = 退一半（la partage，庄家优势约 1.35%）
+#   1.0 = 全退（开0这局等于不算 → 非0局正好 50/50，长期不输不赢、也不会被刷币）← 现在用这个
+ZERO_REFUND = 1.0
+# 押单个数字中了的返还倍数（含本金）：36=欧式原值(庄家约2.7%)；37≈公平；38=玩家略占优
+NUM_PAYOUT  = 36
+
 # ====== 饮品（用宠物"精神值"购买；一次性，喝下的那一轮开奖时触发）======
 # 规则：酒保处花精神值买入背包（最多带 DRINK_HOLD_MAX 瓶）；进房下注阶段手动"喝"才生效；
 #       只有房里凑够 2 个真人玩家才能喝（单人/纯机器人房禁用）；同桌看不到谁喝了什么。
@@ -72,6 +81,7 @@ JOE_JACKPOT_COOLDOWN = 3 * 86400  # 中了大奖后至少隔 3 天不再触发
 JOE_LATINA_PROB      = 0.03       # 每句话 3% 概率老江请你吃拉缇娜（烤肉自助，不是酒）
 JOE_LATINA_COOLDOWN  = 6 * 3600   # 拉缇娜 6 小时冷却
 JOE_LOG_KEEP         = 1500       # 聊天日志最多留多少条（控制存储；joejoe 后台看）
+JOE_HISTORY_TURNS    = 12         # 给老江带上这个人最近多少轮对话作记忆（便于结合上下文打分）
 
 
 def _now(): return time.time()
@@ -421,12 +431,12 @@ def _payout(bet_type, stake, result):
             n = int(bet_type.split(":", 1)[1])
         except ValueError:
             return 0
-        return stake * 36 if result == n else 0
+        return stake * NUM_PAYOUT if result == n else 0
     if bet_type not in EVEN_BETS:
         return 0
     mult = EVEN_BETS[bet_type][1]
     if result == 0:
-        return 0                                         # 0 号：所有等赔注全输
+        return int(stake * ZERO_REFUND)                  # 0 号：按 ZERO_REFUND 退本金（1.0=全退，这局等于不算）
     win = {
         "red":  result in RED_NUMBERS,
         "black": result not in RED_NUMBERS,
@@ -1445,11 +1455,19 @@ def joe_chat(owner, message):
         if day != today:
             day, day_coins = today, 0               # 跨天重置乞讨上限
 
+        # —— 取这个人最近几轮对话，作为老江的“记忆”，让他结合上下文打分 ——
+        history = []
+        for m, rp in reversed(conn.execute(
+                "SELECT msg, reply FROM casino_joe_log WHERE owner=? ORDER BY id DESC LIMIT ?",
+                (owner, JOE_HISTORY_TURNS)).fetchall()):
+            history.append({"role": "user",  "text": m or ""})
+            history.append({"role": "model", "text": rp or ""})
+
         # —— 叫老江(AI)回话 + 打分（拿不到就用兜底话、mood 低）——
         say, mood = None, 0
         try:
             import ai_bot
-            res = ai_bot.joe_reply(owner, message, None)
+            res = ai_bot.joe_reply(owner, message, history)      # 带上这个人的历史对话
             if res:
                 say = res.get("say"); mood = int(res.get("mood", 0) or 0)
         except Exception as e:
