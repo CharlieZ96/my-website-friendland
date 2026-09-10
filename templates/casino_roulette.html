@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JZH 赌场 · 轮盘赌</title>
+<title>赌场</title>
 <style>
   :root{--bg:#0a0e1a;--pink:#ff2e88;--cyan:#27e3ff;--purple:#a06bff;--amber:#ffb54d;--green:#34d17e;--ink:#eaf2ff;}
   *{box-sizing:border-box}
@@ -96,8 +96,8 @@
 <body>
 <div class="wrap">
   <div class="top">
-    <span class="coins">🪙 <span id="coin">…</span></span>
-    <span class="win">🏆 <span id="win">—</span></span>
+    <span class="coins">🪙<span id="coin">…</span></span>
+    <span class="win">🏆<span id="win">—</span></span>
     <span class="leave" id="leave">离开 ↩</span>
   </div>
 
@@ -105,7 +105,7 @@
     <div class="phase" id="phase">连接中…</div>
     <div class="lastres" id="lastres"></div>
 
-    <div class="seatshead">🎰 本桌玩家（各自的 JZH）</div>
+    <div class="seatshead">🎰本桌玩家</div>
     <div class="seats" id="seats"></div>
 
     <div class="chips" id="chips">
@@ -122,14 +122,14 @@
 
     <!-- 饮品栏：显示背包里带进来的饮品，下注阶段点一下喝掉，本轮生效 -->
     <div class="drinkbar" id="drinkbar" hidden>
-      <div class="dbh"><span>🍷 饮品（喝下这一轮生效）</span><span class="lock" id="drinkLock" hidden></span></div>
+      <div class="dbh"><span>🍷饮品（喝下这一轮生效）</span><span class="lock" id="drinkLock" hidden></span></div>
       <div class="dchips" id="dchips"></div>
       <div id="dactiveWrap" style="margin-top:6px" hidden><span style="font-size:11px;color:#8fa0c8">本轮已喝：</span><span id="dactive"></span></div>
     </div>
 
     <div class="ctrls">
       <button class="btn clear" id="btnClear">撤注</button>
-      <button class="btn spin" id="btnSpin">🎡 开始转动</button>
+      <button class="btn spin" id="btnSpin">🎡开始转动</button>
     </div>
     <div class="log" id="log"></div>
   </div>
@@ -137,7 +137,7 @@
 
 <!-- 开奖大画面 -->
 <div class="spinmodal" id="spinModal" hidden>
-  <div class="mtitle" id="mtitle">🎡 开 盘</div>
+  <div class="mtitle" id="mtitle">🎡开 盘</div>
   <div class="wheelwrap">
     <div class="pointer"></div>
     <svg class="rwheel" viewBox="0 0 220 220">
@@ -149,7 +149,7 @@
       <g id="ballLayer"><circle cx="110" cy="110" r="100" fill="none"/><circle id="ball" cx="110" cy="18" r="5.5" fill="#fff" stroke="#c9d4f0" stroke-width="1"/></g>
     </svg>
   </div>
-  <div class="reslabel" id="reslabel">正在占卜你的幸运值…</div>
+  <div class="reslabel" id="reslabel">幸运轮盘转动中…</div>
   <div class="outcomes" id="outcomes"></div>
   <button class="mcont" id="mcont" hidden>继续下注 ▶</button>
   <div class="mnext" id="mnext"></div>
@@ -210,7 +210,7 @@ function showResult(n){
   const hub=document.getElementById('hubNum'); hub.textContent=n;
   hub.setAttribute('fill', c==='green'?'#34d17e':(c==='red'?'#ff6a7c':'#eaf2ff'));
   document.getElementById('reslabel').innerHTML=`开出 <span class="rn ${c}">${n}</span> · ${cn}`;
-  document.getElementById('mtitle').textContent='🎉 开奖';
+  document.getElementById('mtitle').textContent='🎉开奖';
 }
 function renderOutcomes(v){
   const bet=s=>s.owner===v.me ? (s.last_bets&&Object.keys(s.last_bets).length) : s.had_bet_last;
@@ -223,14 +223,15 @@ function renderOutcomes(v){
 function openModal(){ modalOpen=true; document.getElementById('spinModal').hidden=false;
   document.getElementById('outcomes').innerHTML=''; document.getElementById('mcont').hidden=true; document.getElementById('mnext').textContent=''; }
 function closeModal(){ modalOpen=false; document.getElementById('spinModal').hidden=true; }
-document.getElementById('mcont').addEventListener('click',closeModal);
+// “继续下注”：让服务器立刻开下一轮（轮盘转完就结算完了）；apply 收到 betting 会自动关弹框，回去就能马上下注
+document.getElementById('mcont').addEventListener('click',async()=>{ apply(await api('/spin')); });
 
 function spinTo(n,instant){
   const fromD=discA, fromB=ballA;
   landAngles(n); openModal();
   if(instant){ setWheel(discA,ballA); showResult(n); settled=true; if(curV)renderOutcomes(curV);
     document.getElementById('mcont').hidden=false; return; }
-  document.getElementById('hubNum').textContent=''; document.getElementById('mtitle').textContent='🎡 转动中…';
+  document.getElementById('hubNum').textContent=''; document.getElementById('mtitle').textContent='🎡转动中…';
   document.getElementById('reslabel').innerHTML='🪙幸运轮盘转动中…';
   settled=false;
   animateWheel(fromD,discA,fromB,ballA,5000,()=>{ settled=true; showResult(n); if(curV)renderOutcomes(curV);
@@ -274,13 +275,13 @@ function renderDrinks(v){
   if(inv.length===0 && active.length===0){
     bar.hidden=false;
     document.getElementById('drinkLock').hidden=true;
-    document.getElementById('dchips').innerHTML='<span class="dempty">背包里没饮品 · 回<a href="/casino">大厅找老江</a>用SAN值购买</span>';
+    document.getElementById('dchips').innerHTML='<span class="dempty">背包里没饮品 · 回<a href="/casino">大厅找老江</a>用精神值买</span>';
     document.getElementById('dactiveWrap').hidden=true;
     return;
   }
   bar.hidden=false;
   const lock=document.getElementById('drinkLock');
-  if(!can){ lock.hidden=false; lock.textContent='🔒 需 2 个真人玩家'; }
+  if(!can){ lock.hidden=false; lock.textContent='🔒需2个真人玩家'; }
   else lock.hidden=true;
   const nm=k=>{const c=DCAT[k]||{};return (c.emoji||'🍶')+(c.name||k);};
   document.getElementById('dchips').innerHTML = inv.length
@@ -317,8 +318,8 @@ function apply(v){
     ph.innerHTML=`<span class="t">开奖中</span> · ${v.result_secs_left}s 后进入下一轮`;
   }
   // 单人房：直接“开始转动”；多真人房：切换“准备好了”，等大家都准备好或时间到才开
-  if(v.can_start_now){ spin.textContent='🎡 开始转动'; spin.classList.remove('rdy'); }
-  else { spin.textContent = v.my_ready ? '✅ 已准备 · 点击取消' : '✅ 我下好了'; spin.classList.toggle('rdy', !!v.my_ready); }
+  if(v.can_start_now){ spin.textContent='🎡开始转动'; spin.classList.remove('rdy'); }
+  else { spin.textContent = v.my_ready ? '✅已准备 · 点击取消' : '✅我下好了'; spin.classList.toggle('rdy', !!v.my_ready); }
   spin.disabled=(phase!=='betting');
   document.getElementById('btnClear').disabled=(phase!=='betting');
   document.getElementById('mnext').textContent = phase!=='betting' ? `${v.result_secs_left}s 后进入下一轮` : '';

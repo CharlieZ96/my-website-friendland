@@ -12,11 +12,12 @@ DB = pet.DB
 # ====== 可调参数 ======
 WELCOME_BONUS = 30        # 首次进赌场赠送
 BET_SECS      = 60        # 一轮下注窗口（秒），到点自动开转（也可手动“开始转动”）
-RESULT_SECS   = 12        # 开奖结果展示多久后进入下一轮（留足滚珠动画+看结果的时间）
+RESULT_SECS   = 8         # 没人点“继续下注”时，结果最多展示这么久就自动进下一轮
+RESULT_MIN    = 5         # 轮盘动画时长（秒）；转完了才允许提前点“继续下注”进下一轮
 MIN_BET       = 5         # 单笔最小下注
 MAX_SEATS     = 6         # 一桌最多几个真人
 MIN_PLAYERS   = 3         # 一桌至少几人；真人不够就用机器人补到这个数（2人也能开，配1个机器人）
-BOT_NAMES     = ["楼外楼", "洗衣机", "玩机器", "`喵一闻"]   # 机器人名字池（按需取用）
+BOT_NAMES     = ["玩机器", "洗衣机", "楼外楼", "喵一闻"]   # 机器人名字池（按需取用）
 ROOM_IDLE_KILL = 1800     # 房间多久没人轮询就清理（秒）——30 分钟没人动就删
 DAILY_KEEP_DAYS = 3       # "今日大赢家"记录保留最近几天，更早的自动清掉
 
@@ -31,14 +32,14 @@ EVEN_BETS = {
 
 # ====== 饮品（用宠物"精神值"购买；一次性，喝下的那一轮开奖时触发）======
 # 规则：酒保处花精神值买入背包（最多带 DRINK_HOLD_MAX 瓶）；进房下注阶段手动"喝"才生效；
-#       只在"全是真人、无机器人"的房里能喝；同桌看不到谁喝了什么。
+#       只有房里凑够 2 个真人玩家才能喝（单人/纯机器人房禁用）；同桌看不到谁喝了什么。
 DRINKS = {
-    "calm":     {"name": "Margarita",   "emoji": "🍸", "cost": 40,
-                 "desc": "这一轮若没中，退还你的本金，不亏币"},
-    "double":   {"name": "Sangría",   "emoji": "🍷", "cost": 30,
+    "calm":     {"name": "定心茶",   "emoji": "🍵", "cost": 40,
+                 "desc": "这一轮若没中，退还你的本金，不亏币（保证不会输）"},
+    "double":   {"name": "翻倍酒",   "emoji": "🍶", "cost": 30,
                  "desc": "这一轮若赢，赢的收益翻倍"},
-    "sabotage": {"name": "Brandy", "emoji": "🥃", "cost": 50,
-                 "desc": "这一轮，同桌输钱的对手损失翻倍"},
+    "sabotage": {"name": "醉拳烈酒", "emoji": "🥃", "cost": 50,
+                 "desc": "这一轮，同桌输钱的对手损失翻倍（对手金币不够只扣到 0，不扣成负）"},
 }
 DRINK_HOLD_MAX = 2        # 一个人最多同时带几瓶饮品
 
@@ -166,6 +167,16 @@ def top_winner(conn):
     return {"owner": r[0], "net": int(r[1])} if r else None
 
 
+def top_loser(conn):
+    """今天净亏最多的人（净<0 才算）。没有就返回 None。附带外观，用来在角落画个坐着的小人。"""
+    r = conn.execute(
+        "SELECT owner, net FROM casino_daily WHERE day=? AND net<0 ORDER BY net ASC, owner LIMIT 1",
+        (_today(),)).fetchone()
+    if not r:
+        return None
+    return {"owner": r[0], "net": int(r[1]), "sprite": _sprite_of(conn, r[0])}
+
+
 def _sprite_of(conn, owner):
     """取某用户 JZH 的外观（在赌场里一律按成年展示）。"""
     row = conn.execute("SELECT data FROM pets WHERE owner=?", (owner,)).fetchone()
@@ -207,6 +218,7 @@ def lobby_data(owner):
         coins = _coins_get(conn, owner)
         return {"me": owner, "coins": coins, "sprite": sp, "min_bet": MIN_BET,
                 "top_winner": top_winner(conn),
+                "top_loser": top_loser(conn),                 # 今日最大输家（坐角落椅子上）
                 "spirit": _spirit_get(conn, owner),
                 "my_drinks": _drinks_get(conn, owner),        # 背包里已有的饮品
                 "drinks_catalog": _drinks_catalog(),          # 酒保菜单
@@ -262,7 +274,7 @@ def _fresh_room(conn, owner, mode):
         "round": 1, "phase": "betting", "result": None, "result_color": None,
         "resolved_at": 0, "deadline": _now() + BET_SECS, "start_requested": False,
         "seats": [_new_human_seat(conn, owner)],
-        "log": [f"🎲 房间开好了，{'单人场（没人时会有机器人补位）' if mode=='solo' else '等朋友进来，人不够会用机器人补齐~'}"],
+        "log": [f"🎲房间开好了，{'单人场（人不够用机器人补到3人）' if mode=='solo' else '等朋友进来，人不够会用机器人补齐~'}"],
     }
     _ensure_fill(room)      # 补机器人到至少 3 人
     _bots_bet(room)
@@ -303,7 +315,7 @@ def quick_join(owner):
                 _ensure_fill(room)               # 真人到3人就撤掉机器人；2人则留1个机器人
                 if room.get("phase") == "betting":
                     _bots_bet(room, only_empty=True)
-                room.setdefault("log", []).append(f"👋 {owner} 进房了")
+                room.setdefault("log", []).append(f"👋{owner} 进房了")
                 _save(conn, rid, room)
                 return rid
         # 没有可加入的 → 新建一个公共房
@@ -395,23 +407,23 @@ def _resolve(conn, room):
     room["phase"] = "result"
     room["resolved_at"] = _now()
     cn = "绿" if color == "green" else ("红" if color == "red" else "黑")
-    room.setdefault("log", []).insert(0, f"🎡 开出 {result}（{cn}）")
+    room.setdefault("log", []).insert(0, f"🎡开出 {result}（{cn}）")
 
-    # 谁喝了「Brandy」——只有真人、且这一轮真的喝了才算。有它在场，本轮净亏的真人对手亏损翻倍。
+    # 谁喝了「醉拳烈酒」——只有真人、且这一轮真的喝了才算。有它在场，本轮净亏的真人对手亏损翻倍。
     saboteurs = [s for s in room["seats"]
                  if not s.get("isBot") and "sabotage" in s.get("drinks", [])]
 
-    # 第一遍：算基础输赢，并应用只影响自己的饮品（Margarita / Sangría）
+    # 第一遍：算基础输赢，并应用只影响自己的饮品（定心茶 / 翻倍酒）
     for s in room["seats"]:
         bets = s.get("bets", {})
         stake = sum(bets.values())
         ret = sum(_payout(bt, amt, result) for bt, amt in bets.items())
         net = ret - stake
         drinks = s.get("drinks", []) if not s.get("isBot") else []
-        if "calm" in drinks and net < 0:      # Margarita：没中就退本金，净变 0（保证不亏）
+        if "calm" in drinks and net < 0:      # 定心茶：没中就退本金，净变 0（保证不亏）
             ret = stake
             net = 0
-        if "double" in drinks and net > 0:    # Sangría：赢了收益翻倍（多返一份净收益）
+        if "double" in drinks and net > 0:    # 翻倍酒：赢了收益翻倍（多返一份净收益）
             ret += net
             net = ret - stake
         s["_ret"] = ret
@@ -419,7 +431,7 @@ def _resolve(conn, room):
         s["last_bets"] = dict(bets)
         s["_sab_extra"] = 0
 
-    # 第二遍：Brandy——只要有「别的真人」喝了它，本轮净亏的真人多扣一份亏损（夹在 >=0）
+    # 第二遍：醉拳烈酒——只要有「别的真人」喝了它，本轮净亏的真人多扣一份亏损（夹在 >=0）
     if saboteurs:
         for s in room["seats"]:
             if s.get("isBot"):
@@ -439,7 +451,7 @@ def _resolve(conn, room):
         else:
             if ret > 0:
                 _coins_add(conn, s["owner"], ret)         # 本金下注时已扣，这里返还中奖额/退本金
-            if extra > 0:                                  # 被Brandy制裁：再多扣一份（不扣成负）
+            if extra > 0:                                  # 被醉拳烈酒制裁：再多扣一份（不扣成负）
                 before = _coins_get(conn, s["owner"])
                 after = _coins_add(conn, s["owner"], -extra)
                 net -= (before - after)                    # 实际扣到的才计入亏损
@@ -627,7 +639,11 @@ def start_spin(owner, room_id):
         if not room:
             return {"error": "房间不存在"}
         msg = None
-        if room["phase"] == "betting":
+        if room["phase"] == "result":
+            # 结果阶段点“继续下注”：轮盘已转完(结果展示够了)就立刻开下一轮，不用干等
+            if (_now() - room.get("resolved_at", 0)) >= RESULT_MIN:
+                _start_new_round(room)
+        elif room["phase"] == "betting":
             humans = [s for s in room["seats"] if not s.get("isBot")]
             if len(humans) <= 1:
                 room["start_requested"] = True             # 单人房：立刻开转

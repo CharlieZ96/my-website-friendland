@@ -84,6 +84,17 @@
   #playerJZH svg{width:100%;height:100%;image-rendering:pixelated}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 
+  /* 左下角：今日最大输家，蔫蔫地坐在小椅子上，头顶名字 */
+  .loser{position:absolute;left:8px;bottom:2%;width:50px;height:84px;z-index:2}
+  .loser .lname{position:absolute;top:0;left:0;white-space:nowrap;z-index:3;
+    font-size:9px;font-weight:800;color:#ff9aa8;background:rgba(10,14,26,.9);border:1px solid #7a3a48;
+    border-radius:6px;padding:1px 6px;box-shadow:0 0 6px rgba(255,90,110,.35)}
+  .loser .lchair{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:44px;height:42px;image-rendering:pixelated}
+  .loser .ljzh{position:absolute;left:50%;bottom:15px;transform:translateX(-50%);width:40px;height:48px;
+    animation:sob 3.2s ease-in-out infinite}
+  .loser .ljzh svg{width:100%;height:100%;image-rendering:pixelated}
+  @keyframes sob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-1.5px)}}
+
   /* 对话框 */
   .dlg{margin-top:12px;background:rgba(12,18,40,.96);border:2px solid var(--cyan);border-radius:14px;padding:12px;
     display:flex;gap:12px;box-shadow:0 0 22px rgba(39,227,255,.25)}
@@ -155,12 +166,12 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><a href="/hub">← 回主页</a><span class="coins">🪙 <span id="coin">…</span> <span style="opacity:.55">·</span> 🧠 <span id="spirit">…</span></span></div>
+  <div class="top"><a href="/hub">← 回主页</a><span class="coins">🪙<span id="coin">…</span> <span style="opacity:.55">·</span> 🧠<span id="spirit">…</span></span></div>
 
   <div class="scene" id="scene">
    <div class="stage" id="stage">
     <div class="sign">JZH <b>CASINO</b></div>
-    <div class="winboard">🏆 Today's Big Winner <b id="topWinner">—</b> <span class="amt" id="topAmt"></span></div>
+    <div class="winboard">🏆Today's Big Winner <b id="topWinner">—</b> <span class="amt" id="topAmt"></span></div>
     <div class="toast" id="toast"></div>
 
     <!-- 窗外城市 + 雨 -->
@@ -326,6 +337,22 @@
 
     <!-- 玩家JZH（真实版：显示你自己的JZH） -->
     <div class="pix player" id="playerJZH"></div>
+
+    <!-- 左下角：今日最大输家，坐在小椅子上（有输家才显示小人+名字）。
+         椅子拆成两层：椅背在小人后面、坐垫+椅腿在小人前面，遮住腿=坐着的感觉 -->
+    <div class="loser" id="loser">
+      <div class="lname" id="loserName" hidden></div>
+      <svg class="lchair" viewBox="0 0 44 42">     <!-- 椅背（在小人后面） -->
+        <rect x="10" y="4" width="24" height="4" rx="1" fill="#8a5a3c"/>
+        <rect x="11" y="6" width="3" height="21" fill="#8a5a3c"/><rect x="30" y="6" width="3" height="21" fill="#8a5a3c"/>
+      </svg>
+      <div class="ljzh" id="loserJZH" hidden></div>
+      <svg class="lchair" viewBox="0 0 44 42">     <!-- 坐垫 + 椅腿（在小人前面，遮住腿） -->
+        <rect x="6" y="22" width="32" height="6" rx="1" fill="#a06a42"/>
+        <rect x="6" y="27" width="32" height="2" fill="#6e4326"/>
+        <rect x="9" y="28" width="3" height="13" fill="#6e4326"/><rect x="32" y="28" width="3" height="13" fill="#6e4326"/>
+      </svg>
+    </div>
    </div><!-- /stage -->
   </div>
 
@@ -361,7 +388,7 @@
     <div class="bagline" id="bagLine">背包：空 · 精神值🧠<b id="dmSpirit">…</b></div>
     <div class="drinklist" id="drinkList"></div>
     <div class="mrow" style="flex-direction:column;gap:10px">
-      <button class="mbtn multi" id="dmTut" style="background:#1a2138;color:#8fe6ff;border-color:#2a3350;box-shadow:none">🔁 再听老江讲规则</button>
+      <button class="mbtn multi" id="dmTut" style="background:#1a2138;color:#8fe6ff;border-color:#2a3350;box-shadow:none">🔁再听老江讲规则</button>
       <button class="mbtn cancel" id="dmClose">收好，走了</button>
     </div>
   </div>
@@ -373,8 +400,8 @@
     <h3 id="rmTitle">进入轮盘赌</h3>
     <p>一个人玩会自动配 2 个机器人陪你；也可以进公共房和别人一起。</p>
     <div class="mrow" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center">
-      <button class="mbtn solo" style="flex:1 1 40%">🎲 单人开一局</button>
-      <button class="mbtn multi" style="flex:1 1 40%">👥 快速3人房</button>
+      <button class="mbtn solo" style="flex:1 1 40%">🎲单人开一局</button>
+      <button class="mbtn multi" style="flex:1 1 40%">👥快速3人房</button>
       <button class="mbtn cancel">取消</button>
     </div>
   </div>
@@ -443,6 +470,19 @@
         }
         startWander(el);                        // 只启动一次
       }
+      // 今日最大输家：坐在左下角椅子上，头顶名字（今天还没人亏就只留一把空椅子）
+      const tl=s.top_loser, lz=document.getElementById('loserJZH'), ln=document.getElementById('loserName');
+      if(tl && tl.sprite && typeof petSVG==='function'){
+        const lsig=JSON.stringify(tl);
+        if(lsig!==lz._sig){
+          const lp=tl.sprite;
+          lz.innerHTML=petSVG({version:lp.version,stage:'adult',hat:lp.hat,outfit:lp.outfit,hair:lp.hair,skin:lp.skin,clothes:lp.clothes});
+          lz._sig=lsig;
+        }
+        ln.textContent=tl.owner+' '+tl.net+'🪙'; ln.hidden=false; lz.hidden=false;   // 名字 + 亏了多少（net 本就是负数）
+      }else{
+        lz.hidden=true; ln.hidden=true;
+      }
       const dm=document.getElementById('drinkModal');
       if(dm && !dm.hidden) renderShop();     // 商店开着就同步刷新
     }catch(e){ console.error('大厅数据读取失败',e); }
@@ -453,11 +493,12 @@
     el._walking=true;
     const stage=document.getElementById('stage');
     const DW=(stage&&stage.offsetWidth)||480;               // 舞台设计宽度(480，不受缩放影响)
-    el.style.left=Math.round(DW*0.4)+'px';                  // 初始站中间偏左
+    const LEFT=72;                                          // 左下角留给“今日最大输家”的椅子，别踩上去
+    el.style.left=Math.round(DW*0.45)+'px';                 // 初始站中间偏左
     function step(){
       if(!document.body.contains(el)){ el._walking=false; return; }
-      const W=Math.max(20, DW-70);                          // 留出小人宽度，别走出画面
-      const nx=Math.random()*W;
+      const span=Math.max(20, DW-70-LEFT);                  // 留出小人宽度 + 左下角椅子，别走出画面
+      const nx=LEFT+Math.random()*span;
       const cur=parseFloat(el.style.left)||0;
       el._face=(nx<cur?'scaleX(-1)':'scaleX(1)');            // 朝着走的方向
       const svg=el.querySelector('svg'); if(svg) svg.style.transform=el._face;
@@ -480,7 +521,7 @@
   function renderShop(){
     const max=LOBBY.drink_hold_max||2, held=LOBBY.my_drinks||[], sp=Math.floor(LOBBY.spirit||0);
     document.getElementById('dmSpirit').textContent=sp;
-    document.getElementById('bagLine').innerHTML='背包（'+held.length+'/'+max+'）：<b>'+bagText()+'</b> · 精神值 🧠 <b id="dmSpirit">'+sp+'</b>';
+    document.getElementById('bagLine').innerHTML='背包（'+held.length+'/'+max+'）：<b>'+bagText()+'</b> · 精神值🧠<b id="dmSpirit">'+sp+'</b>';
     const list=document.getElementById('drinkList'); list.innerHTML='';
     (LOBBY.drinks_catalog||[]).forEach(d=>{
       const full=held.length>=max, poor=sp<d.cost;

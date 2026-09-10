@@ -318,9 +318,9 @@ def _decay(s):
     if s["stage"] == "cocoon" or s.get("status") == "plaza" or mins < 0.2:
         return
     d = min(mins, 720)   # 离线再久，最多按 12 小时算，避免一次扣爆
-    s["hunger"] = _clamp(s["hunger"] - d * 0.12, 0, 100)
+    s["hunger"] = _clamp(s["hunger"] - d * 0.06, 0, 100)
     s["clean"]  = _clamp(s["clean"]  - d * 0.08, 0, 100)
-    s["spirit"] = _clamp(s["spirit"] - d * 0.06, 0, SPIRIT_MAX)
+    s["spirit"] = _clamp(s["spirit"] - d * 0.03, 0, SPIRIT_MAX)
  
  
 def _public(s):
