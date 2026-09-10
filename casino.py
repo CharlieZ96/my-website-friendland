@@ -43,6 +43,13 @@ DRINKS = {
 }
 DRINK_HOLD_MAX = 2        # 一个人最多同时带几瓶饮品
 
+# ====== 老虎机（单人小赌，3 或 5 金币一把）======
+SLOT_BETS    = [3, 5]                                   # 每把可押的金额
+SLOT_SYMBOLS = ["🍒", "🍋", "🔔", "⭐", "💎", "7️⃣"]      # 图案（越靠后越稀有、赔得越多）
+SLOT_WEIGHTS = [24, 24, 22, 16, 9, 5]                  # 每格出现的权重（和=100）
+SLOT_PAY3    = {"🍒": 3, "🍋": 5, "🔔": 8, "⭐": 13, "💎": 22, "7️⃣": 55}  # 三个同 → ×注
+SLOT_PAY2    = {"🍒": 2, "🍋": 1, "🔔": 1, "⭐": 1,  "💎": 2,  "7️⃣": 3}   # 恰好两个同 → ×注（1=退本金）
+
 
 def _now(): return time.time()
 def _connect(): return pet._connect()
@@ -685,6 +692,61 @@ def leave_room(owner, room_id):
                 _bots_bet(room, only_empty=True)
             _save(conn, room_id, room)
         return {"ok": True}
+    finally:
+        conn.close()
+
+
+# ---------- 老虎机：单人小赌，一把一结算 ----------
+def _slot_roll():
+    return [random.choices(SLOT_SYMBOLS, weights=SLOT_WEIGHTS, k=1)[0] for _ in range(3)]
+
+
+def _slot_payout(reels, bet):
+    """三个同 → 按 SLOT_PAY3；恰好两个同 → 按 SLOT_PAY2；全不同 → 0。返回“返还额”。"""
+    a, b, c = reels
+    if a == b == c:
+        return int(bet * SLOT_PAY3.get(a, 0))
+    for sym in set(reels):
+        if reels.count(sym) == 2:
+            return int(bet * SLOT_PAY2.get(sym, 1))
+    return 0
+
+
+def slots_paytable():
+    """给前端展示的赔付表。"""
+    return {"bets": SLOT_BETS, "symbols": SLOT_SYMBOLS, "pay3": SLOT_PAY3, "pay2": SLOT_PAY2}
+
+
+def spin_slots(owner, bet):
+    """拉一把老虎机：先扣注，摇 3 个图案，中奖返奖，净输赢计入今日榜。结果丢给前端做动画。"""
+    conn = _connect()
+    try:
+        try:
+            bet = int(bet)
+        except (TypeError, ValueError):
+            bet = 0
+        if bet not in SLOT_BETS:
+            return {"ok": False, "msg": "每把只能压 3 或 5 金币", "coins": _coins_get(conn, owner)}
+        if _coins_get(conn, owner) < bet:
+            return {"ok": False, "msg": "金币不够啦，去打工赚点~", "coins": _coins_get(conn, owner)}
+        _coins_add(conn, owner, -bet)                     # 先扣注
+        reels = _slot_roll()
+        ret = _slot_payout(reels, bet)                    # 返还额
+        if ret > 0:
+            _coins_add(conn, owner, ret)
+        net = ret - bet
+        _bump_daily(conn, owner, net)                     # 计入今日大赢家/大输家
+        conn.commit()
+        if ret == 0:
+            msg = "差一点～再来一把"
+        elif net > 0:
+            msg = f"中啦！赢了 {net} 金币"
+        elif net == 0:
+            msg = "回本，不亏不赚"
+        else:
+            msg = f"没中，亏了 {-net}"
+        return {"ok": True, "reels": reels, "ret": ret, "net": net, "bet": bet,
+                "win": net > 0, "coins": _coins_get(conn, owner), "msg": msg}
     finally:
         conn.close()
 

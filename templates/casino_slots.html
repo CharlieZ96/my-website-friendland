@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>老虎机</title>
+<style>
+  :root{--bg:#06070f;--pink:#ff2e88;--cyan:#27e3ff;--purple:#a06bff;--amber:#ffb54d;--green:#34d17e;--ink:#eaf2ff;}
+  *{box-sizing:border-box}
+  body{margin:0;background:#06070f;color:var(--ink);font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;padding:12px 10px 40px}
+  .wrap{max-width:440px;margin:0 auto}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;font-size:13px}
+  .coins{font-weight:800;background:#141c38;border:2px solid var(--amber);color:var(--amber);border-radius:999px;padding:4px 12px}
+  .leave{cursor:pointer;background:#1a2138;border:2px solid #2a3350;color:#9fb0d8;border-radius:999px;padding:4px 12px;font-weight:700}
+
+  /* 机柜 */
+  .cab{position:relative;margin-right:30px;background:linear-gradient(#20143a,#140b26);border:3px solid #3a2a5a;border-radius:20px;
+    padding:14px 16px 0;box-shadow:0 14px 40px rgba(0,0,0,.6), inset 0 0 40px rgba(160,107,255,.18)}
+
+  /* 摇杆（拉一下开转，像真老虎机） */
+  .lever{position:absolute;right:-24px;top:62px;width:36px;height:128px;z-index:6;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;user-select:none}
+  .lever.busy{opacity:.5;pointer-events:none}
+  .lever .lbase{position:absolute;bottom:0;left:4px;width:28px;height:22px;border-radius:8px;
+    background:linear-gradient(#4a3a6a,#241636);border:2px solid #000;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+  .lever .lrod{position:absolute;bottom:14px;left:15px;width:6px;height:92px;border-radius:4px;
+    background:linear-gradient(#eef1fc,#8a96b8);transform-origin:50% 100%}
+  .lever .lknob{position:absolute;top:-17px;left:-8px;width:22px;height:22px;border-radius:50%;
+    background:radial-gradient(circle at 34% 30%,#ff9aa8,#c0182f 72%);border:2px solid #6a0d1c;box-shadow:0 0 9px rgba(255,46,88,.6)}
+  /* 上下拉杆：往下拉再弹回来（真老虎机那种），不是往右甩 */
+  .lever.pull .lrod{animation:pull .5s cubic-bezier(.34,1.35,.5,1)}
+  @keyframes pull{0%{transform:translateY(0)}38%{transform:translateY(52px)}100%{transform:translateY(0)}}
+
+  /* 中奖闪光 */
+  .winflash{position:absolute;inset:0;border-radius:20px;pointer-events:none;opacity:0;z-index:5;
+    background:radial-gradient(circle at 50% 42%, rgba(255,244,190,.95), rgba(255,181,77,0) 62%)}
+  .winflash.on{animation:wflash .55s ease-out 3}
+  @keyframes wflash{0%{opacity:.9}100%{opacity:0}}
+  .cab.win{animation:cabwin .5s ease-in-out 4}
+  @keyframes cabwin{0%,100%{box-shadow:0 14px 40px rgba(0,0,0,.6), inset 0 0 40px rgba(160,107,255,.18)}
+    50%{box-shadow:0 0 42px 8px rgba(255,181,77,.85), inset 0 0 60px rgba(255,181,77,.5)}}
+  .spark{position:absolute;font-size:20px;pointer-events:none;z-index:7;animation:sparkpop .9s ease-out forwards}
+  @keyframes sparkpop{0%{transform:scale(.2) rotate(0);opacity:0}30%{transform:scale(1.2) rotate(40deg);opacity:1}100%{transform:scale(.6) rotate(90deg);opacity:0}}
+  .marquee{text-align:center;font-weight:900;font-size:18px;letter-spacing:2px;color:#fff;
+    text-shadow:0 0 8px var(--pink),0 0 18px var(--pink);margin-bottom:4px}
+  .marquee b{color:var(--cyan);text-shadow:0 0 8px var(--cyan),0 0 18px var(--cyan)}
+  .bulbs{display:flex;justify-content:center;gap:7px;margin-bottom:10px}
+  .bulb{width:9px;height:9px;border-radius:50%;box-shadow:0 0 8px currentColor;animation:blink 1s steps(2) infinite}
+  .bulb:nth-child(odd){animation-delay:.5s}
+  @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:.25}}
+
+  /* 三个转轮 */
+  .reels{position:relative;display:flex;gap:8px;justify-content:center;background:#0a0a14;border:3px solid #000;
+    border-radius:12px;padding:8px;box-shadow:inset 0 0 24px rgba(0,0,0,.8)}
+  .reel{position:relative;flex:1;height:162px;overflow:hidden;border-radius:8px;
+    background:linear-gradient(#f6f2ff,#d9d2ec);box-shadow:inset 0 6px 10px rgba(0,0,0,.25), inset 0 -6px 10px rgba(0,0,0,.25)}
+  .reelstrip{display:flex;flex-direction:column;will-change:transform}
+  .sym{height:54px;line-height:54px;text-align:center;font-size:34px}
+  /* 中奖线（中间那一行）*/
+  .payline{position:absolute;left:4px;right:4px;top:calc(50% - 27px);height:54px;border-radius:8px;
+    border:2px solid rgba(255,181,77,.5);pointer-events:none;box-shadow:0 0 10px rgba(255,181,77,.25)}
+  .payline.win{border-color:var(--amber);box-shadow:0 0 16px rgba(255,181,77,.9);animation:plflash .5s ease-in-out 3}
+  @keyframes plflash{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* 出币口 + 接币盘（金币从这里掉出来） */
+  .slot{margin:12px auto 0;width:120px;height:12px;border-radius:0 0 8px 8px;background:#08060f;
+    box-shadow:inset 0 3px 6px rgba(0,0,0,.9), 0 0 8px rgba(39,227,255,.25)}
+  .tray{position:relative;height:60px;margin:0 12px}
+  .coin{position:absolute;top:-2px;font-size:22px;pointer-events:none;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.5));animation:coinfall 1.5s ease-in forwards}
+  @keyframes coinfall{
+    0%{transform:translateY(-8px) scale(.5) rotate(0);opacity:0}
+    12%{opacity:1}
+    55%{transform:translateY(40px) scale(1) rotate(180deg)}
+    70%{transform:translateY(30px)}
+    100%{transform:translateY(50px) scale(1) rotate(320deg);opacity:0}}
+
+  .msg{text-align:center;min-height:24px;font-weight:800;font-size:15px;margin:4px 0 10px}
+  .msg.win{color:var(--amber);text-shadow:0 0 10px rgba(255,181,77,.6)}
+  .msg.push{color:#9fb0d8}
+  .msg.lose{color:#8fa0c8}
+
+  /* 下注 + 拉杆 */
+  .betrow{display:flex;gap:8px;justify-content:center;margin:2px 0 10px}
+  .betbtn{cursor:pointer;border:2px solid #000;border-radius:999px;padding:8px 18px;font-weight:800;font-size:14px;
+    background:#141a2e;color:#9fb0d8;box-shadow:2px 2px 0 #000}
+  .betbtn.sel{background:linear-gradient(#8fe6ff,#27e3ff);color:#04121a}
+  .betbtn:active{transform:translate(2px,2px);box-shadow:0 0 0 #000}
+
+  /* 赔付表 */
+  .paytable{margin-top:14px;background:#0b1024;border:1px solid #22305a;border-radius:12px;padding:10px 12px}
+  .paytable h4{margin:0 0 8px;font-size:13px;color:var(--cyan)}
+  .prow{display:flex;align-items:center;justify-content:space-between;font-size:13px;padding:3px 0;color:#cdd8f5}
+  .prow .sy{font-size:18px;letter-spacing:2px}
+  .prow .mu{font-weight:800;color:var(--amber)}
+  .ptip{font-size:11px;color:#7f8cb8;margin-top:8px;line-height:1.6}
+
+  .toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;background:#0a1230;border:2px solid var(--cyan);
+    color:var(--cyan);font-weight:800;font-size:13px;border-radius:10px;padding:8px 14px;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.on{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <span class="coins">🪙<span id="coin">…</span></span>
+    <span class="leave" id="leave">离开 ↩</span>
+  </div>
+
+  <div class="cab">
+    <div class="winflash" id="winflash"></div>
+    <div class="marquee">JZH <b>SLOTS</b></div>
+    <div class="bulbs">
+      <span class="bulb" style="color:#27e3ff;background:#27e3ff"></span>
+      <span class="bulb" style="color:#ff2e88;background:#ff2e88"></span>
+      <span class="bulb" style="color:#ffb54d;background:#ffb54d"></span>
+      <span class="bulb" style="color:#a06bff;background:#a06bff"></span>
+      <span class="bulb" style="color:#34d17e;background:#34d17e"></span>
+    </div>
+
+    <div class="reels" id="reels">
+      <div class="reel"><div class="reelstrip" id="s0"></div></div>
+      <div class="reel"><div class="reelstrip" id="s1"></div></div>
+      <div class="reel"><div class="reelstrip" id="s2"></div></div>
+      <div class="payline" id="payline"></div>
+    </div>
+
+    <div class="slot"></div>
+    <div class="tray" id="tray"></div>
+
+    <!-- 摇杆（往下一拉开转，像真老虎机）。rod 在前、base 在后盖住杆底，像拉杆插进底座 -->
+    <div class="lever" id="lever" title="往下拉摇杆开转">
+      <div class="lrod"><div class="lknob"></div></div>
+      <div class="lbase"></div>
+    </div>
+  </div>
+
+  <div class="msg" id="msg">投币，试试手气～</div>
+
+  <div class="betrow" id="betrow">
+    <button class="betbtn sel" data-b="3">押 3 金币</button>
+    <button class="betbtn" data-b="5">押 5 金币</button>
+  </div>
+
+  <div class="paytable" id="paytable">
+    <h4>赔付表（三个一样 · ×本金）</h4>
+    <div id="prows"></div>
+    <div class="ptip">恰好两个 <b style="color:#ff8fa0">🍒</b> 或 <b style="color:#8fe6ff">💎</b> 也有小奖，两个 <b>7️⃣</b> 更高；其余两个一样退回本金。中奖时金币会从机器下面掉出来～</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SYMS=["🍒","🍋","🔔","⭐","💎","7️⃣"];
+const PAY3={"🍒":3,"🍋":5,"🔔":8,"⭐":13,"💎":22,"7️⃣":55};   // 仅用于展示赔付表（以后端为准）
+const SYMH=54;                                                // 每个图案的高度(px)，与 .sym 一致
+let bet=3, spinning=false;
+
+function toast(t){const e=document.getElementById('toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),1800);}
+function randSym(){return SYMS[Math.floor(Math.random()*SYMS.length)];}
+
+// 赔付表
+document.getElementById('prows').innerHTML=SYMS.slice().reverse().map(s=>
+  `<div class="prow"><span class="sy">${s}${s}${s}</span><span class="mu">×${PAY3[s]}</span></div>`).join("");
+
+// 初始把三个轮子填上静态图案
+function fillIdle(id){const strip=document.getElementById(id);
+  strip.style.transition='none';
+  // 放满 3 个图案，上中下三行都有内容（不留空白行），中间那个正好落在中奖线
+  strip.innerHTML=[randSym(),randSym(),randSym()].map(x=>`<div class="sym">${x}</div>`).join("");
+  strip.style.transform='translateY(0)';
+}
+['s0','s1','s2'].forEach(fillIdle);
+
+// 一个轮子转到目标图案（结果落在中间行）
+function spinReel(id,target,dur){
+  return new Promise(res=>{
+    const strip=document.getElementById(id);
+    const N=30, arr=[];
+    for(let i=0;i<N;i++) arr.push(randSym());
+    arr[N-2]=target;                                 // 倒数第二个=结果，正好停在中间行
+    strip.style.transition='none';
+    strip.innerHTML=arr.map(s=>`<div class="sym">${s}</div>`).join("");
+    strip.style.transform='translateY(0)';
+    strip.offsetHeight;                              // 强制回流，让下面的过渡生效
+    strip.style.transition='transform '+dur+'ms cubic-bezier(.1,.55,.2,1)';
+    strip.style.transform='translateY(-'+((N-2-1)*SYMH)+'px)';
+    setTimeout(res,dur);
+  });
+}
+
+// 中奖掉金币
+function dropCoins(n){
+  const tray=document.getElementById('tray');
+  for(let i=0;i<n;i++){
+    const c=document.createElement('div'); c.className='coin'; c.textContent='🪙';
+    c.style.left=(28+Math.random()*44)+'%';
+    c.style.animationDelay=(Math.random()*0.5).toFixed(2)+'s';
+    tray.appendChild(c);
+    setTimeout(()=>c.remove(),2100);
+  }
+}
+
+async function loadCoins(){
+  try{const s=await (await fetch('/casino/lobby')).json();
+    if(s.coins!=null) document.getElementById('coin').textContent=Math.floor(s.coins);}catch(e){}
+}
+loadCoins();
+
+// 下注选择
+document.getElementById('betrow').addEventListener('click',e=>{
+  const b=e.target.closest('.betbtn'); if(!b||spinning) return;
+  bet=+b.dataset.b;
+  document.querySelectorAll('.betbtn').forEach(x=>x.classList.toggle('sel',x===b));
+});
+document.getElementById('leave').addEventListener('click',()=>{location.href='/casino';});
+
+const lever=document.getElementById('lever'), msg=document.getElementById('msg'), payline=document.getElementById('payline');
+const IDLE='投币，试试手气～';
+
+// 中奖闪光：机柜金光脉冲 + 一层闪光 + 撒几颗✨
+function celebrate(){
+  const cab=document.querySelector('.cab'), wf=document.getElementById('winflash'), reels=document.getElementById('reels');
+  cab.classList.remove('win'); void cab.offsetWidth; cab.classList.add('win');
+  wf.classList.remove('on');  void wf.offsetWidth;  wf.classList.add('on');
+  setTimeout(()=>{ cab.classList.remove('win'); wf.classList.remove('on'); }, 2200);
+  for(let i=0;i<7;i++){
+    const s=document.createElement('div'); s.className='spark'; s.textContent='✨';
+    s.style.left=(8+Math.random()*84)+'%'; s.style.top=(6+Math.random()*76)+'%';
+    s.style.animationDelay=(Math.random()*0.5).toFixed(2)+'s';
+    reels.appendChild(s); setTimeout(()=>s.remove(),1600);
+  }
+}
+async function spin(){
+  if(spinning) return;
+  spinning=true; lever.classList.add('busy'); payline.classList.remove('win');
+  lever.classList.add('pull'); setTimeout(()=>lever.classList.remove('pull'),560);   // 摇杆下拉动画
+  msg.className='msg'; msg.textContent='转动中…';
+  let data;
+  try{
+    data=await (await fetch('/casino/slots/spin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bet})})).json();
+  }catch(e){ toast('网络卡了，再试一次'); spinning=false; lever.classList.remove('busy'); msg.textContent=IDLE; return; }
+  if(!data.ok){
+    toast(data.msg||'现在不能玩');
+    if(data.coins!=null) document.getElementById('coin').textContent=Math.floor(data.coins);
+    spinning=false; lever.classList.remove('busy'); msg.className='msg'; msg.textContent=IDLE; return;
+  }
+  const [a,b,c]=data.reels;
+  await Promise.all([ spinReel('s0',a,1500), spinReel('s1',b,1950), spinReel('s2',c,2400) ]);
+  document.getElementById('coin').textContent=Math.floor(data.coins);
+  msg.className='msg '+(data.win?'win':(data.net===0?'push':'lose'));
+  msg.textContent=data.msg;
+  if(data.win){
+    payline.classList.add('win');
+    celebrate();                                                   // 中奖闪光
+    const n=Math.max(4, Math.min(16, Math.round(data.net/2)+4));   // 赢得越多掉得越多
+    dropCoins(n);
+  }
+  spinning=false; lever.classList.remove('busy');
+}
+lever.addEventListener('click',spin);
+</script>
+</body>
+</html>

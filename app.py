@@ -1000,5 +1000,17 @@ def casino_roulette_drink(rid):
     d = request.get_json(silent=True) or {}
     return casino.use_drink(session["username"], rid, d.get("kind", ""))
 
+# —— 老虎机：单人小赌（进游戏页 + 拉一把） ——
+@app.route("/casino/slots")
+@login_required
+def casino_slots_page():
+    return render_template("casino_slots.html")
+ 
+@app.route("/casino/slots/spin", methods=["POST"])
+@login_required
+def casino_slots_spin():
+    d = request.get_json(silent=True) or {}
+    return casino.spin_slots(session["username"], d.get("bet", 0))
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=False, port=5000)
