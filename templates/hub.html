@@ -5,37 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>论坛主页</title>
     <style>
+        * { box-sizing:border-box; }
         body { margin:0; min-height:100vh; display:flex; flex-direction:column;
-               justify-content:center; align-items:center;
+               justify-content:center; align-items:center; padding:64px 16px 40px;
                font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#f4f6f8; }
-        h1 { color:#333; margin-bottom:8px; }
-        .welcome { color:#888; margin-bottom:40px; }
-        .btn { display: inline-block; width: 200px; box-sizing: border-box; text-align: center;padding:16px 30px; font-size:18px; border-radius:8px;
-               text-decoration:none; background:#4a90e2; color:white; transition:0.2s; margin-bottom:20px;}
-        .btn:hover { opacity:0.85; transform:translateY(-2px); }
-        .btn2 { display: inline-block; width: 200px; box-sizing: border-box; text-align: center; 
-            padding:16px 30px; font-size:18px; border-radius:8px;
-                text-decoration:none; background:white; color:#4a90e2;
-                border:2px solid #4a90e2; transition:0.2s; margin-bottom:20px;}
-        .btn2:hover { opacity:0.85; transform:translateY(-2px); }
-        .btn3 { display: inline-block; width: 200px; box-sizing: border-box; text-align: center; 
-            padding:16px 30px; font-size:18px; border-radius:8px;
-                text-decoration:none; background:#d9345b; color:#fdfdfd;
-                border:2px solid #d9345b; transition:0.2s; margin-bottom:20px;}
-        .btn3:hover { opacity:0.85; transform:translateY(-2px); }
-        .btn4 { display: inline-block; width: 200px; box-sizing: border-box; text-align: center;
-            padding:16px 30px; font-size:18px; border-radius:8px;
-                text-decoration:none; background:rgb(255, 255, 255); color:#2769b5;
-                border:2px solid #2769b5; transition:0.2s; margin-bottom:20px;}
-        .btn4:hover { opacity:0.85; transform:translateY(-2px); }
-        .btn5 { display: inline-block; width: 200px; box-sizing: border-box; text-align: center;padding:16px 30px; font-size:18px; border-radius:8px;
-               text-decoration:none; background:#ff9b0e; color:white; transition:0.2s; margin-bottom:20px;}
-        .btn5:hover { opacity:0.85; transform:translateY(-2px); }
-        .btn6 { display: inline-block; width: 200px; box-sizing: border-box; text-align: center;padding:16px 30px; font-size:18px; border-radius:8px;
-               text-decoration:none; background:#db87d7; color:white; transition:0.2s; margin-bottom:20px;}
-        .btn6:hover { opacity:0.85; transform:translateY(-2px); }
+        h1 { color:#333; margin:0 0 6px; }
+        .welcome { color:#888; margin:0 0 28px; }
+
+        /* 按钮网格：电脑两列、手机自动变一列，每个都够大好点 */
+        .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px;
+                width:100%; max-width:440px; }
+        .tile { display:flex; align-items:center; justify-content:center; text-align:center;
+                min-height:56px; padding:14px 12px; font-size:16px; font-weight:600;
+                border-radius:10px; text-decoration:none; transition:0.2s; }
+        .tile:hover { opacity:0.88; transform:translateY(-2px); }
+        .span2 { grid-column:1 / -1; }               /* 跨整行 */
+
+        .c-blue    { background:#4a90e2; color:#fff; }
+        .c-blueline{ background:#fff; color:#4a90e2; border:2px solid #4a90e2; }
+        .c-red     { background:#d9345b; color:#fff; }
+        .c-navyline{ background:#fff; color:#2769b5; border:2px solid #2769b5; }
+        .c-orange  { background:#ff9b0e; color:#fff; }
+        .c-pink    { background:#db87d7; color:#fff; }
+        .c-admin   { background:#e67e22; color:#fff; }
+        .c-joe     { background:#3d3a4f; color:#ffd98a; }   /* 老江账本：深色+暖金，像个后台工具 */
+
+        .pill { margin-top:24px; background:#241812; border:1px solid #f5b942; color:#f5b942;
+                font-weight:700; padding:9px 26px; border-radius:20px; text-decoration:none; }
+        .pill:hover { opacity:0.88; }
+
         .topnav { position:absolute; top:20px; right:24px; display:flex; gap:16px; }
         .topnav a { color:#888; text-decoration:none; font-size:14px; }
+
+        @media (max-width:440px){ .grid { grid-template-columns:1fr; } }
     </style>
 </head>
 <body>
@@ -48,20 +50,25 @@
     </div>
     <h1>神秘论坛</h1>
     <p class="welcome">你醒啦，{{ username }}</p>
-    <a href="/board" class="btn">进入 →</a>
-    <a href="/jzhyl" class="btn2">JZH语录 →</a>
-    <a href="/draw" class="btn3">抽取你的JZH</a>
-    <a href="/collection" class="btn4">卡册</a>
-    <a href="/battle" class="btn5">JZH对撞</a>
-    <a class="btn6" href="{{ url_for('pet_page') }}">拓麻JZH</a>
-    
-    {% if is_admin %}
-    <a href="/admin/cards" class="btn" style="background:#e67e22;">卡牌管理</a>
-    <a href="/admin/settings" class="btn" style="background:#e67e22;">后台设置</a>
-    {% endif %}
-    
-    <a href="/leaderboard" style="display:inline-block; margin-top:24px;
-    background:#241812; border:1px solid #f5b942; color:#f5b942; font-weight:700;
-    padding:8px 24px; border-radius:20px; text-decoration:none;">🏆排行榜</a>
+
+    <div class="grid">
+        <a href="/board" class="tile c-blue">进入 →</a>
+        <a href="/jzhyl" class="tile c-blueline">JZH语录 →</a>
+        <a href="/draw" class="tile c-red">抽取你的JZH</a>
+        <a href="/collection" class="tile c-navyline">卡册</a>
+        <a href="/battle" class="tile c-orange">JZH对撞</a>
+        <a href="{{ url_for('pet_page') }}" class="tile c-pink">拓麻JZH</a>
+
+        {% if is_admin %}
+        <a href="/admin/cards" class="tile c-admin">卡牌管理</a>
+        <a href="/admin/settings" class="tile c-admin">后台设置</a>
+        {% endif %}
+
+        {% if username in ['joejoe', 'admin'] %}
+        <a href="/joe/board" class="tile c-joe span2">🍖 老江账本</a>
+        {% endif %}
+    </div>
+
+    <a href="/leaderboard" class="pill">🏆排行榜</a>
 </body>
 </html>

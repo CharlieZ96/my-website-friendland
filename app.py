@@ -1067,5 +1067,35 @@ def casino_bj_next(rid):
 def casino_bj_leave(rid):
     return casino.leave_bj_room(session["username"], rid)
 
+# —— 老江 AI 对话（说好话乞讨 / 千金大奖 / 请客拉缇娜；奖励全在服务器端封顶+冷却，防话术刷金）——
+@app.route("/casino/joe/chat", methods=["POST"])
+@login_required
+def casino_joe_chat():
+    d = request.get_json(silent=True) or {}
+    return casino.joe_chat(session["username"], d.get("message", ""))
+
+# —— 老江账本后台：只有 joejoe 本人 + admin 能看（严格区分大小写，只认小写这两个名）——
+JOE_BOARD_VIEWERS = ("joejoe", "admin")
+def _can_see_joe_board():
+    return (session.get("username", "") or "") in JOE_BOARD_VIEWERS
+
+@app.route("/joe/board")
+@login_required
+def joe_board_page():
+    if not _can_see_joe_board():
+        return ("<h3 style='font-family:sans-serif;color:#888;text-align:center;margin-top:80px'>"
+                "这页只有 joejoe 和 admin 能看哦。</h3>"), 403
+    return render_template("joe_board.html")
+
+@app.route("/joe/board/data")
+@login_required
+def joe_board_data():
+    if not _can_see_joe_board():
+        return {"error": "forbidden"}, 403
+    limit = request.args.get("limit", 50, type=int)
+    offset = request.args.get("offset", 0, type=int)
+    q = request.args.get("q", "", type=str)
+    return casino.joe_logs(limit=limit, offset=offset, owner=q)
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=False, port=5000)

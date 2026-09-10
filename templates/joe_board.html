@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>乞讨记录</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#f4f6f8;color:#333;font-family:"Segoe UI","Microsoft YaHei",sans-serif;}
+  .wrap{max-width:760px;margin:0 auto;padding:20px 16px 60px;}
+  .top{margin-bottom:6px;}
+  .top a{color:#888;text-decoration:none;font-size:14px;}
+  h1{font-size:22px;margin:6px 0 4px;color:#333;}
+  .sub{color:#888;font-size:13px;margin:0 0 18px;line-height:1.6;}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4a90e2;margin:0 3px;animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+  .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+  .stat{background:#fff;border:1px solid #e6e9ef;border-radius:10px;padding:8px 14px;font-size:13px;color:#555;
+        box-shadow:0 1px 4px rgba(0,0,0,.04);}
+  .stat b{color:#4a90e2;}
+  .filter{margin-left:auto;display:flex;gap:8px;}
+  .filter input{background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px 12px;font-size:14px;outline:none;min-width:150px;}
+  .filter input:focus{border-color:#4a90e2;}
+  .filter button{background:#4a90e2;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer;}
+  .filter button:hover{opacity:.9;}
+  .card{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,.06);}
+  .chead{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+  .who{color:#4a90e2;font-weight:bold;font-size:15px;}
+  .mood{font-size:12px;font-weight:bold;padding:2px 10px;border-radius:999px;}
+  .when{color:#bbb;font-size:12px;margin-left:auto;white-space:nowrap;}
+  .say,.rep{font-size:14px;line-height:1.6;border-radius:8px;padding:9px 12px;margin:6px 0;}
+  .say{background:#eef4fb;border-left:3px solid #4a90e2;}
+  .rep{background:#fbf3e6;border-left:3px solid #efa832;color:#5a4a2e;}
+  .lbl{color:#aaa;font-size:12px;margin-right:6px;}
+  .rewards{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;}
+  .rw{font-size:12px;font-weight:bold;border-radius:999px;padding:3px 11px;}
+  .rw.beg{background:#fff3d6;color:#b8770b;}
+  .rw.jackpot{background:#fde8ef;color:#d9345b;}
+  .rw.latina{background:#f1e8fb;color:#8a4fd0;}
+  .empty{text-align:center;color:#aaa;margin-top:50px;}
+  .more{display:block;margin:16px auto 0;background:#fff;border:1px solid #cfd6e0;color:#4a90e2;border-radius:10px;
+        padding:10px 24px;font-size:14px;cursor:pointer;}
+  .more:hover{background:#f0f4fa;}
+  .more[disabled]{opacity:.45;cursor:default;}
+  /* 手机窄屏：筛选框单独占满一行，输入框自动伸缩，绝不和统计块挤一起 */
+  @media (max-width:480px){
+    .filter{ margin-left:0; width:100%; }
+    .filter input{ flex:1; min-width:0; }
+    .stat{ flex:1; text-align:center; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="/hub">← 返回主页</a></div>
+  <h1>🍖 老江的账本</h1>
+  <p class="sub">这里是大家跑来跟老江说的每一句话，还有老江当时的心情分和有没有掏钱／请客。<span class="dot"></span>每 10 秒自动刷新。</p>
+  <div class="bar">
+    <div class="stat">累计记录 <b id="total">…</b> 条</div>
+    <div class="stat">当前显示 <b id="shown">0</b> 条</div>
+    <div class="filter">
+      <input id="q" type="text" placeholder="按玩家名筛选…" onkeydown="if(event.key==='Enter')applyFilter()">
+      <button onclick="applyFilter()">筛选</button>
+    </div>
+  </div>
+  <div id="list"></div>
+  <div id="emptyBox" class="empty" hidden>还没有人找老江搭过话。</div>
+  <button id="moreBtn" class="more" hidden onclick="loadMore()">加载更早的…</button>
+</div>
+<script>
+  let offset=0, filter='', total=0, shownCount=0;
+  const PAGE=50;
+  function moodChip(m){
+    // 浅色主题：低分灰、中分琥珀、高分红
+    let bg='#eef0f3', fg='#888';
+    if(m>=90){ bg='#fde8ef'; fg='#d9345b'; }
+    else if(m>=55){ bg='#fff3d6'; fg='#b8770b'; }
+    return '<span class="mood" style="background:'+bg+';color:'+fg+'">心情 '+m+'</span>';
+  }
+  function esc(s){const d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;}
+  function rewardChips(rw){
+    if(!rw||!rw.length) return '';
+    let h='<div class="rewards">';
+    rw.forEach(x=>{
+      if(x.type==='beg') h+='<span class="rw beg">乞讨 +'+x.coins+'🪙</span>';
+      else if(x.type==='jackpot') h+='<span class="rw jackpot">🎉大奖 +'+x.coins+'🪙</span>';
+      else if(x.type==='latina') h+='<span class="rw latina">🍖请吃拉缇娜(烤肉)</span>';
+    });
+    return h+'</div>';
+  }
+  function render(logs, replace){
+    const list=document.getElementById('list');
+    if(replace) list.innerHTML='';
+    logs.forEach(l=>{
+      const card=document.createElement('div'); card.className='card';
+      card.innerHTML=
+        '<div class="chead"><span class="who">'+esc(l.owner)+'</span>'+moodChip(l.mood)+
+        '<span class="when">'+esc(l.time)+'</span></div>'+
+        '<div class="say"><span class="lbl">TA说</span>'+esc(l.msg)+'</div>'+
+        '<div class="rep"><span class="lbl">老江</span>'+esc(l.reply)+'</div>'+
+        rewardChips(l.rewards);
+      list.appendChild(card);
+    });
+  }
+  async function fetchPage(off, replace){
+    const url='/joe/board/data?offset='+off+'&limit='+PAGE+(filter?'&q='+encodeURIComponent(filter):'');
+    const d=await (await fetch(url)).json();
+    total=d.total||0;
+    document.getElementById('total').textContent=total;
+    if(replace) shownCount=0;
+    render(d.logs||[], replace);
+    shownCount += (d.logs||[]).length;
+    document.getElementById('shown').textContent=shownCount;
+    document.getElementById('emptyBox').hidden = shownCount>0;
+    const more=document.getElementById('moreBtn');
+    more.hidden = shownCount>=total || (d.logs||[]).length<PAGE;
+    offset = off + (d.logs||[]).length;
+  }
+  function applyFilter(){ filter=document.getElementById('q').value.trim(); offset=0; fetchPage(0,true); }
+  function loadMore(){ fetchPage(offset,false); }
+  // 首屏 + 定时刷新（只刷新最新一页，不打断“加载更早”的浏览）
+  fetchPage(0,true);
+  setInterval(()=>{ if(offset<=PAGE) fetchPage(0,true); }, 10000);
+</script>
+</body>
+</html>

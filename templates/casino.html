@@ -166,6 +166,36 @@
   .drinkcard .buy[disabled]{background:#242c48;color:#6b7aa0;border-color:#2a3350;box-shadow:none;cursor:not-allowed}
   .bagline{color:#cfe1ff;font-size:13px;margin:0 0 12px;background:#0b1330;border:1px dashed #2a3a66;border-radius:10px;padding:8px 10px}
   .bagline b{color:var(--amber)}
+  /* 老江聊天面板 */
+  .joepanel{max-width:360px;width:100%;padding:0;overflow:hidden;display:flex;flex-direction:column}
+  .joehead{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(90deg,#1a1030,#0c1024);border-bottom:1px solid #2a2350}
+  .joeface{width:40px;height:40px;border-radius:10px;background:#0a1230;border:2px solid var(--amber);flex:none;
+    display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 12px rgba(255,181,77,.4)}
+  .joename{color:var(--amber);font-weight:800;font-size:15px;text-shadow:0 0 8px rgba(255,181,77,.5)}
+  .joetip{color:#8fa0c8;font-size:11px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .joeclose{margin-left:auto;color:#8fa0c8;cursor:pointer;font-size:16px;align-self:flex-start;padding:0 2px}
+  .joelog{height:260px;max-height:44vh;overflow-y:auto;padding:12px;background:#0a0e1e;display:flex;flex-direction:column;gap:8px}
+  .jrow{display:flex}
+  .jrow.me{justify-content:flex-end}
+  .jb{max-width:78%;padding:8px 11px;border-radius:12px;font-size:13px;line-height:1.5;word-break:break-word}
+  .jrow.me .jb{background:linear-gradient(#8fe6ff,#27e3ff);color:#04121a;border-bottom-right-radius:4px}
+  .jrow.joe .jb{background:#141a2e;color:#eaf2ff;border:1px solid #2a3350;border-bottom-left-radius:4px}
+  .jtip{align-self:center;color:#8a95b8;font-size:11px;text-align:center;line-height:1.5;margin:2px 8px}
+  .jreward{align-self:center;font-size:12px;font-weight:800;color:#2a1a04;background:linear-gradient(#ffe08a,var(--amber));
+    border:1px solid #b9902f;border-radius:999px;padding:5px 13px;box-shadow:0 0 12px rgba(255,181,77,.5);text-align:center}
+  .jreward.jackpot{background:linear-gradient(#ffd1ec,#ff2e88);color:#2a0a1a;border-color:#a83b6a;box-shadow:0 0 18px rgba(255,46,136,.7);animation:jrpop .5s ease}
+  .jreward.latina{background:linear-gradient(#d9c2ff,#a06bff);color:#180a2a;border-color:#6a3bcf;box-shadow:0 0 14px rgba(160,107,255,.6)}
+  @keyframes jrpop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+  .joeinput{display:flex;gap:8px;padding:10px 12px;background:#0c1024;border-top:1px solid #1c2340}
+  .joeinput input{flex:1;min-width:0;background:#0a0e1e;border:1px solid #2a3350;border-radius:999px;padding:9px 13px;color:#eaf2ff;font-size:13px;outline:none}
+  .joeinput input:focus{border-color:var(--amber)}
+  .joeinput button{flex:none;border:none;border-radius:999px;padding:0 18px;font-weight:800;font-size:14px;cursor:pointer;
+    background:linear-gradient(#ffe08a,var(--amber));color:#2a1a04}
+  .joeinput button:disabled{opacity:.5;cursor:default}
+  .joebtns{display:flex;gap:8px;padding:0 12px 14px;background:#0c1024}
+  .joebtns .mbtn{flex:1;font-size:13px;padding:9px;box-shadow:2px 2px 0 #000}
+  .joebtns .mbtn:active{transform:translate(2px,2px);box-shadow:0 0 0 #000}
+  .joebtns .mbtn.cancel{flex:none;box-shadow:none}
 </style>
 </head>
 <body>
@@ -374,13 +404,38 @@
       </svg>
     </div>
     <div class="dtext">
-      <div class="dname">调酒师老江</div>
+      <div class="dname">赌场老板老江</div>
       <div class="dbody" id="dbody">哟，新面孔。欢迎来到JZH赌场——先送你 <b style="color:var(--amber)">30 枚金币</b> 压压惊。</div>
       <div class="dnext"><button id="dnext">下一句 ▶</button></div>
     </div>
   </div>
 
-  <p class="hint">点场景里的<b style="color:#27e3ff">🎡轮盘</b>、<b style="color:#27e3ff">🎰老虎机</b>或<b style="color:#27e3ff">🃏21点</b>机器进入游戏 · 点吧台里的<b style="color:var(--amber)">🍷老江</b>买饮品 / 再听规则</p>
+  <p class="hint">点场景里的<b style="color:#27e3ff">🎡轮盘</b>、<b style="color:#27e3ff">🎰老虎机</b>或<b style="color:#27e3ff">🃏21点</b>机器进入游戏 · 点吧台里的<b style="color:var(--amber)">🍷老江</b>唠嗑 / 买饮品 / 再听规则</p>
+</div>
+
+<!-- 老江 · 聊天面板（点老江本人打开：能唠嗑说好话乞讨、买饮品、再听规则） -->
+<div id="joeModal" class="modal-bg" hidden>
+  <div class="modal joepanel">
+    <div class="joehead">
+      <div class="joeface">🍸</div>
+      <div style="min-width:0">
+        <div class="joename">老江</div>
+        <div class="joetip">JZH赌场的老板 · 嘴甜点儿，兴许有好处</div>
+      </div>
+      <span class="joeclose" id="joeClose">✕</span>
+    </div>
+    <div class="joelog" id="joeLog"></div>
+    <div class="joeinput">
+      <input id="joeText" type="text" maxlength="200" placeholder="跟老江说两句…"
+             onkeydown="if(event.key==='Enter')joeSend()">
+      <button id="joeSendBtn" onclick="joeSend()">说</button>
+    </div>
+    <div class="joebtns">
+      <button class="mbtn multi" id="joeBuy">🍷买饮品</button>
+      <button class="mbtn" id="joeRules" style="background:#1a2138;color:#8fe6ff;border-color:#2a3350;box-shadow:none">🔁听规则</button>
+      <button class="mbtn cancel" id="joeCloseBtn">走了</button>
+    </div>
+  </div>
 </div>
 
 <!-- 老江的饮品店 -->
@@ -573,7 +628,58 @@
     body.innerHTML=lines[i];
     if(i===lines.length-1) next.textContent='知道啦';
   });
-  document.getElementById('barman').addEventListener('click', openShop);   // 点老江 → 开饮品店（里面能再听规则）
+  // ===== 老江 · 聊天面板（点老江本人打开） =====
+  const joeModal=document.getElementById('joeModal'), joeLog=document.getElementById('joeLog'),
+        joeText=document.getElementById('joeText'), joeSendBtn=document.getElementById('joeSendBtn');
+  let joeBusy=false, joeOpened=false;
+  function joeAdd(text, who){
+    const row=document.createElement('div'); row.className='jrow '+who;
+    const b=document.createElement('div'); b.className='jb'; b.textContent=text;
+    row.appendChild(b); joeLog.appendChild(row); joeLog.scrollTop=joeLog.scrollHeight;
+  }
+  function joeTip(text){
+    const t=document.createElement('div'); t.className='jtip'; t.textContent=text;
+    joeLog.appendChild(t); joeLog.scrollTop=joeLog.scrollHeight;
+  }
+  function joeReward(text, cls){
+    const t=document.createElement('div'); t.className='jreward'+(cls?' '+cls:''); t.textContent=text;
+    joeLog.appendChild(t); joeLog.scrollTop=joeLog.scrollHeight;
+  }
+  function openJoe(){
+    joeModal.hidden=false;
+    if(!joeOpened){ joeOpened=true; joeTip('老江正在看你。——他心情好可能爆金币。'); }
+    setTimeout(()=>joeText.focus(),50);
+  }
+  function closeJoe(){ joeModal.hidden=true; }
+  async function joeSend(){
+    if(joeBusy) return;
+    const msg=joeText.value.trim(); if(!msg) return;
+    joeText.value=''; joeAdd(msg,'me');
+    joeBusy=true; joeSendBtn.disabled=true;
+    try{
+      const r=await fetch('/casino/joe/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});
+      const d=await r.json();
+      if(d.reply) joeAdd(d.reply,'joe');
+      if(d.ok===false){ joeBusy=false; joeSendBtn.disabled=false; return; }
+      // 奖励：小钱 / 千金大奖 / 请客拉缇娜
+      (d.rewards||[]).forEach(rw=>{
+        if(rw.type==='beg'){ joeReward('老江塞给你 '+rw.coins+' 🪙'); toast('老江给了你 '+rw.coins+' 金币'); }
+        else if(rw.type==='jackpot'){ joeReward('🎉 老江今天特别高兴，甩给你 '+rw.coins+' 金币！','jackpot'); toast('🎉 千金大奖！+'+rw.coins); }
+        else if(rw.type==='latina'){ joeReward('🍖 老江带你搓了顿拉缇娜烤肉——你的JZH吃饱喝足，状态全满了！','latina'); toast('🍖 老江请你吃拉缇娜！JZH状态拉满'); }
+      });
+      // 同步金币 / 精神值
+      if(d.coins!==undefined){ document.getElementById('coin').textContent=Math.floor(d.coins); LOBBY.coins=d.coins; }
+      if(d.spirit!==undefined){ document.getElementById('spirit').textContent=Math.floor(d.spirit); LOBBY.spirit=d.spirit; }
+    }catch(e){ joeTip('网络出了点岔子，待会儿再聊。'); }
+    finally{ joeBusy=false; joeSendBtn.disabled=false; joeText.focus(); }
+  }
+  document.getElementById('barman').addEventListener('click', openJoe);   // 点老江 → 打开聊天面板（内含买饮品/听规则）
+  document.getElementById('joeClose').addEventListener('click', closeJoe);
+  document.getElementById('joeCloseBtn').addEventListener('click', closeJoe);
+  joeModal.addEventListener('click',e=>{ if(e.target.id==='joeModal') closeJoe(); });
+  document.getElementById('joeBuy').addEventListener('click',()=>{ closeJoe(); openShop(); });
+  document.getElementById('joeRules').addEventListener('click',()=>{ closeJoe(); showDlg(); });
+
   if(window.__SHOW_TUT__) showDlg(); else hideDlg();
 
   // 点机器 → 进房菜单（轮盘 / 21点 共用这个菜单，只是进的房不同）

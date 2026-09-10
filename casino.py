@@ -34,12 +34,12 @@ EVEN_BETS = {
 # 规则：酒保处花精神值买入背包（最多带 DRINK_HOLD_MAX 瓶）；进房下注阶段手动"喝"才生效；
 #       只有房里凑够 2 个真人玩家才能喝（单人/纯机器人房禁用）；同桌看不到谁喝了什么。
 DRINKS = {
-    "calm":     {"name": "定心茶",   "emoji": "🍵", "cost": 40,
-                 "desc": "这一轮若没中，退还你的本金，不亏币（保证不会输）"},
-    "double":   {"name": "翻倍酒",   "emoji": "🍶", "cost": 30,
+    "calm":     {"name": "Margarita",   "emoji": "🍸", "cost": 40,
+                 "desc": "这一轮若没中，退还你的本金，不亏币"},
+    "double":   {"name": "Sangría",   "emoji": "🍷", "cost": 30,
                  "desc": "这一轮若赢，赢的收益翻倍"},
-    "sabotage": {"name": "醉拳烈酒", "emoji": "🥃", "cost": 50,
-                 "desc": "这一轮，同桌输钱的对手损失翻倍（对手金币不够只扣到 0，不扣成负）"},
+    "sabotage": {"name": "Brandy", "emoji": "🥃", "cost": 50,
+                 "desc": "这一轮，同桌输钱的对手损失翻倍"},
 }
 DRINK_HOLD_MAX = 2        # 一个人最多同时带几瓶饮品
 
@@ -57,6 +57,21 @@ BJ_TURN_SECS   = 25       # 公共房每人决策时间（超时自动停牌；�
 BJ_RESULT_SECS = 12       # 公共房结果展示后自动开下一局（单人房等玩家点“再来一局”）
 BJ_SUITS = ["♠", "♥", "♦", "♣"]
 BJ_RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
+
+# ====== 老江 AI 对话 + 乞讨给币（金额/概率都在这里，随时可改）======
+JOE_CHAT_MIN_GAP     = 3          # 两句之间最少间隔秒（防刷 AI）
+JOE_BEG_MOOD         = 55         # 老江 mood 达到这个才算“说得好、他受用了”
+JOE_BEG_PROB         = 0.15       # 受用时，给点小钱的概率
+JOE_BEG_COOLDOWN     = 60         # 给过小钱后多少秒内不再给（每人约1分钟）
+JOE_BEG_DAILY_CAP    = 80         # 每人每天靠乞讨最多拿多少币
+JOE_BEG_MIN, JOE_BEG_MAX = 3, 15  # 小钱的范围
+JOE_JACKPOT_MOOD     = 90         # 大奖需要老江“非常满意”
+JOE_JACKPOT_PROB     = 0.003      # 满足上面后，再 0.3% 概率
+JOE_JACKPOT_COINS    = 1000
+JOE_JACKPOT_COOLDOWN = 3 * 86400  # 中了大奖后至少隔 3 天不再触发
+JOE_LATINA_PROB      = 0.03       # 每句话 3% 概率老江请你吃拉缇娜（烤肉自助，不是酒）
+JOE_LATINA_COOLDOWN  = 6 * 3600   # 拉缇娜 6 小时冷却
+JOE_LOG_KEEP         = 1500       # 聊天日志最多留多少条（控制存储；joejoe 后台看）
 
 
 def _now(): return time.time()
@@ -79,6 +94,15 @@ def ensure_casino_tables():
         # 饮品背包：每人手里带着的饮品（JSON 列表）
         conn.execute("""CREATE TABLE IF NOT EXISTS casino_buffs (
             owner TEXT PRIMARY KEY, drinks TEXT NOT NULL DEFAULT '[]')""")
+        # 老江对话：每人一行的乞讨/冷却状态
+        conn.execute("""CREATE TABLE IF NOT EXISTS casino_joe (
+            owner TEXT PRIMARY KEY, last_chat REAL DEFAULT 0, last_beg REAL DEFAULT 0,
+            day TEXT DEFAULT '', day_coins INTEGER DEFAULT 0,
+            last_jackpot REAL DEFAULT 0, last_latina REAL DEFAULT 0)""")
+        # 老江对话日志：给论坛玩家 joejoe 的后台看（大家对老江说的所有话）
+        conn.execute("""CREATE TABLE IF NOT EXISTS casino_joe_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, owner TEXT NOT NULL, msg TEXT NOT NULL,
+            reply TEXT, mood INTEGER, reward TEXT, created_at REAL NOT NULL)""")
         conn.commit()
     finally:
         conn.close()
@@ -1375,5 +1399,131 @@ def leave_bj_room(owner, room_id):
                 _bj_progress(conn, room)
             _save(conn, room_id, room)
         return {"ok": True}
+    finally:
+        conn.close()
+
+
+# ============================================================
+#  老江 AI 对话 + 乞讨给币 + 请客拉缇娜 + 日志（给 joejoe 后台）
+# ============================================================
+def _latina_maxout(conn, owner):
+    """老江请客拉缇娜（带你去吃烤肉自助）：把该玩家 JZH 的状态拉满（饱食/清洁/精神=100，顺手清病、+一点好感）。"""
+    row = conn.execute("SELECT data FROM pets WHERE owner=?", (owner,)).fetchone()
+    if not row:
+        return False
+    try:
+        s = json.loads(row[0])
+    except Exception:
+        return False
+    s["hunger"] = 100; s["clean"] = 100; s["spirit"] = 100
+    if "affection" in s:
+        s["affection"] = min(100, int(s.get("affection", 0)) + 20)
+    s["sick_since"] = 0
+    conn.execute(
+        "INSERT OR REPLACE INTO pets (owner, version, status, data, updated_at) VALUES (?,?,?,?,?)",
+        (owner, s.get("version", "v1"), s.get("status", "home"),
+         json.dumps(s, ensure_ascii=False), _now()))
+    return True
+
+
+def joe_chat(owner, message):
+    """和老江聊天：老江(AI)回话并打分；服务器按分数+概率+冷却决定给不给钱/拉缇娜。
+    所有奖励都在服务器端封顶+冷却，AI 只提供“满意度”，玩家无法靠话术直接掏空老江。"""
+    conn = _connect()
+    try:
+        message = (message or "").strip()[:500]
+        now = _now()
+        if not message:
+            return {"ok": False, "reply": "想说点啥？", "coins": _coins_get(conn, owner)}
+        row = conn.execute(
+            "SELECT last_chat,last_beg,day,day_coins,last_jackpot,last_latina FROM casino_joe WHERE owner=?",
+            (owner,)).fetchone()
+        last_chat, last_beg, day, day_coins, last_jackpot, last_latina = row or (0, 0, "", 0, 0, 0)
+        if now - last_chat < JOE_CHAT_MIN_GAP:      # 防刷：说太快
+            return {"ok": False, "reply": "慢点儿，一句一句来。", "coins": _coins_get(conn, owner)}
+        today = _today()
+        if day != today:
+            day, day_coins = today, 0               # 跨天重置乞讨上限
+
+        # —— 叫老江(AI)回话 + 打分（拿不到就用兜底话、mood 低）——
+        say, mood = None, 0
+        try:
+            import ai_bot
+            res = ai_bot.joe_reply(owner, message, None)
+            if res:
+                say = res.get("say"); mood = int(res.get("mood", 0) or 0)
+        except Exception as e:
+            print("【老江回话出错】", repr(e))
+        if not say:
+            say = random.choice(["嗯，说来听听。", "这杯我请，慢慢聊。", "钱难挣，少赌两把吧。"])
+        mood = max(0, min(100, mood))
+
+        rewards = []; coins_gain = 0
+        # 1) 小钱乞讨：老江受用 + 冷却过了 + 没到每日上限 + 概率命中
+        if mood >= JOE_BEG_MOOD and (now - last_beg) >= JOE_BEG_COOLDOWN and day_coins < JOE_BEG_DAILY_CAP:
+            if random.random() < JOE_BEG_PROB:
+                amt = min(random.randint(JOE_BEG_MIN, JOE_BEG_MAX), JOE_BEG_DAILY_CAP - day_coins)
+                if amt > 0:
+                    coins_gain += amt; day_coins += amt; last_beg = now
+                    rewards.append({"type": "beg", "coins": amt})
+        # 2) 千金大奖：老江非常满意 + 冷却过了 + 极小概率
+        if mood >= JOE_JACKPOT_MOOD and (now - last_jackpot) >= JOE_JACKPOT_COOLDOWN:
+            if random.random() < JOE_JACKPOT_PROB:
+                coins_gain += JOE_JACKPOT_COINS; last_jackpot = now
+                rewards.append({"type": "jackpot", "coins": JOE_JACKPOT_COINS})
+        # 3) 请客拉缇娜：随机 + 冷却，把 JZH 状态拉满
+        latina = False
+        if (now - last_latina) >= JOE_LATINA_COOLDOWN and random.random() < JOE_LATINA_PROB:
+            if _latina_maxout(conn, owner):
+                latina = True; last_latina = now
+                rewards.append({"type": "latina"})
+
+        if coins_gain > 0:
+            _coins_add(conn, owner, coins_gain)     # 乞讨来的不算赌博，不计入今日大赢家榜
+
+        conn.execute("""INSERT OR REPLACE INTO casino_joe
+            (owner,last_chat,last_beg,day,day_coins,last_jackpot,last_latina) VALUES (?,?,?,?,?,?,?)""",
+            (owner, now, last_beg, day, day_coins, last_jackpot, last_latina))
+        # 记日志（给 joejoe 后台看），并修剪旧日志控制存储
+        conn.execute("INSERT INTO casino_joe_log (owner,msg,reply,mood,reward,created_at) VALUES (?,?,?,?,?,?)",
+                     (owner, message, say, mood, json.dumps(rewards, ensure_ascii=False), now))
+        conn.execute("DELETE FROM casino_joe_log WHERE id NOT IN "
+                     "(SELECT id FROM casino_joe_log ORDER BY id DESC LIMIT ?)", (JOE_LOG_KEEP,))
+        conn.commit()
+        return {"ok": True, "reply": say, "mood": mood, "rewards": rewards, "latina": latina,
+                "coins": _coins_get(conn, owner), "spirit": _spirit_get(conn, owner)}
+    finally:
+        conn.close()
+
+
+def joe_logs(limit=200, offset=0, owner=None):
+    """给 joejoe 后台：倒序列出大家对老江说的话 + 老江回复 + 满意度 + 触发的奖励。
+    owner 非空时按玩家名筛选（模糊匹配）。"""
+    conn = _connect()
+    try:
+        limit = max(1, min(500, int(limit)))
+        offset = max(0, int(offset))
+        owner = (owner or "").strip()
+        if owner:
+            like = "%" + owner + "%"
+            rows = conn.execute(
+                "SELECT owner,msg,reply,mood,reward,created_at FROM casino_joe_log "
+                "WHERE owner LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?",
+                (like, limit, offset)).fetchall()
+            total = conn.execute("SELECT COUNT(*) FROM casino_joe_log WHERE owner LIKE ?", (like,)).fetchone()[0]
+        else:
+            rows = conn.execute(
+                "SELECT owner,msg,reply,mood,reward,created_at FROM casino_joe_log ORDER BY id DESC LIMIT ? OFFSET ?",
+                (limit, offset)).fetchall()
+            total = conn.execute("SELECT COUNT(*) FROM casino_joe_log").fetchone()[0]
+        out = []
+        for o, msg, reply, mood, reward, ts in rows:
+            try:
+                rw = json.loads(reward or "[]")
+            except Exception:
+                rw = []
+            out.append({"owner": o, "msg": msg, "reply": reply, "mood": mood, "rewards": rw,
+                        "time": time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))})
+        return {"logs": out, "total": total, "offset": offset, "limit": limit}
     finally:
         conn.close()
