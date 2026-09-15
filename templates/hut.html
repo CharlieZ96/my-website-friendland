@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小屋</title>
+<style>
+  :root{--sky:#D9E2EC;--paper:#fff;--ink:#262B33;--muted:#6B7683;--grape:#6D4FA3;--marigold:#F5A623;--line:#C6D0DA;--green:#5FBF8F;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--sky);color:var(--ink);font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;padding:18px 12px 46px}
+  .wrap{max-width:460px;margin:0 auto}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  h1{font-size:21px;margin:0}
+  h1 em{font-style:normal;color:var(--grape)}
+  .back{font-size:13px;color:var(--muted);text-decoration:none}
+  .tag{display:inline-block;font-size:12px;background:var(--grape);color:#fff;border-radius:999px;padding:2px 10px;margin-left:6px;vertical-align:middle}
+  .panel{background:var(--paper);border-radius:20px;padding:12px;box-shadow:0 10px 26px rgba(38,43,51,.10);margin-bottom:14px}
+  .interior{width:100%;height:auto;display:block;border-radius:14px}
+  .lvlnote{text-align:center;color:var(--muted);font-size:12px;margin:8px 2px 0}
+  h2{font-size:13px;margin:0 0 10px;display:flex;align-items:center;gap:6px}
+  h2 small{color:var(--muted);font-weight:400;font-size:11px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px}
+  .cell{background:#F5F8FB;border:1px solid var(--line);border-radius:12px;padding:8px 4px;text-align:center}
+  .cell .ic{font-size:26px;line-height:1}
+  .cell b{display:block;font-size:12px;margin-top:3px}
+  .cell small{color:var(--muted);font-size:10px}
+  .empty{color:#9aa0ab;font-size:13px;text-align:center;padding:14px 8px;line-height:1.6}
+  .empty b{color:var(--grape)}
+
+  /* —— 升级小屋 —— */
+  .uprow{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+  .upbtn{font-weight:800;font-size:13px;cursor:pointer;border:2px solid var(--ink);border-radius:12px;padding:9px 14px;background:var(--marigold);color:#3a2a00;box-shadow:3px 3px 0 var(--ink)}
+  .upbtn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+  .upbtn.max{background:#efe7d6;color:var(--muted);border-color:var(--line);box-shadow:none;cursor:default}
+  .upbtn.poor{background:#eceff3;color:#8b93a0;box-shadow:2px 2px 0 var(--line)}
+  .upcoins{font-size:12px;color:var(--muted)}
+  .upcoins b{color:var(--marigold)}
+
+  /* —— 展示墙：钓具架 + 鱼获墙 —— */
+  .wallhint{font-size:11px;color:var(--muted);margin:0 0 10px}
+  .rack{display:flex;flex-wrap:wrap;gap:10px 12px;padding:16px 12px 12px;border-radius:12px;position:relative}
+  .rack.gear{background:linear-gradient(#efe0c6,#e6d2ac);border:1px solid #d8c199}
+  .rack.gear::before{content:"";position:absolute;left:12px;right:12px;top:9px;height:7px;border-radius:4px;background:#a97d47;box-shadow:0 2px 0 #8a5f34}
+  .rack.fish{background:linear-gradient(#e7eef0,#d7e5e8);border:1px solid #cfdde0}
+  .hook{width:52px;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .hook .pin{width:2px;height:12px;background:#8a97a4}
+  .tile{width:52px;height:52px;border-radius:10px;display:flex;align-items:center;justify-content:center}
+  .tile.filled{background:#fff;border:2px solid #c9a24a}
+  .tile.empty{background:rgba(255,255,255,.4);border:2px dashed #c2b48f}
+  .tile svg{width:38px;height:38px;display:block}
+  .mount{width:58px;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .plaque{width:58px;height:50px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#c98a5a;border:2px solid #a86a3f;box-shadow:inset 0 0 0 3px #d99b6b}
+  .plaque.empty{background:#cdbfae;border-color:#b6a58c;box-shadow:inset 0 0 0 3px #d8cdb6}
+  .plaque svg{width:42px;height:32px;display:block}
+  .slotlbl{font-size:10px;max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;color:var(--ink)}
+  .slotlbl.dim{color:#b3b9c2}
+  .slotcap{font-size:11px;color:var(--muted);text-align:center;margin:10px 2px 0}
+
+  /* —— 升级确认弹窗 + 提示条 —— */
+  .hmodal{position:fixed;inset:0;background:rgba(38,43,51,.5);display:flex;align-items:center;justify-content:center;z-index:80;padding:20px}
+  .hmodal[hidden]{display:none}
+  .hbox{position:relative;background:#fff;border-radius:18px;padding:18px;max-width:320px;width:100%;box-shadow:0 16px 40px rgba(0,0,0,.25)}
+  .htitle{font-size:16px;font-weight:800;text-align:center;margin-bottom:8px}
+  .htext{font-size:13px;color:var(--muted);text-align:center;line-height:1.7;margin-bottom:14px}
+  .htext b{color:var(--grape)}
+  .hbtns{display:flex;gap:10px}
+  .hbtns button{flex:1;font-weight:800;font-size:14px;cursor:pointer;border-radius:12px;padding:10px;border:2px solid var(--ink)}
+  .hcancel{background:#fff;color:var(--ink);box-shadow:3px 3px 0 var(--ink)}
+  .hok{background:var(--marigold);color:#3a2a00;box-shadow:3px 3px 0 var(--ink)}
+  .hbtns button:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+  .htoast{position:fixed;left:50%;bottom:42px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;padding:10px 16px;border-radius:12px;z-index:90;box-shadow:0 8px 20px rgba(0,0,0,.3);max-width:80%;text-align:center}
+  .htoast[hidden]{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <h1>🏕️ <em id="hutTitle">小屋</em><span class="tag" id="lvlTag">…</span></h1>
+    <a class="back" id="backLink" href="/plaza">← 回牧场</a>
+  </div>
+
+  <div class="panel">
+    <div id="interior"></div>
+    <p class="lvlnote" id="lvlNote"></p>
+    <div class="uprow" id="upRow" hidden>
+      <button class="upbtn" id="upBtn">升级</button>
+      <span class="upcoins" id="upCoins"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>🎣 钓具架 <small id="gearCount"></small></h2>
+    <p class="wallhint">在上岛屋买到的钓具挂在架上；小屋越大，挂位越多</p>
+    <div class="rack gear" id="gearBox"></div>
+    <p class="slotcap" id="gearCap"></p>
+  </div>
+
+  <div class="panel">
+    <h2>🐟 鱼获墙 <small id="fishCount"></small></h2>
+    <p class="wallhint">在江之岛·中岛钓到的鱼挂上墙展示；小屋越大，展示位越多</p>
+    <div class="rack fish" id="fishBox"></div>
+    <p class="slotcap" id="fishCap"></p>
+  </div>
+</div>
+
+<!-- 升级确认弹窗 -->
+<div class="hmodal" id="upModal" hidden>
+  <div class="hbox">
+    <div class="htitle">🏠 升级小屋</div>
+    <div class="htext" id="upmText"></div>
+    <div class="hbtns">
+      <button class="hcancel" id="upmNo">再想想</button>
+      <button class="hok" id="upmYes">确定升级</button>
+    </div>
+  </div>
+</div>
+<div class="htoast" id="toast" hidden></div>
+
+<script>
+const HOST = "{{ host }}";
+const LVL_DESC = ["简陋的帐篷，能遮风挡雨就行","木制棚屋，总算像个家了","红砖小屋，结实又暖和","精美小屋，处处有心思","气派的一户建","豪宅，人生赢家"];
+
+// ===== 小屋内景：6 级，保留各自身份，随时间「白天/傍晚/夜晚」自动变窗外景 + 开关灯 =====
+// 白天：窗外明亮、屋内灯关；傍晚：暖色夕照、开灯；夜晚：城市夜景、开灯。
+function _svg(inner){ return `<svg class="interior" viewBox="0 0 460 300" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`; }
+function timeOfDay(){ const h=new Date().getHours(); if(h>=6&&h<17) return 'day'; if(h>=17&&h<19) return 'dusk'; return 'night'; }
+
+// 全屋随时间的氛围罩（画在底图之上、灯光之下）
+function todTint(tod){
+  if(tod==='day')  return `<rect width="460" height="300" fill="#eaf1fb" opacity="0.05"/>`;
+  if(tod==='dusk') return `<rect width="460" height="300" fill="#b5613a" opacity="0.15"/>`;
+  return `<rect width="460" height="300" fill="#141334" opacity="0.34"/>`;   // night
+}
+
+// 暖光晕
+function wgDefs(){ return `<defs>`
+  +`<radialGradient id="wg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ffe4ae" stop-opacity=".9"/><stop offset="55%" stop-color="#ffcf7a" stop-opacity=".33"/><stop offset="100%" stop-color="#ffcf7a" stop-opacity="0"/></radialGradient>`
+  +`<radialGradient id="fire" cx="50%" cy="62%" r="55%"><stop offset="0" stop-color="#ffd882" stop-opacity=".95"/><stop offset="55%" stop-color="#ff9a45" stop-opacity=".4"/><stop offset="100%" stop-color="#ff9a45" stop-opacity="0"/></radialGradient>`
+  +`</defs>`; }
+function glow(cx,cy,rx,ry,which){ return `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${which||'wg'})"/>`; }
+
+// —— 城市大窗（随时间变白天/傍晚/夜晚）——
+function cityWindow(x,y,w,h,o){
+  o=o||{}; const tod=o.tod||'night', tower=(o.tower!==false), fr=o.frame||'#37324e', split=(o.split!==false);
+  const horizon=y+h*0.55, skyH=horizon-y;
+  const gid='sky'+Math.round(x)+'_'+Math.round(y)+'_'+tod;
+  let P;
+  if(tod==='day') P={sky:[['0','#8ec5ee'],['0.55','#bfe0f2'],['1','#e9f3f7']], city:'#96a6bf', lit:'#c9d5e4', dim:'#aab7cc', tower:'#d76a54', wat:'#a6c6dd', orb:'#fff6d8', star:false};
+  else if(tod==='dusk') P={sky:[['0','#38406f'],['0.5','#9a5f83'],['1','#ec9152']], city:'#3b3152', lit:'#ffd07a', dim:'#b98aa8', tower:'#e0623f', wat:'#cf8352', orb:'#ffdf9e', star:true};
+  else P={sky:[['0','#262a56'],['0.55','#3a3568'],['1','#7c5682']], city:'#221d42', lit:'#ffcf6b', dim:'#5a76a6', tower:'#d24f3a', wat:'#1b2140', orb:'#f4edd2', star:true};
+  let s=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">`+P.sky.map(st=>`<stop offset="${st[0]}" stop-color="${st[1]}"/>`).join('')+`</linearGradient></defs>`;
+  s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${gid})"/>`;
+  if(P.star) s+=`<g fill="#e9e6ff" opacity="${tod==='dusk'?0.55:1}">`+[[.12,.14],[.28,.24],[.5,.1],[.63,.28],[.8,.12],[.9,.26],[.4,.32],[.2,.42]].map(p=>`<circle cx="${x+p[0]*w}" cy="${y+p[1]*skyH}" r="0.9"/>`).join('')+`</g>`;
+  // 日/月
+  const ox=x+w*0.82, oy=y+h*(tod==='night'?0.15:(tod==='dusk'?0.4:0.2)), orr=Math.max(6,h*(tod==='night'?0.08:0.1));
+  if(tod==='night'){ s+=`<circle cx="${ox}" cy="${oy}" r="${orr}" fill="${P.orb}"/><circle cx="${ox+orr*0.5}" cy="${oy-orr*0.18}" r="${orr*0.95}" fill="url(#${gid})"/>`; }
+  else { s+=(tod==='day'?`<circle cx="${ox}" cy="${oy}" r="${orr*1.6}" fill="#fff6d8" opacity=".4"/>`:'')+`<circle cx="${ox}" cy="${oy}" r="${orr}" fill="${P.orb}"/>`; }
+  // 云
+  s+=`<g fill="${tod==='day'?'#ffffff':'#4b4677'}" opacity="${tod==='day'?0.85:0.68}"><ellipse cx="${x+w*0.34}" cy="${y+skyH*0.5}" rx="${w*0.15}" ry="4"/><ellipse cx="${x+w*0.53}" cy="${y+skyH*0.34}" rx="${w*0.1}" ry="3"/></g>`;
+  // 天际线
+  const H=[.55,.72,.42,.86,.6,.5,.78,.46,.66,.56,.7,.5,.62,.48];
+  const nb=Math.max(7,Math.round(w/26)), bw=w/nb;
+  let city='';
+  for(let i=0;i<nb;i++){ const bx=x+i*bw, bh=skyH*H[i%H.length], by=horizon-bh;
+    city+=`<rect x="${bx}" y="${by}" width="${bw-1.2}" height="${bh}" fill="${P.city}"/>`;
+    for(let r=by+3;r<horizon-2;r+=5) for(let c=bx+2;c<bx+bw-2;c+=4){ const litw=((r+c)%3===0); city+=`<rect x="${c}" y="${r}" width="2" height="2" fill="${litw?P.lit:P.dim}" opacity="${tod==='day'?0.5:(litw?0.95:0.4)}"/>`; }
+  }
+  if(tower){ const tx=x+w*0.6,tb=horizon,th=skyH*0.98,tw=Math.max(6,h*0.052);
+    city+=`<path d="M${tx-tw} ${tb} L${tx-tw*0.32} ${tb-th*0.62} L${tx} ${tb-th} L${tx+tw*0.32} ${tb-th*0.62} L${tx+tw} ${tb} Z" fill="${P.tower}"/>`
+        +`<path d="M${tx-tw*0.55} ${tb-th*0.3} L${tx+tw*0.55} ${tb-th*0.3} L${tx+tw*0.32} ${tb-th*0.62} L${tx-tw*0.32} ${tb-th*0.62} Z" fill="${P.tower}" opacity=".8"/>`
+        + (tod!=='day'? `<rect x="${tx-1}" y="${tb-th-4}" width="2" height="5" fill="#ffe08a"/>`:''); }
+  s+=city;
+  // 水面倒影
+  s+=`<rect x="${x}" y="${horizon}" width="${w}" height="${y+h-horizon}" fill="${P.wat}"/>`;
+  let wat='';
+  for(let i=0;i<Math.round(nb*2.5);i++){ const rx=x+((i*61)%100)/100*w, ry=horizon+3+((i*37)%100)/100*(y+h-horizon-4); wat+=`<rect x="${rx}" y="${ry}" width="2" height="1.4" fill="${tod==='day'?'#e2f1f8':'#ffcf6b'}" opacity="${0.2+((i*17)%5)/12}"/>`; }
+  s+=`<g>`+wat+`</g>`;
+  s+=`<g opacity=".06" fill="#ffffff"><path d="M${x+8} ${y+h} L${x+w*0.28} ${y} h9 L${x+17} ${y+h} z"/></g>`;
+  s+=`<g stroke="${fr}" stroke-width="3" fill="none"><rect x="${x}" y="${y}" width="${w}" height="${h}"/>`+(split?`<line x1="${x+w/2}" y1="${y}" x2="${x+w/2}" y2="${y+h}"/>`:'')+`</g>`;
+  return s;
+}
+
+// —— 朴素小窗（红砖用，随时间变）——
+function nightPane(x,y,w,h,fr,tod){
+  fr=fr||'#7d5530'; tod=tod||'night';
+  const gid='np'+Math.round(x)+'_'+Math.round(y)+'_'+tod;
+  let sky,orb,city,star;
+  if(tod==='day'){ sky=[['0','#9cc9ee'],['1','#d8edf5']]; orb='#fff2c0'; city='#9aa7bd'; star=false; }
+  else if(tod==='dusk'){ sky=[['0','#4a4478'],['1','#e2895a']]; orb='#ffe0a0'; city='#3a2f52'; star=true; }
+  else { sky=[['0','#2b2c58'],['1','#4d4680']]; orb='#f4edd2'; city='#241f45'; star=true; }
+  let s=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">`+sky.map(st=>`<stop offset="${st[0]}" stop-color="${st[1]}"/>`).join('')+`</linearGradient></defs>`;
+  s+=`<rect x="${x-4}" y="${y-4}" width="${w+8}" height="${h+8}" rx="3" fill="${fr}"/>`;
+  s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${gid})"/>`;
+  if(star) s+=`<g fill="#e9e6ff">`+[[.25,.26],[.55,.18],[.78,.4]].map(p=>`<circle cx="${x+p[0]*w}" cy="${y+p[1]*h}" r="0.9"/>`).join('')+`</g>`;
+  const mx=x+w*0.72,my=y+h*0.28,mr=Math.max(4,h*0.15);
+  if(tod==='night') s+=`<circle cx="${mx}" cy="${my}" r="${mr}" fill="${orb}"/><circle cx="${mx+mr*0.5}" cy="${my-mr*0.15}" r="${mr*0.95}" fill="url(#${gid})"/>`;
+  else s+=`<circle cx="${mx}" cy="${my}" r="${mr}" fill="${orb}"/>`;
+  s+=`<g fill="${city}"><rect x="${x}" y="${y+h*0.74}" width="${w}" height="${h*0.26}"/><rect x="${x+w*0.14}" y="${y+h*0.58}" width="${w*0.16}" height="${h*0.42}"/><rect x="${x+w*0.56}" y="${y+h*0.52}" width="${w*0.14}" height="${h*0.48}"/></g>`;
+  if(tod!=='day') s+=`<g fill="#ffcf6b" opacity=".85"><rect x="${x+w*0.18}" y="${y+h*0.66}" width="2" height="2"/><rect x="${x+w*0.6}" y="${y+h*0.6}" width="2" height="2"/></g>`;
+  s+=`<g stroke="${fr}" stroke-width="2.5" fill="none"><rect x="${x}" y="${y}" width="${w}" height="${h}"/><line x1="${x+w/2}" y1="${y}" x2="${x+w/2}" y2="${y+h}"/><line x1="${x}" y1="${y+h/2}" x2="${x+w}" y2="${y+h/2}"/></g>`;
+  return s;
+}
+
+// —— 木地板 ——
+function woodFloor(y0, base, dark, refl){
+  let s=`<rect x="0" y="${y0}" width="460" height="${300-y0}" fill="${base}"/>`;
+  s+=`<rect x="0" y="${y0}" width="460" height="6" fill="${dark}" opacity=".55"/>`;
+  s+=`<g stroke="#000" stroke-opacity=".14" stroke-width="1">`;
+  for(let i=1;i<6;i++){ const yy=y0+i*(300-y0)/6; s+=`<line x1="0" y1="${yy}" x2="460" y2="${yy}"/>`; }
+  s+=`</g>`;
+  if(refl) s+=`<g>`+refl.map(r=>`<rect x="${r[0]}" y="${y0+3}" width="${r[1]}" height="${300-y0-3}" fill="${r[2]||'#ffcf7a'}" opacity="${r[3]||0.14}"/>`).join('')+`</g>`;
+  return s;
+}
+
+// —— 家具 ——
+function bed(x,y,w){ const h=w*0.42; return `<g>`
+  +`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="#3d4864"/>`
+  +`<rect x="${x}" y="${y-5}" width="${w}" height="${h*0.55}" rx="6" fill="#c6d0e6"/>`
+  +`<rect x="${x}" y="${y-5}" width="${w}" height="9" rx="6" fill="#dbe3f4"/>`
+  +`<rect x="${x+7}" y="${y-15}" width="${w*0.34}" height="16" rx="7" fill="#eef2fb"/>`
+  +`<rect x="${x+9+w*0.34}" y="${y-15}" width="${w*0.34}" height="16" rx="7" fill="#e0e7f5"/></g>`; }
+
+function bookshelf(x,y,w,h){
+  let s=`<rect x="${x-3}" y="${y-3}" width="${w+6}" height="${h+6}" rx="3" fill="#59452f"/>`;
+  const rows=Math.max(1,Math.floor(h/22));
+  const cols=['#c9564f','#3f7fd6','#5FBF8F','#F5A623','#a06bff','#e07aa8','#c9bca8','#6d4fa3'];
+  for(let r=0;r<rows;r++){ const ry=y+2+r*22;
+    s+=`<rect x="${x}" y="${ry}" width="${w}" height="20" fill="#2c2438"/>`;
+    let bx=x+2;
+    while(bx<x+w-4){ const bw2=3+((Math.round(bx)*7)%4); const bh2=12+((Math.round(bx)*5)%6); const c=cols[(r+Math.round(bx))%cols.length];
+      s+=`<rect x="${bx}" y="${ry+20-bh2}" width="${bw2}" height="${bh2}" fill="${c}" opacity=".8"/>`; bx+=bw2+1.6; }
+    s+=`<rect x="${x}" y="${ry+20}" width="${w}" height="2.4" fill="#6a5136"/>`;
+  }
+  return s;
+}
+
+function potPlant(x,y,s){ s=s||1; return `<g transform="translate(${x},${y}) scale(${s})">`
+  +`<path d="M-11 0 h22 l-3 16 h-16 z" fill="#b9724a"/><path d="M-9 0 h18 v3 h-18 z" fill="#cf885a"/>`
+  +`<path d="M0 0 q-16 -12 -10 -30 q10 10 10 30" fill="#57a465"/><path d="M0 0 q16 -12 10 -30 q-10 10 -10 30" fill="#6fbf74"/>`
+  +`<path d="M0 2 q-9 -16 -3 -30 q6 10 3 30" fill="#7fce84"/><path d="M0 0 q0 -22 0 -34" stroke="#4f9a5e" stroke-width="3" fill="none"/></g>`; }
+
+function tableLamp(x,y,on){ let s='';
+  if(on) s+=glow(x+8,y-4,46,38);
+  s+=`<rect x="${x+5}" y="${y+8}" width="6" height="16" fill="#463c33"/><rect x="${x}" y="${y+24}" width="16" height="3" rx="1" fill="#372f28"/>`;
+  s+=`<path d="M${x-4} ${y+8} L${x+20} ${y+8} L${x+15} ${y-6} L${x+1} ${y-6} Z" fill="${on?'#ffe1a0':'#d3cabd'}"/>`;
+  s+=`<path d="M${x-4} ${y+8} L${x+20} ${y+8} L${x+18} ${y+11} L${x-2} ${y+11} Z" fill="${on?'#f4b662':'#bcb3a6'}"/>`;
+  if(on) s+=`<ellipse cx="${x+8}" cy="${y+9}" rx="9" ry="2" fill="#fff6d8" opacity=".8"/>`;
+  return `<g>`+s+`</g>`; }
+
+function floorLamp(x,y,on){ let s='';
+  if(on) s+=glow(x,y-2,36,42);
+  s+=`<path d="M${x-11} ${y} h22 l-4 -14 h-14 z" fill="${on?'#ffe1a0':'#d3cabd'}"/><path d="M${x-11} ${y} h22 l-1 3 h-20 z" fill="${on?'#f4b662':'#bcb3a6'}"/>`;
+  s+=`<rect x="${x-1.5}" y="${y}" width="3" height="76" fill="#463c33"/><rect x="${x-9}" y="${y+76}" width="18" height="3" rx="1" fill="#372f28"/>`;
+  return `<g>`+s+`</g>`; }
+
+function ceilingLight(x,y,on){ return `<g><line x1="${x}" y1="0" x2="${x}" y2="${y}" stroke="#4a4030" stroke-width="2"/>`
+  +`<path d="M${x-13} ${y} q13 -14 26 0 z" fill="${on?'#ffe1a0':'#d3cabd'}"/><ellipse cx="${x}" cy="${y}" rx="13" ry="3" fill="${on?'#fff3c8':'#c7bfb2'}"/>`
+  +(on?glow(x,y+10,48,32):'')+`</g>`; }
+
+function chandelier(x,y,on){ return `<g>`+(on?glow(x,y+16,84,54):'')
+  +`<line x1="${x}" y1="0" x2="${x}" y2="${y}" stroke="#c9a24a" stroke-width="2"/>`
+  +`<path d="M${x-26} ${y} q26 30 52 0z" fill="#e8c34a"/><path d="M${x-26} ${y} q26 12 52 0z" fill="#f2d873"/>`
+  +`<g fill="${on?'#fff3b0':'#d8cfa2'}">`+[-20,-10,0,10,20].map(dx=>`<circle cx="${x+dx}" cy="${y+6+Math.abs(dx)*0.3}" r="3"/>`).join('')+`</g>`
+  +`<g stroke="#c9a24a" stroke-width="1">`+[-16,-6,6,16].map(dx=>`<line x1="${x+dx}" y1="${y+4}" x2="${x+dx}" y2="${y+14}"/>`).join('')+`</g></g>`; }
+
+function rug(cx,cy,rx,ry,c1,c2){ return `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${c1}"/>`
+  +`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="${c2}" stroke-width="2.5" stroke-dasharray="8 6"/>`
+  +`<ellipse cx="${cx}" cy="${cy}" rx="${rx*0.55}" ry="${ry*0.55}" fill="none" stroke="${c2}" stroke-width="1.5" opacity=".55"/>`; }
+
+function sofa(x,y,w){ const h=30; return `<g>`
+  +`<rect x="${x-8}" y="${y-14}" width="16" height="${h+16}" rx="7" fill="#7f8b9c"/>`
+  +`<rect x="${x+w-8}" y="${y-14}" width="16" height="${h+16}" rx="7" fill="#7f8b9c"/>`
+  +`<rect x="${x}" y="${y-16}" width="${w}" height="20" rx="8" fill="#9fabbb"/>`
+  +`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="#909cad"/>`
+  +`<rect x="${x+4}" y="${y-2}" width="${w*0.46}" height="14" rx="6" fill="#aab6c6"/>`
+  +`<rect x="${x+w*0.5}" y="${y-2}" width="${w*0.46}" height="14" rx="6" fill="#aab6c6"/>`
+  +`<rect x="${x+w*0.2}" y="${y-12}" width="20" height="18" rx="5" fill="#c98a9a"/></g>`; }
+
+function lowTable(x,y,w){ return `<g>`
+  +`<ellipse cx="${x+w/2}" cy="${y+22}" rx="${w*0.55}" ry="7" fill="#000" opacity=".14"/>`
+  +`<rect x="${x}" y="${y}" width="${w}" height="9" rx="2" fill="#7a5230"/><rect x="${x}" y="${y}" width="${w}" height="3" rx="2" fill="#95693d"/>`
+  +`<rect x="${x+4}" y="${y+9}" width="5" height="13" fill="#5f3f22"/><rect x="${x+w-9}" y="${y+9}" width="5" height="13" fill="#5f3f22"/>`
+  +`<rect x="${x+8}" y="${y-9}" width="9" height="10" rx="2" fill="#eef2fa"/><rect x="${x+16}" y="${y-6}" width="3" height="4" rx="2" fill="#eef2fa"/>`
+  +`<g transform="translate(${x+w*0.5},${y-6})"><ellipse cx="0" cy="6" rx="12" ry="3.5" fill="#2b2f3a"/><rect x="-11" y="1" width="22" height="6" rx="3" fill="#3a3f4b"/><circle cx="-6" cy="4" r="2" fill="#7fb3e8"/><circle cx="6" cy="4" r="2" fill="#e07aa8"/></g>`
+  +potPlant(x+w-10,y-3,0.42)+`</g>`; }
+
+function tvUnit(x,y,w){ return `<g>`
+  +`<rect x="${x}" y="${y}" width="${w}" height="26" rx="3" fill="#7a5230"/><rect x="${x}" y="${y}" width="${w}" height="4" fill="#95693d"/>`
+  +`<line x1="${x+w/2}" y1="${y+4}" x2="${x+w/2}" y2="${y+26}" stroke="#5f3f22" stroke-width="1"/>`
+  +`<rect x="${x+w*0.55}" y="${y+8}" width="${w*0.4}" height="14" rx="2" fill="#3a3f4b"/>`
+  +`<rect x="${x+8}" y="${y-40}" width="${w*0.6}" height="38" rx="3" fill="#1c2028"/><rect x="${x+11}" y="${y-37}" width="${w*0.6-6}" height="32" rx="2" fill="#2b3550"/>`
+  +`<rect x="${x+11}" y="${y-37}" width="${w*0.26}" height="32" fill="#39456a" opacity=".6"/></g>`; }
+
+function armchair(x,y){ return `<g>`
+  +`<rect x="${x-9}" y="${y-10}" width="14" height="34" rx="7" fill="#b0566a"/><rect x="${x+34}" y="${y-10}" width="14" height="34" rx="7" fill="#b0566a"/>`
+  +`<rect x="${x}" y="${y-18}" width="44" height="22" rx="9" fill="#c86a7e"/>`
+  +`<rect x="${x}" y="${y}" width="44" height="24" rx="8" fill="#bd6376"/>`
+  +`<rect x="${x+6}" y="${y-4}" width="32" height="12" rx="6" fill="#d47e90"/></g>`; }
+
+// 风景挂画（暖阳远山，不是窗）
+function framedPic(x,y,w,h,c){ return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="#4a3d2a" stroke="#c9a24a" stroke-width="2"/>`
+  +`<rect x="${x+4}" y="${y+4}" width="${w-8}" height="${h-8}" fill="${c||'#cfe0d8'}"/>`
+  +`<circle cx="${x+w*0.72}" cy="${y+h*0.34}" r="${Math.min(w,h)*0.14}" fill="#f2c46a"/>`
+  +`<path d="M${x+4} ${y+h-4} L${x+w*0.4} ${y+h*0.52} L${x+w*0.6} ${y+h*0.68} L${x+w-4} ${y+h*0.42} L${x+w-4} ${y+h-4} Z" fill="#8fb89a"/>`; }
+
+// 墙纸（豪宅用）：竖条 + 菱形暗纹
+function wallpaper(x,y,w,h,base,motif){
+  let s=`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${base}"/>`;
+  s+=`<g stroke="${motif}" stroke-width="5" opacity=".22">`;
+  for(let cx=x+22; cx<x+w; cx+=44) s+=`<line x1="${cx}" y1="${y}" x2="${cx}" y2="${y+h}"/>`;
+  s+=`</g><g fill="${motif}" opacity=".18">`;
+  for(let cy=y+18; cy<y+h; cy+=38) for(let cx=x+22; cx<x+w; cx+=44) s+=`<path d="M${cx} ${cy-6} l6 6 l-6 6 l-6 -6 z"/>`;
+  s+=`</g>`;
+  return s;
+}
+
+function interiorSVG(level, tod){
+  level=Math.max(0,Math.min(level||0,5));
+  tod = tod || timeOfDay();
+  return [tentIn,cabinIn,brickIn,cottageIn,modernIn,mansionIn][level](tod);
+}
+
+// 0 帐篷：夜营地。去掉网纱小窗。挂灯+串灯随时间开关。
+function tentIn(tod){ tod=tod||timeOfDay(); const on=tod!=='day';
+  const base = `<rect width="460" height="300" fill="#2a2338"/>`
+    +`<defs><linearGradient id="tent" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0dca8"/><stop offset="1" stop-color="#b08a54"/></linearGradient></defs>`
+    +`<path d="M230 6 L452 250 H8 Z" fill="url(#tent)"/>`
+    +`<path d="M230 6 L8 250 H230 Z" fill="#3a2c1e" opacity=".14"/>`
+    +`<path d="M230 6 L230 250" stroke="#caa870" stroke-width="2" opacity=".4"/>`
+    +`<g stroke="#d8bd8a" stroke-width="1.4" opacity=".4"><line x1="230" y1="6" x2="120" y2="250"/><line x1="230" y1="6" x2="340" y2="250"/></g>`
+    +`<rect x="8" y="238" width="444" height="62" fill="#7a6344"/><rect x="8" y="238" width="444" height="6" fill="#8c7350"/>`
+    +`<g stroke="#000" stroke-opacity=".1"><line x1="8" y1="262" x2="452" y2="262"/><line x1="8" y1="282" x2="452" y2="282"/></g>`
+    +`<ellipse cx="215" cy="256" rx="132" ry="19" fill="#4f7168"/>`
+    +`<ellipse cx="215" cy="256" rx="132" ry="19" fill="none" stroke="#7fa89c" stroke-width="2" stroke-dasharray="7 5"/>`
+    +`<path d="M120 252 q95 -30 190 0 q-12 18 -95 18 q-83 0 -95 -18z" fill="#e0a24a"/>`
+    +`<path d="M124 252 q91 -26 182 0 q-8 8 -28 10 q-66 -13 -126 0 q-20 -3 -28 -10z" fill="#f0b95e"/>`
+    +`<rect x="150" y="233" width="52" height="17" rx="8" fill="#eef2fb"/><rect x="150" y="233" width="52" height="7" rx="8" fill="#ffffff"/>`
+    +`<g><rect x="316" y="236" width="42" height="8" fill="#a86a3a"/><rect x="316" y="234" width="42" height="3" fill="#c9975c"/><rect x="322" y="228" width="30" height="8" fill="#6d4fa3"/></g>`
+    +`<rect x="300" y="228" width="10" height="11" rx="2" fill="#eef2fa"/><rect x="309" y="231" width="3" height="4" rx="2" fill="#eef2fa"/>`
+    +potPlant(404,240,0.8)
+    +`<line x1="250" y1="6" x2="250" y2="66" stroke="#5c4a30" stroke-width="2"/>`
+    +`<path d="M150 58 Q250 100 350 56" stroke="#5c4a30" fill="none" stroke-width="1.4"/>`;
+  let lights = (on? glow(250,88,150,120):'')
+    +`<path d="M239 66 h22 l-3 15 h-16 z" fill="#3a3228"/>`
+    +`<ellipse cx="250" cy="84" rx="8" ry="6" fill="${on?'#ffe6a6':'#cfc6b8'}"/>`
+    +(on? `<ellipse cx="250" cy="83" rx="3.4" ry="3.4" fill="#fff6d8"/>`:'')
+    +`<g fill="${on?'#ffe08a':'#b9b1a2'}">`+[0.15,0.3,0.45,0.6,0.75,0.9].map(t=>{const px=150+t*200;const py=58+Math.sin(t*Math.PI)*42;return `<circle cx="${px}" cy="${py+6}" r="2.4"/>`;}).join('')+`</g>`;
+  return _svg( wgDefs()+base+todTint(tod)+lights );
+}
+
+// 1 木制棚屋：去掉小窗和柴炉，改成壁灯+挂画+小书堆，暖冷随时间。
+function cabinIn(tod){ tod=tod||timeOfDay(); const on=tod!=='day';
+  const base = `<rect width="460" height="300" fill="#3a2c1c"/>`
+    +`<rect width="460" height="205" fill="#8a6640"/>`
+    +`<g stroke="#6e4e2e" stroke-width="2" opacity=".55"><line x1="0" y1="42" x2="460" y2="42"/><line x1="0" y1="86" x2="460" y2="86"/><line x1="0" y1="130" x2="460" y2="130"/><line x1="0" y1="174" x2="460" y2="174"/></g>`
+    +`<g fill="#5c3f22" opacity=".5"><circle cx="70" cy="64" r="4"/><circle cx="250" cy="108" r="4"/><circle cx="410" cy="152" r="4"/></g>`
+    +woodFloor(205,'#6e4d2e','#3f2a17',[[120,10],[300,8,'#ffcf7a',0.1]])
+    +bed(24,150,150)
+    +rug(210,262,96,15,'#7a5e8f','#b79fd0')
+    +potPlant(72,250,1.0)
+    +framedPic(300,58,46,34,'#cfe0d8')+framedPic(360,70,34,26,'#e0e8d8')
+    // 右侧小书堆
+    +`<g><rect x="404" y="150" width="40" height="22" rx="2" fill="#5a4632"/><rect x="404" y="150" width="40" height="4" fill="#6e5540"/><rect x="408" y="132" width="30" height="8" fill="#c9564f"/><rect x="410" y="140" width="26" height="8" fill="#3f7fd6"/></g>`
+    +`<rect x="150" y="40" width="10" height="14" fill="#3a2c1c"/>`;
+  let lights = (on? glow(155,66,46,36):'')
+    +`<path d="M144 54 h22 l-4 12 h-14 z" fill="${on?'#ffe1a0':'#d3cabd'}"/>`
+    +(on? `<ellipse cx="155" cy="66" rx="5" ry="4" fill="#fff3c8"/>`:'');
+  return _svg( wgDefs()+base+todTint(tod)+lights );
+}
+
+// 2 红砖小屋：壁炉炉火 + 朴素小窗(随时间) + 扶手椅。
+function brickIn(tod){ tod=tod||timeOfDay(); const on=tod!=='day';
+  const base = `<rect width="460" height="300" fill="#2a2436"/>`
+    +`<rect width="460" height="205" fill="#d8c6a0"/>`
+    +woodFloor(205,'#6e4a2c','#402a17',[[150,12,'#ffcf7a',0.16],[330,8]])
+    // 壁炉结构
+    +`<rect x="96" y="86" width="150" height="120" rx="4" fill="#b0654b"/>`
+    +`<g stroke="#8f4f38" stroke-width="1.4"><line x1="96" y1="112" x2="246" y2="112"/><line x1="96" y1="138" x2="246" y2="138"/><line x1="96" y1="164" x2="246" y2="164"/><line x1="150" y1="86" x2="150" y2="112"/><line x1="190" y1="112" x2="190" y2="138"/><line x1="130" y1="138" x2="130" y2="164"/><line x1="210" y1="164" x2="210" y2="190"/></g>`
+    +`<rect x="86" y="76" width="170" height="14" rx="3" fill="#8a5140"/>`
+    +`<rect x="124" y="146" width="94" height="60" rx="3" fill="#241a16"/>`
+    +framedPic(104,52,36,28,'#cfe0d8')+`<circle cx="150" cy="68" r="7" fill="#fff" stroke="#8a5140" stroke-width="2"/><line x1="150" y1="68" x2="150" y2="63" stroke="#333"/><line x1="150" y1="68" x2="153" y2="69" stroke="#333"/>`
+    +nightPane(338,58,84,78,'#8a5140',tod)
+    +armchair(318,186)
+    +rug(210,262,120,17,'#8a5a4a','#c99f8a')
+    +potPlant(70,250,1.05);
+  let lights = (on? glow(150,196,110,96,'fire') : glow(150,200,58,42,'fire'))
+    +`<path d="M171 204 q-15 -26 0 -46 q7 14 -2 24 q14 -7 11 -22 q16 18 4 44 z" fill="#ff8a3d"/><path d="M171 204 q-9 -16 0 -28 q6 9 0 28z" fill="#ffd24a"/>`
+    +`<g fill="#5a3f26"><rect x="120" y="196" width="44" height="7" rx="3"/><rect x="178" y="198" width="40" height="6" rx="3"/></g>`;
+  return _svg( wgDefs()+base+todTint(tod)+lights );
+}
+
+// 3 精美小屋：城市大窗(随时间) + 软床 + 书架 + 床头台灯。去掉两个小相框。
+function cottageIn(tod){ tod=tod||timeOfDay(); const on=tod!=='day';
+  const base = `<rect width="460" height="300" fill="#241f30"/>`
+    +`<rect width="460" height="205" fill="#4b4468"/>`
+    +`<g stroke="#5a527a" stroke-width="7" opacity=".7"><line x1="30" y1="0" x2="30" y2="205"/><line x1="92" y1="0" x2="92" y2="205"/><line x1="368" y1="0" x2="368" y2="205"/><line x1="430" y1="0" x2="430" y2="205"/></g>`
+    +`<rect x="0" y="150" width="460" height="6" fill="#3a3455"/>`
+    +woodFloor(205,'#6e4a2c','#3f2a17',[[176,16,'#8fb0e6',0.13],[250,10,'#8fb0e6',0.13],[330,8,'#ffcf7a',0.14]])
+    +cityWindow(150,44,160,104,{tod:tod,tower:true,frame:'#33304a'})
+    +`<path d="M138 40 q-9 56 -3 108 l13 0 q-6 -52 3 -108z" fill="#8ea6d6" opacity=".9"/><path d="M322 40 q9 56 3 108 l-13 0 q6 -52 -3 -108z" fill="#8ea6d6" opacity=".9"/>`
+    +bed(24,150,150)
+    +bookshelf(374,120,66,86)
+    +`<rect x="180" y="150" width="40" height="20" rx="3" fill="#5a4632"/>`
+    +`<line x1="230" y1="0" x2="230" y2="20" stroke="#4a4030" stroke-width="2"/>`
+    +rug(230,264,150,22,'#c98aa6','#e6b3cd')
+    +potPlant(422,246,1.05);
+  let lights = ceilingLight(230,20,on)+tableLamp(190,128,on);
+  return _svg( wgDefs()+base+todTint(tod)+lights );
+}
+
+// 4 一户建：城市大窗 + 灰沙发 + 茶几 + 落地灯 + 电视柜（修好不重叠）。
+function modernIn(tod){ tod=tod||timeOfDay(); const on=tod!=='day';
+  const base = `<rect width="460" height="300" fill="#20222c"/>`
+    +`<rect width="460" height="205" fill="#565b6a"/>`
+    +`<rect x="300" y="0" width="160" height="205" fill="#7a6142"/>`
+    +`<g stroke="#63502f" stroke-width="2" opacity=".55"><line x1="330" y1="0" x2="330" y2="205"/><line x1="370" y1="0" x2="370" y2="205"/><line x1="410" y1="0" x2="410" y2="205"/><line x1="450" y1="0" x2="450" y2="205"/></g>`
+    +woodFloor(205,'#6e4a2c','#3f2a17',[[60,16,'#8fb0e6',0.15],[150,10,'#8fb0e6',0.13],[250,8,'#ffcf7a',0.14],[360,10]])
+    +cityWindow(36,40,150,110,{tod:tod,tower:true,frame:'#2f2c44'})
+    +`<path d="M28 36 q-8 60 -3 116 l12 0 q-6 -56 3 -116z" fill="#8ea6d6" opacity=".85"/>`
+    +sofa(96,178,150)
+    +lowTable(150,236,84)
+    +tvUnit(300,178,150)
+    +potPlant(368,246,1.6)
+    +rug(200,268,150,18,'#7f8fb0','#aebbd0')
+    +`<line x1="150" y1="0" x2="150" y2="18" stroke="#4a4030" stroke-width="2"/>`;
+  let lights = ceilingLight(150,18,on)+floorLamp(276,126,on);
+  return _svg( wgDefs()+base+todTint(tod)+lights );
+}
+
+// 5 豪宅：墙纸 + 落地城市大窗(随时间) + 水晶吊灯 + 红毯 + 罗马柱 + 贵妃椅 + 金框肖像。
+function mansionIn(tod){ tod=tod||timeOfDay(); const on=tod!=='day';
+  const base = `<rect width="460" height="300" fill="#1e1a2a"/>`
+    +wallpaper(0,0,460,150,'#6a5f80','#c9a24a')
+    +`<rect x="0" y="150" width="460" height="55" fill="#5a5070"/><rect x="0" y="150" width="460" height="4" fill="#c9a24a"/>`
+    +`<g stroke="#c9a24a" stroke-width="1.4" fill="none" opacity=".8"><rect x="16" y="160" width="58" height="36"/><rect x="86" y="160" width="58" height="36"/><rect x="316" y="160" width="58" height="36"/><rect x="386" y="160" width="58" height="36"/></g>`
+    +`<rect x="0" y="205" width="460" height="95" fill="#2b2740"/>`
+    +`<g fill="#342f4d"><rect x="0" y="205" width="46" height="47"/><rect x="92" y="205" width="46" height="47"/><rect x="184" y="205" width="46" height="47"/><rect x="276" y="205" width="46" height="47"/><rect x="368" y="205" width="46" height="47"/><rect x="46" y="252" width="46" height="48"/><rect x="138" y="252" width="46" height="48"/><rect x="230" y="252" width="46" height="48"/><rect x="322" y="252" width="46" height="48"/><rect x="414" y="252" width="46" height="48"/></g>`
+    +`<g opacity=".14" fill="#ffcf7a"><rect x="150" y="205" width="12" height="95"/><rect x="250" y="205" width="8" height="95"/></g>`
+    +cityWindow(150,44,160,104,{tod:tod,tower:true,frame:'#2c2942'})
+    +`<path d="M150 44 a80 26 0 0 1 160 0" fill="none" stroke="#c9a24a" stroke-width="3"/>`
+    +`<path d="M142 40 q-14 62 -6 112 l15 0 q-8 -58 6 -112z" fill="#7f2f3a"/><path d="M318 40 q14 62 6 112 l-15 0 q8 -58 -6 -112z" fill="#7f2f3a"/><rect x="140" y="36" width="180" height="8" fill="#c9a24a"/>`
+    +`<g fill="#efe6d0"><rect x="24" y="150" width="16" height="55"/><rect x="20" y="146" width="24" height="6"/><rect x="420" y="150" width="16" height="55"/><rect x="416" y="146" width="24" height="6"/></g>`
+    +`<ellipse cx="210" cy="272" rx="150" ry="22" fill="#8a2f3a" opacity=".9"/><ellipse cx="210" cy="272" rx="118" ry="15" fill="#a8465a"/><ellipse cx="210" cy="272" rx="118" ry="15" fill="none" stroke="#e8c34a" stroke-width="2" stroke-dasharray="8 6"/>`
+    +`<g><rect x="120" y="214" width="130" height="26" rx="8" fill="#6d4a86"/><rect x="120" y="202" width="42" height="24" rx="10" fill="#7d5a96"/><rect x="118" y="232" width="8" height="14" fill="#c9a24a"/><rect x="244" y="232" width="8" height="14" fill="#c9a24a"/><rect x="128" y="208" width="30" height="12" rx="6" fill="#8a68a6"/></g>`
+    +`<g><rect x="356" y="70" width="48" height="62" rx="2" fill="#c9a24a"/><rect x="361" y="75" width="38" height="52" fill="#2f2a45"/><circle cx="380" cy="96" r="9" fill="#e9c39c"/><rect x="369" y="107" width="22" height="20" fill="#6d4fa3"/></g>`
+    +`<g fill="#5a4630"><rect x="404" y="188" width="52" height="14"/><rect x="418" y="174" width="38" height="14"/><rect x="432" y="160" width="24" height="14"/></g><g fill="#8a2f3a"><rect x="404" y="188" width="52" height="5"/><rect x="418" y="174" width="38" height="5"/><rect x="432" y="160" width="24" height="5"/></g>`
+    +potPlant(58,246,1.15)
+    +`<line x1="230" y1="0" x2="230" y2="20" stroke="#c9a24a" stroke-width="2"/>`;
+  let lights = chandelier(230,20,on);
+  return _svg( wgDefs()+base+todTint(tod)+lights );
+}
+
+// ===== 展示位像素小图（没有具体道具美术时的通用像素） =====
+function pxFish(faint){
+  const o=faint?0.3:1, body=faint?'#b9c2cc':'#7fb3e8', line=faint?'#aeb7c1':'#3f7fd6';
+  return `<svg viewBox="0 0 40 30" opacity="${o}"><path d="M6 15 L17 7 H27 a8 8 0 0 1 0 16 H17 Z" fill="${body}" stroke="${line}" stroke-width="2"/><path d="M6 15 L15 10 V20 Z" fill="${line}"/><circle cx="25" cy="12" r="1.8" fill="#12324a"/></svg>`;
+}
+function pxRod(faint){
+  const o=faint?0.32:1, wood=faint?'#c2b48f':'#8a5a2b', knob=faint?'#c2b48f':'#c9a24a';
+  return `<svg viewBox="0 0 24 40" opacity="${o}"><circle cx="12" cy="6" r="3.4" fill="${knob}"/><line x1="12" y1="6" x2="12" y2="34" stroke="${wood}" stroke-width="3"/><path d="M12 34 q7 2 4 -5" stroke="#9aa0ab" stroke-width="2" fill="none"/></svg>`;
+}
+
+function renderGear(box, items, n){
+  items=items||[]; n=Math.max(n||0, items.length); let html='';
+  for(let i=0;i<n;i++){
+    const it=items[i];
+    if(it){
+      const ic = it.emoji ? `<span style="font-size:30px">${it.emoji}</span>` : pxRod(false);
+      html += `<div class="hook"><span class="pin"></span><div class="tile filled">${ic}</div><div class="slotlbl">${it.name||'钓具'}</div></div>`;
+    }else{
+      html += `<div class="hook"><span class="pin"></span><div class="tile empty">${pxRod(true)}</div><div class="slotlbl dim">空位</div></div>`;
+    }
+  }
+  box.innerHTML = html;
+}
+function renderFish(box, items, n){
+  items=items||[]; n=Math.max(n||0, items.length); let html='';
+  for(let i=0;i<n;i++){
+    const it=items[i];
+    if(it){
+      const ic = it.emoji ? `<span style="font-size:26px">${it.emoji}</span>` : pxFish(false);
+      html += `<div class="mount"><div class="plaque">${ic}</div><div class="slotlbl">${it.name||'鱼'}</div></div>`;
+    }else{
+      html += `<div class="mount"><div class="plaque empty">${pxFish(true)}</div><div class="slotlbl dim">空位</div></div>`;
+    }
+  }
+  box.innerHTML = html;
+}
+
+let D = null;
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.hidden=false;
+  clearTimeout(t._t); t._t=setTimeout(()=>{ t.hidden=true; }, 2200);
+}
+
+function render(d){
+  D = d;
+  const lvl = d.house_level||0;
+  const slots = d.slots || {gear:1, fish:2};
+  const gears = d.gear||[], fishes = d.fish||[];
+  document.getElementById('hutTitle').textContent = d.is_me ? '我的小屋' : ((d.host||'')+' 的小屋');
+  document.getElementById('lvlTag').textContent = d.house_name || '帐篷';
+  document.getElementById('backLink').href = '/plaza/'+encodeURIComponent(d.host||HOST);
+  const tod = timeOfDay();
+  document.getElementById('interior').innerHTML = interiorSVG(lvl, tod);
+  const TOD_CN = {day:'☀️ 白天', dusk:'🌇 傍晚', night:'🌙 夜晚'};
+  document.getElementById('lvlNote').textContent = LVL_DESC[Math.min(lvl, LVL_DESC.length-1)] + '　·　'+TOD_CN[tod]+'（窗外与灯光随时间自动变化）';
+
+  renderGear(document.getElementById('gearBox'), gears, slots.gear);
+  renderFish(document.getElementById('fishBox'), fishes, slots.fish);
+  document.getElementById('gearCount').textContent = '· '+gears.length+'/'+slots.gear;
+  document.getElementById('fishCount').textContent = '· '+fishes.length+'/'+slots.fish;
+  document.getElementById('gearCap').textContent = '钓具展示位 '+slots.gear+' 个 · 升级小屋可增加';
+  document.getElementById('fishCap').textContent = '鱼获展示位 '+slots.fish+' 个 · 升级小屋可增加';
+
+  // 升级行：只有自己的小屋能升
+  const upRow=document.getElementById('upRow'), upBtn=document.getElementById('upBtn'), upCoins=document.getElementById('upCoins');
+  if(!d.is_me){ upRow.hidden=true; return; }
+  upRow.hidden=false;
+  if(d.next_cost==null){
+    upBtn.className='upbtn max'; upBtn.textContent='🏰 已是最高级 · 豪宅'; upCoins.innerHTML='';
+  }else{
+    const enough=(d.coins||0)>=d.next_cost;
+    upBtn.className='upbtn'+(enough?'':' poor');
+    upBtn.textContent='⬆️ 升级为 '+d.next_name+' · '+d.next_cost+'金币';
+    upCoins.innerHTML='你有 <b>'+(d.coins||0)+'</b> 金币'+(enough?'':'（还差 '+(d.next_cost-(d.coins||0))+'）');
+  }
+}
+
+// 升级按钮 → 确认弹窗
+document.getElementById('upBtn').addEventListener('click', ()=>{
+  if(!D || !D.is_me || D.next_cost==null) return;
+  if((D.coins||0) < D.next_cost){ toast('金币不够，去赌场或打工赚点再来～'); return; }
+  document.getElementById('upmText').innerHTML =
+    '把小屋升级为 <b>'+D.next_name+'</b> 吗？<br>要花 <b>'+D.next_cost+'</b> 金币（你现在有 '+(D.coins||0)+'）';
+  document.getElementById('upModal').hidden=false;
+});
+document.getElementById('upmNo').addEventListener('click', ()=>{ document.getElementById('upModal').hidden=true; });
+document.getElementById('upModal').addEventListener('click', e=>{ if(e.target.id==='upModal') document.getElementById('upModal').hidden=true; });
+document.getElementById('upmYes').addEventListener('click', async ()=>{
+  document.getElementById('upModal').hidden=true;
+  let r;
+  try{ r = await (await fetch('/hut/upgrade',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json(); }
+  catch(e){ toast('升级失败，网络出错了'); return; }
+  if(r && r.ok){
+    toast(r.msg || '升级成功！');
+    D = Object.assign({}, D, {house_level:r.house_level, house_name:r.house_name,
+      next_name:r.next_name, next_cost:r.next_cost, slots:r.slots, coins:r.coins});
+    render(D);
+  }else{
+    toast((r && r.msg) || '升级失败');
+    if(r && typeof r.coins==='number'){ D.coins=r.coins; render(D); }
+  }
+});
+
+(async function(){
+  let d;
+  try{ d = await (await fetch('/hut/data?host='+encodeURIComponent(HOST))).json(); }
+  catch(e){ d = {house_level:0,house_name:'帐篷',fish:[],gear:[],is_me:true,host:HOST,
+                 slots:{gear:1,fish:2},next_name:'木制棚屋',next_cost:200,coins:0}; }
+  render(d);
+})();
+
+// 页面开着也让窗外/灯光随时间自动切换：每分钟检查一次，跨时段才重画内景
+let _tod = timeOfDay();
+setInterval(()=>{
+  const t = timeOfDay();
+  if(t !== _tod && D){
+    _tod = t;
+    const lvl = D.house_level||0;
+    document.getElementById('interior').innerHTML = interiorSVG(lvl, t);
+    const TOD_CN = {day:'☀️ 白天', dusk:'🌇 傍晚', night:'🌙 夜晚'};
+    document.getElementById('lvlNote').textContent = LVL_DESC[Math.min(lvl, LVL_DESC.length-1)] + '　·　'+TOD_CN[t]+'（窗外与灯光随时间自动变化）';
+  }
+}, 60000);
+</script>
+</body>
+</html>

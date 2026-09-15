@@ -69,16 +69,21 @@ BJ_RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
 
 # ====== 老江 AI 对话 + 乞讨给币（金额/概率都在这里，随时可改）======
 JOE_CHAT_MIN_GAP     = 3          # 两句之间最少间隔秒（防刷 AI）
-JOE_BEG_MOOD         = 55         # 老江 mood 达到这个才算“说得好、他受用了”
-JOE_BEG_PROB         = 0.15       # 受用时，给点小钱的概率
-JOE_BEG_COOLDOWN     = 60         # 给过小钱后多少秒内不再给（每人约1分钟）
-JOE_BEG_DAILY_CAP    = 80         # 每人每天靠乞讨最多拿多少币
-JOE_BEG_MIN, JOE_BEG_MAX = 3, 15  # 小钱的范围
+# —— 给钱：必须 mood 到门槛才可能给（低于门槛＝白嘴讨钱，一毛没有；不让人白要金币）——
+#    命中概率与单次金额都随 mood 从「门槛→100」线性放大：说得越好、给得越勤越多，像真人。
+JOE_BEG_MOOD         = 55         # 老江 mood 到这个值才可能给钱
+JOE_BEG_COOLDOWN     = 45         # 给过钱后多少秒内不再给（原 60→45，回馈更勤）
+JOE_BEG_DAILY_CAP    = 300        # 每人每天靠聊天最多拿多少币（原 80 → 300）
+JOE_BEG_PROB_MIN     = 0.25       # mood 刚够(55)时的命中概率（原来固定 0.15，整体调高）
+JOE_BEG_PROB_MAX     = 0.55       # mood 拉满(100)时的命中概率
+JOE_BEG_AMT_LO_MIN, JOE_BEG_AMT_LO_MAX = 5, 15    # 单次“最少给”：mood55→5，mood100→15（原来固定 3）
+JOE_BEG_AMT_HI_MIN, JOE_BEG_AMT_HI_MAX = 15, 45   # 单次“最多给”：mood55→15，mood100→45（原来固定 15）
 JOE_JACKPOT_MOOD     = 90         # 大奖需要老江“非常满意”
-JOE_JACKPOT_PROB     = 0.003      # 满足上面后，再 0.3% 概率
+JOE_JACKPOT_PROB     = 0.004      # 满足上面后，再 0.4% 概率直接爆（极低概率，和日常回馈另算、不占每日上限）
 JOE_JACKPOT_COINS    = 1000
 JOE_JACKPOT_COOLDOWN = 3 * 86400  # 中了大奖后至少隔 3 天不再触发
-JOE_LATINA_PROB      = 0.03       # 每句话 3% 概率老江请你吃拉缇娜（烤肉自助，不是酒）
+JOE_LATINA_MOOD      = 60         # 请客也要看心情：低于此不请（不能白蹭一顿）
+JOE_LATINA_PROB      = 0.012      # 请吃拉缇娜的概率下调（原 0.03 → 0.012）
 JOE_LATINA_COOLDOWN  = 6 * 3600   # 拉缇娜 6 小时冷却
 JOE_LOG_KEEP         = 1500       # 聊天日志最多留多少条（控制存储；joejoe 后台看）
 JOE_HISTORY_TURNS    = 12         # 给老江带上这个人最近多少轮对话作记忆（便于结合上下文打分）
@@ -101,6 +106,18 @@ def ensure_casino_tables():
         conn.execute("""CREATE TABLE IF NOT EXISTS casino_daily (
             day TEXT NOT NULL, owner TEXT NOT NULL, net INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY (day, owner))""")
+        # 老库自愈：早期的 casino_daily 可能没有 (day,owner) 主键，会导致 _bump_daily 记不进赢分、
+        # 赢家榜永远空。这里检测到旧结构就自动升级（合并重复行、保留数据），只在需要时跑一次。
+        _cols = conn.execute("PRAGMA table_info(casino_daily)").fetchall()
+        if _cols and not any(c[5] for c in _cols if c[1] in ("day", "owner")):   # c[5]=是否主键
+            conn.execute("ALTER TABLE casino_daily RENAME TO casino_daily_old")
+            conn.execute("""CREATE TABLE casino_daily (
+                day TEXT NOT NULL, owner TEXT NOT NULL, net INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (day, owner))""")
+            conn.execute("""INSERT INTO casino_daily (day, owner, net)
+                SELECT day, owner, SUM(net) FROM casino_daily_old GROUP BY day, owner""")
+            conn.execute("DROP TABLE casino_daily_old")
+            print("【casino】已把旧版 casino_daily 升级为带主键的新结构（赢家榜修复）")
         # 饮品背包：每人手里带着的饮品（JSON 列表）
         conn.execute("""CREATE TABLE IF NOT EXISTS casino_buffs (
             owner TEXT PRIMARY KEY, drinks TEXT NOT NULL DEFAULT '[]')""")
@@ -201,11 +218,15 @@ def _today():
 
 
 def _bump_daily(conn, owner, net):
-    """把某人今天的净输赢累加（net 可正可负）。"""
-    conn.execute(
-        "INSERT INTO casino_daily (day, owner, net) VALUES (?,?,?) "
-        "ON CONFLICT(day, owner) DO UPDATE SET net = net + ?",
-        (_today(), owner, int(net), int(net)))
+    """把某人今天的净输赢累加（net 可正可负）。
+    加异常保护：万一赢家榜表出问题，也绝不连累开奖结算。"""
+    try:
+        conn.execute(
+            "INSERT INTO casino_daily (day, owner, net) VALUES (?,?,?) "
+            "ON CONFLICT(day, owner) DO UPDATE SET net = net + ?",
+            (_today(), owner, int(net), int(net)))
+    except Exception as e:
+        print("【casino 赢家榜记录失败，已忽略不影响游戏】", repr(e))
 
 
 def top_winner(conn):
@@ -238,6 +259,22 @@ def _sprite_of(conn, owner):
         except Exception:
             pass
     return {"version": "v1", "hat": "光头", "outfit": 0, "hair": 0, "skin": 0, "clothes": "无"}
+
+
+# ---------- 通用：扣金币（前往江之岛的路费等） ----------
+def pay(owner, amount):
+    """从金币里扣一笔。够扣就扣、返回 {ok:True, coins:新余额}；不够就不动、返回 {ok:False, coins:当前余额}。"""
+    conn = _connect()
+    try:
+        amount = max(0, int(amount))
+        bal = _coins_get(conn, owner)
+        if bal < amount:
+            return {"ok": False, "coins": bal}
+        newbal = _coins_add(conn, owner, -amount)
+        conn.commit()
+        return {"ok": True, "coins": newbal}
+    finally:
+        conn.close()
 
 
 # ---------- 进赌场：发新手礼金 ----------
@@ -1477,21 +1514,33 @@ def joe_chat(owner, message):
         mood = max(0, min(100, mood))
 
         rewards = []; coins_gain = 0
-        # 1) 小钱乞讨：老江受用 + 冷却过了 + 没到每日上限 + 概率命中
+        # 1) 聊天给钱：老江受用(mood≥门槛) + 冷却过了 + 没到每日上限。
+        #    概率和金额都随 mood 从「门槛→100」放大——说得越好，给得越勤、越多；
+        #    低于门槛＝白嘴讨钱，直接一毛没有（不让人白要金币）。
         if mood >= JOE_BEG_MOOD and (now - last_beg) >= JOE_BEG_COOLDOWN and day_coins < JOE_BEG_DAILY_CAP:
-            if random.random() < JOE_BEG_PROB:
-                amt = min(random.randint(JOE_BEG_MIN, JOE_BEG_MAX), JOE_BEG_DAILY_CAP - day_coins)
+            t = (mood - JOE_BEG_MOOD) / float(max(1, 100 - JOE_BEG_MOOD))   # 0(刚够门槛)→1(满分)
+            t = max(0.0, min(1.0, t))
+            prob = JOE_BEG_PROB_MIN + (JOE_BEG_PROB_MAX - JOE_BEG_PROB_MIN) * t
+            if random.random() < prob:
+                lo = int(round(JOE_BEG_AMT_LO_MIN + (JOE_BEG_AMT_LO_MAX - JOE_BEG_AMT_LO_MIN) * t))
+                hi = int(round(JOE_BEG_AMT_HI_MIN + (JOE_BEG_AMT_HI_MAX - JOE_BEG_AMT_HI_MIN) * t))
+                if hi < lo:
+                    hi = lo
+                amt = random.randint(lo, hi)
+                amt = min(amt, JOE_BEG_DAILY_CAP - day_coins)   # 不超每日上限
                 if amt > 0:
                     coins_gain += amt; day_coins += amt; last_beg = now
                     rewards.append({"type": "beg", "coins": amt})
-        # 2) 千金大奖：老江非常满意 + 冷却过了 + 极小概率
+        # 2) 千金大奖：老江非常满意 + 冷却过了 + 极小概率直接爆 1000。
+        #    与日常回馈另算、不计入每日上限（day_coins 不加），保留“天降横财”的稀有感。
         if mood >= JOE_JACKPOT_MOOD and (now - last_jackpot) >= JOE_JACKPOT_COOLDOWN:
             if random.random() < JOE_JACKPOT_PROB:
                 coins_gain += JOE_JACKPOT_COINS; last_jackpot = now
                 rewards.append({"type": "jackpot", "coins": JOE_JACKPOT_COINS})
-        # 3) 请客拉缇娜：随机 + 冷却，把 JZH 状态拉满
+        # 3) 请客拉缇娜：也要看心情(≥门槛) + 冷却 +（已下调的）概率，把 JZH 状态拉满
         latina = False
-        if (now - last_latina) >= JOE_LATINA_COOLDOWN and random.random() < JOE_LATINA_PROB:
+        if mood >= JOE_LATINA_MOOD and (now - last_latina) >= JOE_LATINA_COOLDOWN \
+                and random.random() < JOE_LATINA_PROB:
             if _latina_maxout(conn, owner):
                 latina = True; last_latina = now
                 rewards.append({"type": "latina"})

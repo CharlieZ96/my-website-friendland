@@ -80,11 +80,14 @@
     <p class="lbl">发色</p><div class="swatches" id="swHair"></div>
     <p class="lbl">肤色</p><div class="swatches" id="swSkin"></div>
     <p class="lbl">衣服</p><div class="row" id="clothesRow" style="margin-top:0"></div>
-    <a class="plazalink" href="/plaza">🌿 去牧场看看大家的JZH →</a>
-    <a class="caslink" href="/casino">🎰 去JZH读博的地方看看 →</a>
+    <div class="row" style="margin-top:14px">
+      <a class="btn g" href="/plaza" style="text-decoration:none;line-height:1.2">🌿 去我的牧场</a>
+      <button class="btn" onclick="visitOther()">🔭 去别人的牧场</button>
+    </div>
+    <a class="caslink" href="/casino">🎰 去JZH读博的地方看看</a>
   </div>
   <div class="panel" style="margin-top:14px">
-    <a class="plazalink" href="/pet/records" style="margin-top:0">📖 打开成长记录册（每只JZH的完整故事）→</a>
+    <a class="plazalink" href="/pet/records" style="margin-top:0">📖 打开成长记录册</a>
     <h2>👶 家族相册 · 后代</h2>
     <div id="family" class="famgrid"></div>
   </div>
@@ -97,6 +100,31 @@
     <div class="mrow">
       <button class="btn" id="buyCancel">取消</button>
       <button class="btn y" id="buyOk">确认购买</button>
+    </div>
+  </div>
+</div>
+
+<div id="consignModal" class="modal-bg" hidden>
+  <div class="modal">
+    <h3>送去哪个牧场托管？</h3>
+    <p>托管期间JZH安全寄存、不掉状态，还能在那个牧场交朋友、结伴、生下一代。</p>
+    <div class="mrow" style="flex-direction:column;gap:10px">
+      <button class="btn g" id="consignSelf">🏡 送去我自己的牧场</button>
+      <button class="btn p" id="consignOther">🔭 送去别人的牧场</button>
+      <button class="btn" id="consignCancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<div id="askModal" class="modal-bg" hidden>
+  <div class="modal">
+    <h3 id="askTitle">输入用户名</h3>
+    <p id="askDesc"></p>
+    <input id="askInput" maxlength="32" placeholder="对方的用户名"
+      style="width:100%;padding:10px 12px;border:2px solid var(--line);border-radius:12px;font-size:15px;outline:none;box-sizing:border-box">
+    <div class="mrow" style="margin-top:12px">
+      <button class="btn" id="askCancel">取消</button>
+      <button class="btn y" id="askOk">确定</button>
     </div>
   </div>
 </div>
@@ -121,7 +149,7 @@ function render(){
   if(S.stage==="cloud"){ sub="🌥️ 你的JZH化作了一朵云…"; }
   else if(S.needs_name){ sub="先给它起个名字吧～"; }
   else if(S.stage==="cocoon"){ sub=`还在睡 · 唤醒 ${S.wake}/${S.wakes_need}`+(S.can_wake?"":` · ${fmt(S.wake_in)}后可叫`); }
-  else if(S.status==="plaza"){ sub="🌿 正在牧场托管中"; }
+  else if(S.status==="plaza"){ sub="🌿 正在"+(S.plaza_host?("「"+S.plaza_host+"」的"):"")+"牧场托管中"; }
   else if(S.status&&S.status!=="home"){ sub=(S.status==="working"?"外出打工中…":"外出购物中…")+(S.can_collect?" 已回来，快收！":` 还要 ${fmt(S.out_in)}`); }
   else if(S.stage==="old"){ sub="老年 · 安享晚年，好好陪陪它"; }
   else if(S.stage==="kid"){ sub=`幼年 · 成长 ${S.growth}/${S.growth_need}`; }
@@ -159,7 +187,7 @@ function render(){
        <button class="btn" data-act="drop" ${S.can_drop?"":"disabled"}>${S.can_drop?"🎁 领掉落":(S.has_locked?"掉落 "+fmt(S.drop_in)+"后":"装扮已集齐")}</button>
        <button class="btn c" data-act="work">🛠️ 出去打工</button>
        <button class="btn p" data-act="shop">🛍️ 出去购物 🪙${S.shop_cost}</button>
-       <button class="btn g" data-act="consign">🌿 送去牧场托管</button>`;
+       <button class="btn g" data-consign="1">🌿 送去牧场托管</button>`;
   }
   document.getElementById('actions').innerHTML = acts;
 
@@ -209,6 +237,7 @@ document.addEventListener('click',e=>{
   if(t.id==='buyOk'||t.id==='buyCancel') return;   // 弹框按钮有各自的监听
   if(t.id==='nameBtn'){ const v=(document.getElementById('nameInput').value||'').trim(); if(v) return doAct('name:'+v); return; }
   const d=t.dataset;
+  if(d.consign) return openConsign();               // 送去牧场托管：弹出"自己的/别人的"分支
   if(d.act) return doAct(d.act);
   if(d.hat) return doAct('dress:hat:'+d.hat);
   if(d.set) return doAct('dress:'+d.set+':'+d.i);
@@ -233,6 +262,38 @@ function closeBuy(){ pendingBuy=null; document.getElementById('buyModal').hidden
 document.getElementById('buyCancel').addEventListener('click',closeBuy);
 document.getElementById('buyOk').addEventListener('click',()=>{ const n=pendingBuy; closeBuy(); if(n) doAct('buy_clothes:'+n); });
 document.getElementById('buyModal').addEventListener('click',e=>{ if(e.target.id==='buyModal') closeBuy(); });
+
+// —— 通用：页面内输入用户名弹窗（替代 prompt，手机/App 内也能用）——
+let _askCb=null;
+const askModal=document.getElementById('askModal'), askInput=document.getElementById('askInput');
+function askUsername(title, desc, cb){
+  document.getElementById('askTitle').textContent=title;
+  document.getElementById('askDesc').textContent=desc||'';
+  askInput.value=''; _askCb=cb; askModal.hidden=false;
+  setTimeout(()=>askInput.focus(),50);
+}
+function askClose(){ askModal.hidden=true; _askCb=null; }
+function askSubmit(){ const u=(askInput.value||'').trim(); if(!u){ askInput.focus(); return; } const cb=_askCb; askClose(); if(cb) cb(u); }
+document.getElementById('askOk').addEventListener('click',askSubmit);
+document.getElementById('askCancel').addEventListener('click',askClose);
+askInput.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); askSubmit(); } });
+askModal.addEventListener('click',e=>{ if(e.target.id==='askModal') askClose(); });
+
+// —— 去别人的牧场：输入用户名 ——
+function visitOther(){
+  askUsername('去别人的牧场','输入要拜访的玩家用户名', u=>{ location.href='/plaza/'+encodeURIComponent(u); });
+}
+// —— 送去牧场托管：自己的 / 别人的 ——
+const consignModal=document.getElementById('consignModal');
+function openConsign(){ consignModal.hidden=false; }
+function closeConsign(){ consignModal.hidden=true; }
+document.getElementById('consignSelf').addEventListener('click',()=>{ closeConsign(); doAct('consign_self'); });
+document.getElementById('consignOther').addEventListener('click',()=>{
+  closeConsign();
+  askUsername('送去别人的牧场','把JZH托管到哪个玩家的牧场？输入用户名', u=>{ doAct('consign_to:'+u); });
+});
+document.getElementById('consignCancel').addEventListener('click',closeConsign);
+consignModal.addEventListener('click',e=>{ if(e.target.id==='consignModal') closeConsign(); });
 
 (async function(){ S=await apiState(); render();
   setInterval(async()=>{ S=await apiState(); render(); }, 30000);

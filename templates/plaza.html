@@ -35,21 +35,119 @@
   .star{animation:twk 2.6s ease-in-out infinite}
   .fire{animation:fly 2.2s ease-in-out infinite}
   .shim{animation:shim 3.2s ease-in-out infinite}
+  /* 前往江之岛的 JR 车站入口：落在草地上（不是天上），可点、悬浮、按压（像老虎机） */
+  .station{position:absolute;bottom:6px;right:8px;width:108px;text-align:center;cursor:pointer;z-index:3;transition:transform .12s ease}
+  .station:hover{transform:translateY(-3px)}
+  .station:active{transform:scale(.95)}
+  .station svg{width:98px;height:auto;display:block;margin:0 auto;animation:stbreathe 3.2s ease-in-out infinite}
+  @keyframes stbreathe{0%,100%{filter:drop-shadow(0 3px 4px rgba(0,0,0,.28))}50%{filter:drop-shadow(0 3px 9px rgba(109,79,163,.55))}}
+  .station .lab{display:inline-block;font-size:11px;font-weight:800;color:#fff;background:#6D4FA3;
+    border-radius:999px;padding:1px 10px;margin-top:1px;box-shadow:0 2px 5px rgba(0,0,0,.4);white-space:nowrap}
+  .station .cost{color:#ffe08a}
+  #ptoast{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:#262B33;color:#fff;
+    font-size:12px;padding:6px 12px;border-radius:999px;opacity:0;transition:opacity .2s;z-index:6;pointer-events:none;white-space:nowrap;max-width:90%}
+  #ptoast.on{opacity:.96}
+  /* 家园：主人的小屋 + 车库，落在草场左下角，可点、悬浮、按压 */
+  .homebldg{position:absolute;bottom:6px;text-align:center;cursor:pointer;z-index:3;transition:transform .12s ease}
+  .homebldg:hover{transform:translateY(-3px)}
+  .homebldg:active{transform:scale(.95)}
+  .homebldg svg{height:auto;display:block;margin:0 auto;filter:drop-shadow(0 3px 5px rgba(0,0,0,.3))}
+  .homebldg .lab{display:inline-block;font-size:10px;font-weight:800;color:#fff;background:#6D4FA3;
+    border-radius:999px;padding:1px 8px;margin-top:1px;box-shadow:0 2px 5px rgba(0,0,0,.4);white-space:nowrap}
+  .hut{left:8px;width:78px}   .hut svg{width:70px}
+  .garage{left:90px;width:74px}  .garage svg{width:66px}
+  /* 车库弹层 */
+  #garageModal{position:fixed;inset:0;background:rgba(38,43,51,.5);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px}
+  #garageModal[hidden]{display:none}
+  #garageModal .box{position:relative;background:#fff;border-radius:18px;padding:18px;max-width:320px;width:100%;box-shadow:0 16px 40px rgba(0,0,0,.25)}
+  #garageModal h3{margin:0 0 4px;font-size:17px;text-align:center}
+  #garageModal p{margin:0 0 12px;color:#6B7683;font-size:12px;text-align:center}
+  #garageModal .cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;margin-bottom:12px}
+  #garageModal .car{background:#F5F8FB;border:1px solid #C6D0DA;border-radius:12px;padding:8px 4px;text-align:center;font-size:12px}
+  #garageModal .car .ic{font-size:24px}
+  #garageModal .empty{position:static;inset:auto;grid-column:1/-1;color:#9aa0ab;font-size:13px;text-align:center;padding:10px;line-height:1.6}
+  #garageModal .empty b{color:#6D4FA3}
+  #garageModal .ok{position:relative;z-index:1;display:block;width:100%;font-weight:700;font-size:14px;cursor:pointer;border:2px solid #262B33;border-radius:12px;padding:9px;background:#F5A623;box-shadow:3px 3px 0 #262B33}
+  #garageModal .ok:active{transform:translate(3px,3px);box-shadow:0 0 0 #262B33}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="topbar"><h1>🌿 <em>牧场</em></h1><a class="back" href="/pet">← 回养成</a></div>
-  <p class="hint">这里是大家托管的JZH。金色名字的是你自己的，回养成页可以把它领回。</p>
+  <div class="topbar"><h1>🌿 <em id="farmName">牧场</em></h1>
+    <div><a class="back" id="mineLink" href="/plaza" hidden style="margin-right:12px">🌿 回我的牧场</a><a class="back" href="/pet">← 回养成</a></div></div>
+  <p class="hint">这里是大家托管的JZH。金色名字的是你自己的，回养成页可以把它领回。<br>点草地上的 <b style="color:#6D4FA3">JR车站</b> 可坐车前往江之岛（每次 <b style="color:#b8770b">5🪙</b>）。</p>
   <p class="scenetag">当前风景：<b id="sceneName">…</b>（随时间自动变换）</p>
-  <div class="field" id="field"><div class="scene" id="scene"></div></div>
+  <div class="field" id="field">
+    <div class="scene" id="scene"></div>
+    <div id="ptoast"></div>
+    <!-- 主人的小屋 + 车库（内容按牧场主人的家园动态填充） -->
+    <div class="homebldg hut" id="hut" title="小屋"></div>
+    <div class="homebldg garage" id="garage" title="车库"></div>
+    <!-- 前往江之岛的 JR 车站（落在草地上；点击扣 5 金币后进江之岛地图） -->
+    <div class="station" id="toStation" title="前往江之岛（5金币）" onclick="goEnoshima()">
+      <svg viewBox="0 0 100 76" xmlns="http://www.w3.org/2000/svg">
+        <!-- 站台地基 + 铁轨 -->
+        <ellipse cx="50" cy="70" rx="46" ry="6" fill="#000" opacity=".12"/>
+        <rect x="6" y="60" width="88" height="8" rx="2" fill="#cbb98a"/>
+        <g stroke="#a9906a" stroke-width="2"><line x1="4" y1="65" x2="96" y2="65"/></g>
+        <g fill="#b79a6a"><rect x="10" y="62" width="4" height="7"/><rect x="34" y="62" width="4" height="7"/><rect x="58" y="62" width="4" height="7"/><rect x="82" y="62" width="4" height="7"/></g>
+        <!-- 站房 -->
+        <rect x="30" y="30" width="46" height="30" rx="2" fill="#f6efe0"/>
+        <path d="M24 30 L53 12 L82 30 Z" fill="#c14b3f"/>
+        <path d="M24 30 H82 L78 35 H28 Z" fill="#9c3a30"/>
+        <!-- 时钟 -->
+        <circle cx="53" cy="23" r="4.4" fill="#fff" stroke="#9c3a30" stroke-width="1"/>
+        <line x1="53" y1="23" x2="53" y2="20" stroke="#333" stroke-width="1"/><line x1="53" y1="23" x2="55" y2="24" stroke="#333" stroke-width="1"/>
+        <!-- 门 + 窗 -->
+        <rect x="46" y="42" width="14" height="18" fill="#7a5333"/><circle cx="57" cy="51" r="1" fill="#ffd23c"/>
+        <rect x="34" y="40" width="9" height="9" fill="#bfe0ea"/><rect x="63" y="40" width="9" height="9" fill="#bfe0ea"/>
+        <!-- JR 绿色招牌 -->
+        <rect x="34" y="31" width="38" height="9" rx="2" fill="#1f7a46"/>
+        <text x="53" y="38" font-size="7" font-weight="800" fill="#fff" text-anchor="middle" letter-spacing="1">JR</text>
+        <!-- 左侧探出的江ノ電绿色小电车 -->
+        <g>
+          <rect x="2" y="45" width="26" height="17" rx="3" fill="#3f7d4a"/>
+          <rect x="2" y="45" width="26" height="5" rx="3" fill="#2f5f38"/>
+          <g fill="#dff3e6"><rect x="6" y="52" width="7" height="7" rx="1"/><rect x="16" y="52" width="7" height="7" rx="1"/></g>
+          <circle cx="9" cy="63" r="2.6" fill="#33404a"/><circle cx="21" cy="63" r="2.6" fill="#33404a"/>
+        </g>
+      </svg>
+      <div class="lab">🚉 前往江之岛 <span class="cost">🪙5</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="garageModal" hidden>
+  <div class="box">
+    <h3 id="garageTitle">🚗 车库</h3>
+    <p id="garageSub"></p>
+    <div class="cars" id="garageCars"></div>
+    <button class="ok" id="garageOk">知道啦</button>
+  </div>
 </div>
 
 <script src="/static/pet_sprite.js"></script>
 <script>
-let PETS=[], SAY={}, ME="";
+// 当前在看谁的牧场：Flask 把 host 注入到下面这行；本地直接打开则为空=看自己的
+let VIEW_HOST = "{{ host }}"; if(VIEW_HOST.indexOf('{')===0) VIEW_HOST="";
+let PETS=[], SAY={}, ME="", HOST="", IS_ME=true;
 const R=(a,b)=>a+Math.random()*(b-a);
 const rint=(a,b)=>Math.floor(R(a,b+1));
+
+// 前往江之岛：先扣 5 金币，扣成功才跳转；钱不够就提示、不跳
+let _pt;
+function ptoast(t){const el=document.getElementById('ptoast');if(!el)return;el.textContent=t;el.classList.add('on');clearTimeout(_pt);_pt=setTimeout(()=>el.classList.remove('on'),2200);}
+let _going=false;
+async function goEnoshima(){
+  if(_going)return; _going=true;
+  try{
+    const r=await fetch('/enoshima/enter',{method:'POST'});
+    const d=await r.json();
+    if(d&&d.ok){ location.href='/enoshima'; return; }
+    ptoast('金币不够啦～坐车去江之岛要 5🪙（你有 '+((d&&d.coins)||0)+'🪙）');
+  }catch(e){ ptoast('网络不太顺，待会儿再试'); }
+  _going=false;
+}
 
 /* ============ 四张风景（柔和插画风 · SVG）============ */
 function wrap(inner){return `<svg viewBox="0 0 520 300" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;}
@@ -189,16 +287,22 @@ function setScene(){
 }
 
 async function loadPlaza(){
+  let d=null;
   try{
-    const r=await fetch('/plaza/pets'); const d=await r.json();
-    PETS=d.pets||[]; SAY=d.sayings||{}; ME=d.me||"";
-  }catch(e){ return; }
+    d=await (await fetch('/plaza/pets?host='+encodeURIComponent(VIEW_HOST))).json();
+  }catch(e){ ptoast('牧场数据加载失败，稍后重试'); }
+  if(d){ PETS=d.pets||[]; SAY=d.sayings||{}; ME=d.me||""; HOST=d.host||VIEW_HOST||ME; IS_ME=!!d.is_me; }
+  else if(!HOST){ HOST=VIEW_HOST; IS_ME=!VIEW_HOST; }   // 拿不到数据也别让小屋/车库瘫掉
+  document.getElementById('farmName').textContent = IS_ME ? '我的牧场' : (HOST+' 的牧场');
+  document.getElementById('mineLink').hidden = IS_ME;
   setScene();                                   // 顺便按当前时间更新风景
   const field=document.getElementById('field');
-  field.querySelectorAll('.pw,.empty').forEach(n=>n.remove());   // 只清小人，保留背景层
+  field.querySelectorAll('.pw,.empty').forEach(n=>n.remove());   // 只清小人，保留背景层/小屋/车库
+  renderHome((d&&d.home)||{house_level:0,house_name:'帐篷',cars:[]});  // 主人的小屋 + 车库（无论如何都渲染，保证可点）
   if(!PETS.length){
     const em=document.createElement('div'); em.className='empty';
-    em.innerHTML='牧场空荡荡的～<br>去养成页把你的JZH「送去牧场托管」吧';
+    em.innerHTML = IS_ME ? '这里还没有JZH～<br>回养成页把你的JZH「送去牧场托管」吧'
+                         : ('「'+HOST+'」的牧场还没有JZH～');
     field.appendChild(em); return;
   }
   const W=Math.max(40, field.clientWidth-72);
@@ -212,6 +316,98 @@ async function loadPlaza(){
     wander(p);
   });
 }
+
+// —— 主人的小屋 + 车库 ——
+// 六级小屋各有对应的像素小图：0帐篷 1木制棚屋 2红砖小屋 3精美小屋 4一户建 5豪宅
+const HOUSE_EMOJI=["🏕️","🛖","🧱","🏠","🏡","🏰"];
+function hutSVG(level){
+  level=Math.max(0,Math.min(level||0,5));
+  const sh='<ellipse cx="40" cy="70" rx="34" ry="5" fill="#000" opacity=".12"/>';
+  const A=[
+   // 0 帐篷（明暗两面 + 卷帘门 + 拉绳地钉 + 三角旗）
+   `<path d="M40 12 L10 66 H40 Z" fill="#eec681"/><path d="M40 12 L70 66 H40 Z" fill="#d6ab68"/>`+
+   `<path d="M40 12 L40 66" stroke="#c1934f" stroke-width="1.4"/><path d="M40 12 L10 66 M40 12 L70 66" fill="none" stroke="#bb8f4d" stroke-width="1.4"/>`+
+   `<path d="M31 66 L40 36 L49 66 Z" fill="#4f3b26"/><path d="M40 36 L31 66 L35 66 L40 42 Z" fill="#6a5236"/>`+
+   `<line x1="11" y1="63" x2="4" y2="68" stroke="#b39560" stroke-width="1.2"/><line x1="69" y1="63" x2="76" y2="68" stroke="#b39560" stroke-width="1.2"/>`+
+   `<rect x="7" y="64" width="66" height="4" rx="2" fill="#caa46e"/>`+
+   `<line x1="40" y1="12" x2="40" y2="4" stroke="#8a5a34" stroke-width="1.4"/><path d="M40 4 l10 3 -10 3 z" fill="#ff7a59"/>`,
+   // 1 木制棚屋（原木横纹 + 山墙瓦顶 + 烟囱炊烟 + 百叶窗）
+   `<rect x="20" y="36" width="40" height="30" fill="#c99458"/><path d="M60 36 L66 31 V61 L60 66 Z" fill="#9c6b3b"/>`+
+   `<g stroke="#a5713f" stroke-width="1.1"><line x1="20" y1="43" x2="60" y2="43"/><line x1="20" y1="50" x2="60" y2="50"/><line x1="20" y1="57" x2="60" y2="57"/></g>`+
+   `<path d="M14 37 L40 19 L66 37 Z" fill="#8a5f34"/><path d="M40 19 L66 37 L40 37 Z" fill="#6f4a28"/>`+
+   `<g stroke="#5c3d22" stroke-width="1"><line x1="23" y1="32" x2="57" y2="32"/><line x1="29" y1="27" x2="51" y2="27"/></g><path d="M12 37 H68 L64 41 H16 Z" fill="#5c3d22"/>`+
+   `<rect x="48" y="23" width="7" height="14" fill="#8a5140"/><g fill="#eaeaea" opacity=".85"><circle cx="52" cy="18" r="2.4"/><circle cx="55" cy="13" r="3"/></g>`+
+   `<rect x="35" y="49" width="12" height="17" fill="#6b4a2a"/><line x1="41" y1="49" x2="41" y2="66" stroke="#513418"/><circle cx="44.5" cy="58" r="1.2" fill="#ffd45e"/>`+
+   `<rect x="24" y="44" width="11" height="10" fill="#bfe0ea"/><rect x="23.5" y="43.5" width="12" height="11" fill="none" stroke="#f4f7fb" stroke-width="1.2"/><line x1="29.5" y1="44" x2="29.5" y2="54" stroke="#8fb1bd"/><line x1="24" y1="49" x2="35" y2="49" stroke="#8fb1bd"/><rect x="21" y="43" width="3" height="12" fill="#7d5530"/><rect x="35" y="43" width="3" height="12" fill="#7d5530"/>`,
+   // 2 红砖小屋（错缝砖纹 + 石板瓦顶 + 砖烟囱 + 拱门 + 白框窗）
+   `<rect x="18" y="37" width="42" height="29" fill="#c1674c"/><path d="M60 37 L66 32 V61 L60 66 Z" fill="#9c4f3a"/>`+
+   `<g stroke="#a04f38" stroke-width="1"><line x1="18" y1="44" x2="60" y2="44"/><line x1="18" y1="51" x2="60" y2="51"/><line x1="18" y1="58" x2="60" y2="58"/><line x1="30" y1="37" x2="30" y2="44"/><line x1="44" y1="44" x2="44" y2="51"/><line x1="30" y1="51" x2="30" y2="58"/><line x1="50" y1="37" x2="50" y2="44"/></g>`+
+   `<path d="M12 38 L40 18 L68 38 Z" fill="#66727f"/><path d="M40 18 L68 38 L40 38 Z" fill="#505b67"/><g stroke="#414b56" stroke-width="1"><line x1="23" y1="33" x2="57" y2="33"/><line x1="30" y1="28" x2="50" y2="28"/></g><path d="M10 38 H70 L66 42 H14 Z" fill="#414b56"/>`+
+   `<rect x="49" y="22" width="8" height="16" fill="#a85440"/><rect x="48" y="21" width="10" height="3" fill="#8a4232"/><g fill="#eaeaea" opacity=".8"><circle cx="53" cy="17" r="2.4"/><circle cx="56" cy="12" r="2.8"/></g>`+
+   `<path d="M34 50 h13 v16 h-13z" fill="#6b4a2a"/><path d="M34 50 a6.5 6.5 0 0 1 13 0" fill="#563a20"/><circle cx="44.5" cy="59" r="1.2" fill="#ffd45e"/>`+
+   `<rect x="22" y="44" width="10" height="10" fill="#bfe0ea"/><rect x="21" y="43" width="12" height="12" fill="none" stroke="#f4f7fb" stroke-width="1.3"/><line x1="27" y1="43" x2="27" y2="55" stroke="#8fb1bd"/><line x1="21" y1="49" x2="33" y2="49" stroke="#8fb1bd"/>`,
+   // 3 精美小屋（蓝瓦 + 老虎窗 + 门廊 + 花箱鲜花）
+   `<rect x="18" y="38" width="44" height="28" fill="#fbf1df"/><path d="M62 38 L67 34 V62 L62 66 Z" fill="#ece0cb"/>`+
+   `<path d="M12 39 L40 19 L68 39 Z" fill="#6d97c9"/><path d="M40 19 L68 39 L40 39 Z" fill="#557aa8"/><path d="M12 39 H68 L64 43 H16 Z" fill="#456388"/>`+
+   `<path d="M30 31 L37 25 L44 31 Z" fill="#7ea6d0"/><rect x="34" y="31" width="6" height="5" fill="#bfe0ea"/>`+
+   `<path d="M32 49 l8 -7 8 7 z" fill="#c98a4a"/><path d="M33 49 h14 v17 h-14z" fill="#a86a3a"/><circle cx="44.5" cy="58" r="1.3" fill="#ffd45e"/>`+
+   `<rect x="21" y="44" width="11" height="10" fill="#bfe0ea"/><rect x="20.5" y="43.5" width="12" height="11" fill="none" stroke="#88a5b0" stroke-width="1.1"/><rect x="19" y="53" width="14" height="4" rx="1" fill="#a86a3a"/><g><circle cx="22" cy="52" r="1.7" fill="#ff9ec8"/><circle cx="26" cy="52" r="1.7" fill="#ffe27a"/><circle cx="30" cy="52" r="1.7" fill="#ff9ec8"/></g>`+
+   `<rect x="48" y="44" width="11" height="10" fill="#bfe0ea"/><rect x="47.5" y="43.5" width="12" height="11" fill="none" stroke="#88a5b0" stroke-width="1.1"/><rect x="47" y="53" width="14" height="4" rx="1" fill="#a86a3a"/><g><circle cx="50" cy="52" r="1.7" fill="#ffe27a"/><circle cx="54" cy="52" r="1.7" fill="#ff9ec8"/><circle cx="58" cy="52" r="1.7" fill="#ffe27a"/></g>`,
+   // 4 一户建（两层 + 瓦楞四坡顶 + 二楼露台 + 大玻璃 + 小树）
+   `<rect x="18" y="30" width="44" height="36" fill="#fbfdff"/><path d="M62 30 L67 26 V62 L62 66 Z" fill="#e5ebf2"/><rect x="18" y="47" width="44" height="3" fill="#caa46e"/>`+
+   `<path d="M11 31 L40 14 L69 31 Z" fill="#46566a"/><path d="M40 14 L69 31 L40 31 Z" fill="#38465a"/><g stroke="#2e3a4a" stroke-width="1"><line x1="21" y1="27" x2="59" y2="27"/><line x1="27" y1="22" x2="53" y2="22"/></g><path d="M9 31 H71 L67 35 H13 Z" fill="#2e3a4a"/>`+
+   `<rect x="45" y="35" width="12" height="11" fill="#9fd0ec"/><rect x="44" y="34" width="14" height="13" fill="none" stroke="#cfd8e0" stroke-width="1.2"/>`+
+   `<rect x="22" y="43" width="16" height="3" fill="#cfd8e0"/><g stroke="#aeb9c6" stroke-width="1"><line x1="25" y1="40" x2="25" y2="43"/><line x1="30" y1="40" x2="30" y2="43"/><line x1="35" y1="40" x2="35" y2="43"/></g><rect x="24" y="35" width="12" height="6" fill="#9fd0ec"/>`+
+   `<rect x="21" y="52" width="16" height="14" fill="#9fd0ec"/><rect x="20" y="51" width="18" height="15" fill="none" stroke="#cfd8e0" stroke-width="1.2"/><line x1="29" y1="51" x2="29" y2="66" stroke="#cfd8e0"/>`+
+   `<rect x="43" y="51" width="12" height="15" fill="#6b4a2a"/><circle cx="52.5" cy="59" r="1.2" fill="#ffd45e"/>`+
+   `<g><rect x="64" y="55" width="3" height="11" fill="#8a5a34"/><circle cx="65.5" cy="51" r="6" fill="#7cc47f"/><circle cx="61.5" cy="54" r="4" fill="#8ed08f"/><circle cx="69" cy="54" r="4" fill="#6fbf74"/></g>`,
+   // 5 豪宅（中央山花圆窗 + 三段坡顶 + 金边 + 罗马柱 + 拱窗大门台阶 + 门口绿植）
+   `<rect x="8" y="37" width="64" height="29" fill="#f4e7c6"/><path d="M64 37 L69 33 V62 L64 66Z" fill="#e6d8b6"/><rect x="26" y="26" width="28" height="12" fill="#f8eed4"/>`+
+   `<path d="M22 37 L40 22 L58 37 Z" fill="#7a6a8f"/><path d="M40 22 L58 37 L40 37 Z" fill="#665880"/><circle cx="40" cy="31" r="3.2" fill="#bfe0ea"/><circle cx="40" cy="31" r="3.2" fill="none" stroke="#c9a24a" stroke-width="1"/>`+
+   `<path d="M6 41 L15 33 L24 41 Z" fill="#7a6a8f"/><path d="M56 41 L65 33 L74 41 Z" fill="#7a6a8f"/><rect x="8" y="37" width="64" height="2.2" fill="#ffd45e"/>`+
+   `<g fill="#fffbe8"><rect x="15" y="45" width="4" height="21"/><rect x="25" y="45" width="4" height="21"/><rect x="51" y="45" width="4" height="21"/><rect x="61" y="45" width="4" height="21"/></g><g fill="#e6dcbf"><rect x="14" y="44" width="6" height="2"/><rect x="24" y="44" width="6" height="2"/><rect x="50" y="44" width="6" height="2"/><rect x="60" y="44" width="6" height="2"/></g>`+
+   `<path d="M35 49 h10 v17 h-10z" fill="#8a6a2a"/><path d="M35 49 a5 5 0 0 1 10 0" fill="#6f5322"/><line x1="40" y1="49" x2="40" y2="66" stroke="#5a4420"/><rect x="32" y="64" width="16" height="2" fill="#d8c79a"/><rect x="30" y="66" width="20" height="2" fill="#c9b487"/>`+
+   `<path d="M20 47 h6 v8 h-6z" fill="#bfe0ea"/><path d="M20 47 a3 3 0 0 1 6 0" fill="#a9d0e6"/><path d="M54 47 h6 v8 h-6z" fill="#bfe0ea"/><path d="M54 47 a3 3 0 0 1 6 0" fill="#a9d0e6"/>`+
+   `<circle cx="30" cy="63" r="3" fill="#7cc47f"/><circle cx="50" cy="63" r="3" fill="#7cc47f"/>`,
+  ];
+  return `<svg viewBox="0 0 80 76" xmlns="http://www.w3.org/2000/svg">${sh}${A[level]}</svg>`;
+}
+function garageSVG(nCars){
+  const car = nCars>0 ? `<rect x="24" y="42" width="26" height="9" rx="3" fill="#e04b45"/><circle cx="30" cy="52" r="3" fill="#33404a"/><circle cx="44" cy="52" r="3" fill="#33404a"/>` : '';
+  return `<svg viewBox="0 0 76 66" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="38" cy="60" rx="32" ry="5" fill="#000" opacity=".12"/>
+    <rect x="12" y="26" width="52" height="34" fill="#eaeef3"/>
+    <path d="M8 26 L38 10 L68 26 Z" fill="#7b8aa0"/>
+    <rect x="18" y="34" width="40" height="26" rx="2" fill="#cdd6e0"/>
+    <g stroke="#aeb9c6" stroke-width="1.5"><line x1="18" y1="42" x2="58" y2="42"/><line x1="18" y1="50" x2="58" y2="50"/></g>
+    ${car}
+  </svg>`;
+}
+function renderHome(home){
+  const lvl=home.house_level||0;
+  const hut=document.getElementById('hut');
+  hut.innerHTML=hutSVG(lvl)+'<div class="lab">'+HOUSE_EMOJI[Math.min(lvl,5)]+' '+(home.house_name||'小屋')+'</div>';
+  hut.onclick=()=>location.href='/hut/'+encodeURIComponent(HOST);
+  const nc=(home.cars||[]).length;
+  const garage=document.getElementById('garage');
+  garage.innerHTML=garageSVG(nc)+'<div class="lab">🚗 车库'+(nc?('·'+nc):'')+'</div>';
+  garage.onclick=()=>openGarage(home.cars||[]);
+}
+// —— 车库弹层 ——
+function openGarage(cars){
+  document.getElementById('garageTitle').textContent=(IS_ME?'🚗 我的车库':('🚗 '+HOST+'的车库'));
+  const box=document.getElementById('garageCars');
+  if(!cars.length){
+    document.getElementById('garageSub').textContent='';
+    box.innerHTML='<div class="empty">车库空空～去<b>江之岛 · TOYOBA</b>提一辆吧</div>';
+  }else{
+    document.getElementById('garageSub').textContent='共 '+cars.length+' 辆';
+    box.innerHTML=cars.map(c=>'<div class="car"><div class="ic">'+(c.emoji||'🚗')+'</div>'+(c.name||c)+'</div>').join('');
+  }
+  document.getElementById('garageModal').hidden=false;
+}
+document.getElementById('garageOk').addEventListener('click',()=>document.getElementById('garageModal').hidden=true);
+document.getElementById('garageModal').addEventListener('click',e=>{ if(e.target.id==='garageModal') document.getElementById('garageModal').hidden=true; });
 function wander(p){
   function step(){
     if(!p._node||!document.body.contains(p._node)) return;

@@ -58,6 +58,26 @@ OUTFIT_N, HAIR_N, SKIN_N = 8, 5, 7   # 上衣/发色/肤色各有几种（和 pe
 # 衣服款式与解锁价格（用打工赚的金币购买；名字要和 pet_sprite.js 的 CLOTHES 完全一致）
 # 想加新衣服：这里加一行价格，再去 pet_sprite.js 的 CLOTHES 里加对应图层即可。
 CLOTHES_PRICE = {"连帽衫": 50, "条纹衫": 50, "背带裤": 70, "西装领带": 200}
+
+# ====== 家园：小屋(可升级) + 车库(展示车) + 鱼(江之岛钓) + 钓具(上岛屋买) ======
+# 小屋六级，从简陋到豪华。
+HOUSE_LEVELS = ["帐篷", "木制棚屋", "红砖小屋", "精美小屋", "一户建", "豪宅"]
+# 升到「下一级」要花的金币：索引 i = 从第 i 级升到第 i+1 级的价钱（共 5 段，越往后越贵）。
+HOUSE_UPGRADE_COST = [200, 500, 1200, 3000, 8000]
+# 每级小屋能挂的展示位数量 (钓具, 鱼)：帐篷最少，越升级越多。
+HOUSE_SLOTS = [(1, 2), (2, 3), (3, 5), (4, 7), (6, 10), (8, 14)]
+
+def _house_slots(level):
+    lvl = max(0, min(int(level or 0), len(HOUSE_SLOTS) - 1))
+    g, f = HOUSE_SLOTS[lvl]
+    return {"gear": g, "fish": f}
+
+def _house_next_cost(level):
+    """升到下一级要多少金币；已是最高级(豪宅)返回 None。"""
+    lvl = int(level or 0)
+    if lvl >= len(HOUSE_LEVELS) - 1:
+        return None
+    return HOUSE_UPGRADE_COST[min(lvl, len(HOUSE_UPGRADE_COST) - 1)]
  
 def _now():   return time.time()
 def _clamp(v, a, b): return max(a, min(b, v))
@@ -74,6 +94,13 @@ def ensure_pet_tables():
                 status TEXT NOT NULL DEFAULT 'home',
                 data TEXT NOT NULL,
                 updated_at REAL NOT NULL
+            )
+        """)
+        # 家园：每个玩家一份（小屋等级/车库的车/钓到的鱼/买到的钓具），和JZH死亡重生解耦，永久保留
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS homestead (
+                owner TEXT PRIMARY KEY,
+                data TEXT NOT NULL
             )
         """)
         conn.commit()
@@ -149,6 +176,8 @@ def _migrate(s):
         s["rel"] = {}
     if "sick_since" not in s:
         s["sick_since"] = 0
+    if "plaza_host" not in s:            # 托管到哪个玩家的牧场（""=还没托管；托管时填某个用户名）
+        s["plaza_host"] = ""
     if "bred_at" not in s:
         s["bred_at"] = 0
     if "adult_at" not in s:
@@ -307,6 +336,109 @@ def _save(conn, owner, s):
         "INSERT OR REPLACE INTO pets (owner, version, status, data, updated_at) VALUES (?,?,?,?,?)",
         (owner, s["version"], s.get("status", "home"), json.dumps(s, ensure_ascii=False), _now()))
     conn.commit()
+
+
+# ---------- 家园（小屋/车库/鱼/钓具）：每个玩家一份，永久保留 ----------
+def _user_exists(conn, owner):
+    return conn.execute("SELECT 1 FROM pets WHERE owner=?", (owner,)).fetchone() is not None
+
+
+def homestead_get(conn, owner):
+    """取某玩家的家园记录；没有就返回一份全新的（小屋=帐篷、其余为空）。"""
+    row = conn.execute("SELECT data FROM homestead WHERE owner=?", (owner,)).fetchone()
+    try:
+        d = json.loads(row[0]) if row else {}
+    except Exception:
+        d = {}
+    d.setdefault("house_level", 0)     # 0=帐篷 … 5=豪宅
+    d.setdefault("cars", [])           # 在江之岛 TOYOBA 买到的车（后续接）
+    d.setdefault("fish", [])           # 在江之岛中岛钓到的鱼（后续接）
+    d.setdefault("gear", [])           # 在上岛屋买到的钓具（后续接）
+    return d
+
+
+def homestead_save(conn, owner, d):
+    conn.execute("INSERT OR REPLACE INTO homestead (owner, data) VALUES (?,?)",
+                 (owner, json.dumps(d, ensure_ascii=False)))
+    conn.commit()
+
+
+def _house_name(level):
+    return HOUSE_LEVELS[max(0, min(int(level or 0), len(HOUSE_LEVELS) - 1))]
+
+
+def _coins_read(conn, owner):
+    """读某人当前金币（存在 pets 表的 data.coins 里，赌场/养成/家园共用这一份）。"""
+    row = conn.execute("SELECT data FROM pets WHERE owner=?", (owner,)).fetchone()
+    if not row:
+        return 0
+    try:
+        return int(json.loads(row[0]).get("coins", 0))
+    except Exception:
+        return 0
+
+
+def home_data(viewer, host=None):
+    """小屋内景页用：某玩家家园的展示数据（小屋等级、鱼、钓具、车、展示位、升级花费）。"""
+    host = (host or viewer)
+    conn = _connect()
+    try:
+        d = homestead_get(conn, host)
+        exists = _user_exists(conn, host)
+        my_coins = _coins_read(conn, viewer)     # 看客(viewer)自己的金币——升级由他买单
+    finally:
+        conn.close()
+    lvl = max(0, min(int(d.get("house_level", 0)), len(HOUSE_LEVELS) - 1))
+    next_cost = _house_next_cost(lvl)
+    next_name = HOUSE_LEVELS[lvl + 1] if next_cost is not None else None
+    return {"me": viewer, "host": host, "is_me": (host == viewer), "exists": exists,
+            "house_level": lvl, "house_name": HOUSE_LEVELS[lvl],
+            "max_level": len(HOUSE_LEVELS) - 1,
+            "slots": _house_slots(lvl),          # {gear:N, fish:M} 展示位数量
+            "next_name": next_name,              # 下一级名字（满级为 None）
+            "next_cost": next_cost,              # 升级花费（满级为 None）
+            "coins": my_coins,                   # 看客自己的金币（按钮判断够不够）
+            "fish": d.get("fish", []), "gear": d.get("gear", []), "cars": d.get("cars", [])}
+
+
+def homestead_upgrade(owner):
+    """花金币把自己的小屋升一级。只能升自己的；扣的是 owner 自己的金币。
+    返回 {ok, msg, house_level, house_name, next_name, next_cost, slots, coins}。"""
+    conn = _connect()
+    try:
+        d = homestead_get(conn, owner)
+        lvl = max(0, min(int(d.get("house_level", 0)), len(HOUSE_LEVELS) - 1))
+        cost = _house_next_cost(lvl)
+        coins = _coins_read(conn, owner)
+        if cost is None:
+            return {"ok": False, "msg": "已经是最高级「豪宅」啦，没得升咯～", "house_level": lvl,
+                    "house_name": HOUSE_LEVELS[lvl], "next_name": None, "next_cost": None,
+                    "slots": _house_slots(lvl), "coins": coins}
+        if coins < cost:
+            return {"ok": False, "msg": f"金币不够（升「{HOUSE_LEVELS[lvl+1]}」要 {cost}，你有 {coins}）",
+                    "house_level": lvl, "house_name": HOUSE_LEVELS[lvl],
+                    "next_name": HOUSE_LEVELS[lvl + 1], "next_cost": cost,
+                    "slots": _house_slots(lvl), "coins": coins}
+        # 扣币（改写 pets.data.coins）——和赌场/买衣服用同一份金币
+        row = conn.execute("SELECT data, version, status FROM pets WHERE owner=?", (owner,)).fetchone()
+        s = json.loads(row[0]) if row else _migrate(_fresh())
+        s["coins"] = max(0, int(s.get("coins", 0)) - cost)
+        conn.execute(
+            "INSERT OR REPLACE INTO pets (owner, version, status, data, updated_at) VALUES (?,?,?,?,?)",
+            (owner, s.get("version", "v1"), s.get("status", "home"),
+             json.dumps(s, ensure_ascii=False), _now()))
+        # 升级并存回家园
+        newlvl = lvl + 1
+        d["house_level"] = newlvl
+        homestead_save(conn, owner, d)
+        conn.commit()
+        return {"ok": True, "msg": f"🏠 升级成功！花了 {cost} 金币，小屋升为「{HOUSE_LEVELS[newlvl]}」",
+                "house_level": newlvl, "house_name": HOUSE_LEVELS[newlvl],
+                "next_name": HOUSE_LEVELS[newlvl + 1] if _house_next_cost(newlvl) is not None else None,
+                "next_cost": _house_next_cost(newlvl),
+                "slots": _house_slots(newlvl), "coins": s["coins"]}
+    finally:
+        conn.close()
  
  
 def _decay(s):
@@ -342,6 +474,7 @@ def _public(s):
     v["has_locked"]  = len(_locked(s)) > 0
     v["coins"]       = s.get("coins", 0)
     v["status"]      = s.get("status", "home")
+    v["plaza_host"]  = s.get("plaza_host", "")     # 托管在哪个玩家的牧场
     v["shop_cost"]   = SHOP_COST
     v["out_in"]      = max(0, int(s.get("out_until", 0) - t)) if s.get("status", "home") != "home" else 0
     v["can_collect"] = (s.get("status", "home") != "home" and t >= s.get("out_until", 0))
@@ -449,12 +582,21 @@ def plaza_tick(conn):
     _setset(conn, "plaza_last_tick", t); conn.commit()
  
     rows = conn.execute("SELECT owner, data FROM pets WHERE status='plaza'").fetchall()
-    pets = []
+    # 按"所在牧场主人"分组：只有在同一个牧场里的JZH才会互动、结伴、生育
+    groups = {}
     for owner, data in rows:
         try:
-            pets.append([owner, _migrate(json.loads(data))])
+            s = _migrate(json.loads(data))
         except Exception:
-            pass
+            continue
+        host = s.get("plaza_host") or owner
+        groups.setdefault(host, []).append([owner, s])
+    for _host, pets in groups.items():
+        _plaza_group_tick(conn, pets, t)
+
+
+def _plaza_group_tick(conn, pets, t):
+    """对同一个牧场里的一组JZH跑一轮互动+结伴+生育（逻辑照旧，只是范围收到单个牧场）。"""
     if len(pets) >= 2:
         n = len(pets)
         pair_w = [e[0] for e in PLAZA_PAIR_EVENTS]
@@ -492,13 +634,16 @@ def plaza_tick(conn):
     _process_offspring(conn, pets, t)
  
  
-def plaza_data(me, limit=40):
-    """返回牧场里所有托管的JZH（给前端画），外加说话库。"""
+def plaza_data(viewer, host=None, limit=60):
+    """返回「某个玩家的牧场」里的JZH（给前端画）+ 主人的小屋/车库 + 说话库。
+    host 缺省=看自己的牧场；传别人用户名=去别人的牧场看。"""
+    host = (host or viewer)
     conn = _connect()
     try:
-        plaza_tick(conn)                     # 顺便推进牧场互动
-        rows = conn.execute(
-            "SELECT owner, data FROM pets WHERE status='plaza' LIMIT ?", (limit,)).fetchall()
+        plaza_tick(conn)                     # 顺便推进各牧场互动
+        rows = conn.execute("SELECT owner, data FROM pets WHERE status='plaza'").fetchall()
+        home = homestead_get(conn, host)     # 这个牧场主人的家园（小屋等级/车库的车）
+        exists = _user_exists(conn, host)
     finally:
         conn.close()
     pets = []
@@ -506,6 +651,8 @@ def plaza_data(me, limit=40):
         try:
             s = json.loads(data)
         except Exception:
+            continue
+        if (s.get("plaza_host") or owner) != host:   # 只留"在这个牧场"的JZH
             continue
         pets.append({
             "owner": owner,
@@ -517,7 +664,13 @@ def plaza_data(me, limit=40):
             "hair": s.get("hair", 0),
             "skin": s.get("skin", 0),
         })
-    return {"pets": pets, "sayings": SAYINGS, "me": me}
+        if len(pets) >= limit:
+            break
+    return {"pets": pets, "sayings": SAYINGS, "me": viewer, "host": host,
+            "is_me": (host == viewer), "exists": exists,
+            "home": {"house_level": home["house_level"],
+                     "house_name": _house_name(home["house_level"]),
+                     "cars": home.get("cars", [])}}
  
  
 def act(owner, action):
@@ -653,17 +806,30 @@ def act(owner, action):
                         s["coins"] = s.get("coins", 0) + SHOP_COST
                         msg = "🛍️ 逛了一圈，装饰都集齐了，金币退你～"
  
-        elif action == "consign":   # 送去牧场托管
+        elif action in ("consign", "consign_self"):   # 送去自己的牧场托管
             if s["stage"] == "cocoon":
                 msg = "还在睡，先叫醒它"
             elif s.get("status", "home") not in ("home",):
                 msg = "它现在没在家，没法托管"
             else:
-                s["status"] = "plaza"
-                msg = "🌿 送到牧场托管啦，去牧场能看到它"
+                s["status"] = "plaza"; s["plaza_host"] = owner
+                msg = "🌿 送到你自己的牧场啦"
+        elif action.startswith("consign_to:"):        # 送去别人的牧场托管
+            target = action.split(":", 1)[1].strip()[:32]
+            if s["stage"] == "cocoon":
+                msg = "还在睡，先叫醒它"
+            elif s.get("status", "home") not in ("home",):
+                msg = "它现在没在家，没法托管"
+            elif not target:
+                msg = "请输入要送去的玩家用户名"
+            elif not _user_exists(conn, target):
+                msg = f"找不到玩家「{target}」的牧场"
+            else:
+                s["status"] = "plaza"; s["plaza_host"] = target
+                msg = f"🌿 送到「{target}」的牧场啦"
         elif action == "retrieve":  # 从牧场领回
             if s.get("status") == "plaza":
-                s["status"] = "home"
+                s["status"] = "home"; s["plaza_host"] = ""
                 msg = "🏠 把JZH领回来啦"
             else:
                 msg = "它不在牧场"

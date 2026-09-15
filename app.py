@@ -918,14 +918,45 @@ def pet_act():
     return pet.act(session["username"], data.get("action", ""))
 
 @app.route("/plaza")
+@app.route("/plaza/<host>")
 @login_required
-def plaza_page():
-    return render_template("plaza.html")
+def plaza_page(host=""):
+    return render_template("plaza.html", host=host)
 
 @app.route("/plaza/pets")
 @login_required
 def plaza_pets():
-    return pet.plaza_data(session["username"])
+    return pet.plaza_data(session["username"], request.args.get("host") or None)
+
+# —— 小屋内景：牧场里点小屋进来（展示钓到的鱼 + 买到的钓具；升级/获取玩法后续接）——
+@app.route("/hut")
+@app.route("/hut/<host>")
+@login_required
+def hut_page(host=""):
+    return render_template("hut.html", host=host)
+
+@app.route("/hut/data")
+@login_required
+def hut_data():
+    return pet.home_data(session["username"], request.args.get("host") or None)
+
+@app.route("/hut/upgrade", methods=["POST"])
+@login_required
+def hut_upgrade():
+    # 花金币升级自己的小屋（只能升自己的）
+    return pet.homestead_upgrade(session["username"])
+
+# —— 江之岛：牧场里点车站进来的像素地图（建筑点击暂时是“敬请期待”占位，后续再接功能）——
+@app.route("/enoshima")
+@login_required
+def enoshima_page():
+    return render_template("enoshima.html")
+
+# 前往江之岛：坐车一次扣 5 金币（钱不够返回 ok:False，前端不跳转）
+@app.route("/enoshima/enter", methods=["POST"])
+@login_required
+def enoshima_enter():
+    return casino.pay(session["username"], 5)
 
 @app.route("/pet/records")
 @login_required
