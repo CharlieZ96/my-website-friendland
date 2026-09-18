@@ -494,6 +494,9 @@ function toast(msg){
 }
 
 function render(d){
+  // 是否自己的小屋：以 URL 的 host 为准——/hut（没带 host）才是自己；/hut/别人 一律访客。
+  // 这样即使后端或兜底把 is_me 误判成 true，访客也绝不会看到升级按钮。
+  d.is_me = (!HOST) || (!!d.me && HOST === d.me);
   D = d;
   const lvl = d.house_level||0;
   const slots = d.slots || {gear:1, fish:2};
