@@ -203,10 +203,37 @@
       + '<div class="say">'+esc(l.msg)+'</div>'
       + done + give + '</div>';
   }
+  // 把当前各留言卡里"已填但还没提交"的金额/回复暂存下来，重建后再放回去，
+  // 这样定时刷新不会把老板正在填的内容冲掉。
+  function snapshotCardInputs(){
+    const snap={};
+    document.querySelectorAll('#list .give2[data-id]').forEach(box=>{
+      const id=box.getAttribute('data-id');
+      const a=box.querySelector('.amt'), r=box.querySelector('.rep');
+      if((a&&a.value)||(r&&r.value)) snap[id]={amt:a?a.value:'', rep:r?r.value:''};
+    });
+    return snap;
+  }
+  function restoreCardInputs(snap){
+    if(!snap) return;
+    Object.keys(snap).forEach(id=>{
+      const box=document.querySelector('#list .give2[data-id="'+id+'"]');
+      if(!box) return;
+      const a=box.querySelector('.amt'), r=box.querySelector('.rep');
+      if(a) a.value=snap[id].amt; if(r) r.value=snap[id].rep;
+    });
+  }
   function render(logs, replace){
     const list=document.getElementById('list');
-    if(replace) list.innerHTML='';
+    let snap=null;
+    if(replace){ snap=snapshotCardInputs(); list.innerHTML=''; }
     logs.forEach(l=>{ list.insertAdjacentHTML('beforeend', cardHTML(l)); });
+    if(replace) restoreCardInputs(snap);
+  }
+  // 光标是否正停在留言列表的某个输入框里（正在打字时别刷新，免得打断）
+  function typingInList(){
+    const el=document.activeElement;
+    return !!(el && el.closest && el.closest('#list'));
   }
 
   async function fetchPage(off, replace){
@@ -242,6 +269,7 @@
         body:JSON.stringify({target:target,amount:amount})});
       const d=await r.json();
       toast(d.msg||(d.ok?'已发放':'发放失败'), !d.ok);
+      if(d.ok){ document.getElementById('gUser').value=''; document.getElementById('gAmt').value=''; }
       // 刷新额度与列表
       await fetchPage(0,true);
     }catch(e){ toast('网络出错，待会儿再试',true); }
@@ -263,14 +291,15 @@
         body:JSON.stringify({log_id:logId, amount:amt, reply:rep})});
       const d=await r.json();
       toast(d.msg||(d.ok?'已处理':'处理失败'), !d.ok);
+      if(d.ok){ const a=box.querySelector('.amt'), rp=box.querySelector('.rep'); if(a)a.value=''; if(rp)rp.value=''; }
       await fetchPage(0,true);
     }catch(e){ toast('网络出错，待会儿再试',true); btn.disabled=false; }
     finally{ busy=false; }
   }
 
-  // 首屏 + 定时刷新（只在浏览最新一页、且没在发币时刷新，避免打断操作）
+  // 首屏 + 定时刷新（只在浏览最新一页、没在发币、且没在输入框打字时刷新，避免打断/冲掉输入）
   fetchPage(0,true);
-  setInterval(()=>{ if(offset<=PAGE && !busy) fetchPage(0,true); }, 10000);
+  setInterval(()=>{ if(offset<=PAGE && !busy && !typingInList()) fetchPage(0,true); }, 10000);
 </script>
 </body>
 </html>
