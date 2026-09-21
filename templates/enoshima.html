@@ -247,7 +247,11 @@
     soon.hidden=false;
   }
   document.querySelectorAll('.spot').forEach(g=>{
-    g.addEventListener('click',()=>openSoon(g.dataset.spot, g.dataset.emo));
+    g.addEventListener('click',()=>{
+      const spot=g.dataset.spot;
+      if(spot==='TOYOBA'){ location.href='/toyoba'; return; }   // 车行：买车 + 上JZH高速
+      openSoon(spot, g.dataset.emo);
+    });
   });
   document.getElementById('soonOk').addEventListener('click',()=>soon.hidden=true);
   soon.addEventListener('click',e=>{ if(e.target.id==='soon') soon.hidden=true; });

@@ -15,6 +15,7 @@ from bot_actions import (ensure_bot, on_new_post, on_new_comment,
                          chat as bot_chat, maybe_bot_join, bot_fill_deck_if_needed)
 import pet
 import casino
+import highway
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -314,6 +315,7 @@ init_db()
 ensure_bot()                                     # 程序一启动就执行一次
 pet.ensure_pet_tables()      # ← 加这行
 casino.ensure_casino_tables()
+highway.ensure_highway_tables()   # JZH高速：里程排行榜表
 
 # 守卫：贴在哪个页面上，哪个页面就必须登录才能进
 def login_required(f):
@@ -957,6 +959,46 @@ def enoshima_page():
 @login_required
 def enoshima_enter():
     return casino.pay(session["username"], 5)
+
+# —— TOYOBA 车行（江之岛点 TOYOBA 进来）：分档买车，车进车库 ——
+@app.route("/toyoba")
+@login_required
+def toyoba_page():
+    return render_template("toyoba.html")
+
+@app.route("/toyoba/data")
+@login_required
+def toyoba_data():
+    return highway.toyoba_data(session["username"])
+
+@app.route("/toyoba/buy", methods=["POST"])
+@login_required
+def toyoba_buy():
+    d = request.get_json(silent=True) or {}
+    return highway.buy_car(session["username"], d.get("car_id", ""))
+
+# —— JZH高速（公路之王）：选自己拥有的车开，里程进排行榜 ——
+@app.route("/highway")
+@login_required
+def highway_page():
+    return render_template("highway.html", me=session["username"])
+
+@app.route("/highway/data")
+@login_required
+def highway_data():
+    return highway.road_data(session["username"])
+
+@app.route("/highway/leaderboard")
+@login_required
+def highway_leaderboard():
+    return highway.road_leaderboard(limit=20, owner=session["username"])
+
+@app.route("/highway/submit", methods=["POST"])
+@login_required
+def highway_submit():
+    d = request.get_json(silent=True) or {}
+    return highway.road_submit(session["username"], d.get("car_id", ""),
+                               d.get("dist_km", 0), d.get("elapsed_s", 0))
 
 @app.route("/pet/records")
 @login_required

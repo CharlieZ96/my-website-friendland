@@ -1,0 +1,261 @@
+# highway.py —— JZH高速（公路之王）后端：TOYOBA 车行买车 + 车库(存在 homestead.cars) + 里程排行榜
+# 复用 pet 的 users.db / _connect / homestead / 金币（pets.data.coins）。
+# 设计：买车扣金币、车塞进 homestead.cars（前端车库直接展示）；开车里程上报到 road_scores，
+#       同时记「单次最高」best 和「累计总里程」total。里程由前端上报，服务器按时间+极速做上限夹取防作弊。
+
+import json
+import time
+import pet
+
+def _now():
+    return time.time()
+
+def _connect():
+    return pet._connect()
+
+# ====== 车辆目录（分档；价格/极速/加速/操控 都在这里，随时可调）======
+# top  = 极速(km/h)；accel = 加速快慢(0~1，越大越快到极速)；grip = 操控/转向跟手(1~10)
+VEHICLES = [
+    {"id": "v1", "tier": 1, "name": "破面包",   "emoji": "🚐", "color": "#9aa4b2",
+     "price": 200,   "top": 110, "accel": 0.35, "grip": 4, "desc": "TOYOBA 二手代步，能跑就行。"},
+    {"id": "v2", "tier": 2, "name": "家用轿车", "emoji": "🚗", "color": "#4a90e2",
+     "price": 700,   "top": 150, "accel": 0.50, "grip": 6, "desc": "买菜接娃两不误，稳当。"},
+    {"id": "v3", "tier": 3, "name": "性能钢炮", "emoji": "🚙", "color": "#2ecc71",
+     "price": 1800,  "top": 190, "accel": 0.65, "grip": 7, "desc": "小钢炮，弯道有点意思。"},
+    {"id": "v4", "tier": 4, "name": "跑车",     "emoji": "🏎️", "color": "#e74c3c",
+     "price": 4500,  "top": 240, "accel": 0.80, "grip": 8, "desc": "推背感拉满，压得住。"},
+    {"id": "v5", "tier": 5, "name": "超跑",     "emoji": "🚘", "color": "#f5c542",
+     "price": 12000, "top": 320, "accel": 1.00, "grip": 10, "desc": "JZH高速的速度之王。"},
+]
+VMAP = {v["id"]: v for v in VEHICLES}
+
+# 里程上报的防作弊夹取
+ROAD_MIN_GAP     = 2          # 两次上报最少间隔秒
+ROAD_MAX_ELAPSED = 6 * 3600  # 单次最多按 6 小时算
+ROAD_FUDGE       = 1.15       # 里程允许比“极速×时间”多一点点（起步/波动余量）
+ROAD_ABS_CAP     = 100000.0   # 单次里程绝对上限(km)，兜底
+
+
+def ensure_highway_tables():
+    conn = _connect()
+    try:
+        conn.execute("""CREATE TABLE IF NOT EXISTS road_scores (
+            owner TEXT PRIMARY KEY,
+            best REAL NOT NULL DEFAULT 0,
+            total REAL NOT NULL DEFAULT 0,
+            runs INTEGER NOT NULL DEFAULT 0,
+            best_car TEXT,
+            updated_at REAL NOT NULL DEFAULT 0)""")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ---------- 金币（复用 pets.data.coins；和赌场/家园同一份）----------
+def _coins_get(conn, owner):
+    row = conn.execute("SELECT data FROM pets WHERE owner=?", (owner,)).fetchone()
+    if not row:
+        return 0
+    try:
+        return int(json.loads(row[0]).get("coins", 0))
+    except Exception:
+        return 0
+
+
+def _coins_spend(conn, owner, amount):
+    """扣金币（夹在 >=0）。返回扣后余额；余额不足返回 None（不扣）。"""
+    row = conn.execute("SELECT data, version, status FROM pets WHERE owner=?", (owner,)).fetchone()
+    if not row:
+        return None
+    try:
+        s = json.loads(row[0])
+    except Exception:
+        return None
+    have = int(s.get("coins", 0))
+    if have < amount:
+        return None
+    s["coins"] = have - int(amount)
+    conn.execute("INSERT OR REPLACE INTO pets (owner, version, status, data, updated_at) VALUES (?,?,?,?,?)",
+                 (owner, s.get("version", "v1"), s.get("status", "home"),
+                  json.dumps(s, ensure_ascii=False), _now()))
+    return s["coins"]
+
+
+# ---------- 车行 / 车库 ----------
+def _owned_ids(d):
+    out = set()
+    for c in d.get("cars", []):
+        if isinstance(c, dict) and c.get("id"):
+            out.add(c["id"])
+    return out
+
+
+def catalog():
+    """给前端展示的车辆目录（不含内部字段变动风险，直接返回副本）。"""
+    return [dict(v) for v in VEHICLES]
+
+
+def toyoba_data(owner):
+    """TOYOBA 车行页数据：金币 + 每辆车(带是否已拥有)。"""
+    conn = _connect()
+    try:
+        d = pet.homestead_get(conn, owner)
+        owned = _owned_ids(d)
+        coins = _coins_get(conn, owner)
+    finally:
+        conn.close()
+    cars = []
+    for v in VEHICLES:
+        item = dict(v)
+        item["owned"] = v["id"] in owned
+        cars.append(item)
+    return {"coins": coins, "cars": cars}
+
+
+def buy_car(owner, car_id):
+    """买车：扣金币、把车存进 homestead.cars（车库直接展示）。已拥有/钱不够/无此车都会拒绝。"""
+    v = VMAP.get((car_id or "").strip())
+    if not v:
+        return {"ok": False, "msg": "没有这辆车"}
+    conn = _connect()
+    try:
+        d = pet.homestead_get(conn, owner)
+        if v["id"] in _owned_ids(d):
+            return {"ok": False, "msg": "你已经有这辆「%s」啦" % v["name"], "coins": _coins_get(conn, owner)}
+        coins = _coins_get(conn, owner)
+        if coins < v["price"]:
+            return {"ok": False, "msg": "金币不够（「%s」要 %d，你有 %d）" % (v["name"], v["price"], coins),
+                    "coins": coins}
+        left = _coins_spend(conn, owner, v["price"])
+        if left is None:
+            return {"ok": False, "msg": "金币不够", "coins": coins}
+        d.setdefault("cars", []).append({
+            "id": v["id"], "name": v["name"], "emoji": v["emoji"],
+            "tier": v["tier"], "color": v["color"]})
+        pet.homestead_save(conn, owner, d)
+        conn.commit()
+        return {"ok": True, "msg": "🚗 提车成功！「%s」已入库" % v["name"],
+                "coins": left, "car_id": v["id"]}
+    finally:
+        conn.close()
+
+
+def owned_cars(owner):
+    """玩家已拥有的车（带完整数值，供游戏选车用）。以目录 VMAP 为准取最新数值。"""
+    conn = _connect()
+    try:
+        d = pet.homestead_get(conn, owner)
+    finally:
+        conn.close()
+    out = []
+    seen = set()
+    for c in d.get("cars", []):
+        cid = c.get("id") if isinstance(c, dict) else None
+        if not cid or cid in seen:
+            continue
+        seen.add(cid)
+        v = VMAP.get(cid)
+        if v:
+            out.append(dict(v))
+    # 按档位排序，方便选车
+    out.sort(key=lambda x: x["tier"])
+    return out
+
+
+# ---------- 里程排行榜 ----------
+def _score_row(conn, owner):
+    r = conn.execute("SELECT best,total,runs,best_car,updated_at FROM road_scores WHERE owner=?",
+                     (owner,)).fetchone()
+    if not r:
+        return {"best": 0.0, "total": 0.0, "runs": 0, "best_car": None, "updated_at": 0.0}
+    return {"best": float(r[0] or 0), "total": float(r[1] or 0), "runs": int(r[2] or 0),
+            "best_car": r[3], "updated_at": float(r[4] or 0)}
+
+
+def road_data(owner):
+    """游戏页初始化：玩家已有车(带数值) + 自己的最高/累计里程。"""
+    conn = _connect()
+    try:
+        me = _score_row(conn, owner)
+    finally:
+        conn.close()
+    return {"cars": owned_cars(owner),
+            "me": {"best": round(me["best"], 2), "total": round(me["total"], 2), "runs": me["runs"]}}
+
+
+def road_submit(owner, car_id, dist_km, elapsed_s):
+    """上报一次跑的里程。服务器按 极速×时间×余量 夹取上限防作弊；更新 best/total/runs。"""
+    car_id = (car_id or "").strip()
+    v = VMAP.get(car_id)
+    conn = _connect()
+    try:
+        # 必须真的拥有这辆车才算数
+        d = pet.homestead_get(conn, owner)
+        if not v or v["id"] not in _owned_ids(d):
+            return {"ok": False, "msg": "你没有这辆车，成绩不算"}
+        try:
+            dist = float(dist_km)
+        except (TypeError, ValueError):
+            dist = 0.0
+        try:
+            elapsed = float(elapsed_s)
+        except (TypeError, ValueError):
+            elapsed = 0.0
+        if dist < 0:
+            dist = 0.0
+        elapsed = max(1.0, min(elapsed, ROAD_MAX_ELAPSED))
+        # 上限：极速(km/h) × 时间(h) × 余量；再套绝对上限
+        cap = v["top"] * (elapsed / 3600.0) * ROAD_FUDGE
+        cap = min(cap, ROAD_ABS_CAP)
+        accepted = min(dist, cap)
+        accepted = round(max(0.0, accepted), 2)
+
+        prev = _score_row(conn, owner)
+        # 防刷：两次上报太近就不再累计（但仍返回当前榜单状态）
+        now = _now()
+        if now - prev["updated_at"] < ROAD_MIN_GAP:
+            return {"ok": False, "msg": "慢点儿，成绩刚记过了",
+                    "best": round(prev["best"], 2), "total": round(prev["total"], 2), "runs": prev["runs"]}
+
+        new_total = prev["total"] + accepted
+        new_best = max(prev["best"], accepted)
+        new_runs = prev["runs"] + 1
+        best_car = v["id"] if accepted >= prev["best"] else prev["best_car"]
+        conn.execute("""INSERT INTO road_scores (owner,best,total,runs,best_car,updated_at)
+            VALUES (?,?,?,?,?,?)
+            ON CONFLICT(owner) DO UPDATE SET best=?,total=?,runs=?,best_car=?,updated_at=?""",
+            (owner, new_best, new_total, new_runs, best_car, now,
+             new_best, new_total, new_runs, best_car, now))
+        conn.commit()
+        return {"ok": True, "accepted": accepted, "capped": accepted < round(dist, 2),
+                "best": round(new_best, 2), "total": round(new_total, 2), "runs": new_runs,
+                "is_best": accepted >= prev["best"] and accepted > 0}
+    finally:
+        conn.close()
+
+
+def _car_label(cid):
+    v = VMAP.get(cid or "")
+    return (v["emoji"] + v["name"]) if v else ""
+
+
+def road_leaderboard(limit=20, owner=None):
+    """双榜：单次最高里程榜 + 累计总里程榜。"""
+    limit = max(1, min(50, int(limit)))
+    conn = _connect()
+    try:
+        best_rows = conn.execute(
+            "SELECT owner,best,best_car FROM road_scores WHERE best>0 ORDER BY best DESC, updated_at ASC LIMIT ?",
+            (limit,)).fetchall()
+        total_rows = conn.execute(
+            "SELECT owner,total,runs FROM road_scores WHERE total>0 ORDER BY total DESC, updated_at ASC LIMIT ?",
+            (limit,)).fetchall()
+        me = _score_row(conn, owner) if owner else None
+    finally:
+        conn.close()
+    best = [{"owner": o, "km": round(float(b or 0), 2), "car": _car_label(c)} for o, b, c in best_rows]
+    total = [{"owner": o, "km": round(float(t or 0), 2), "runs": int(r or 0)} for o, t, r in total_rows]
+    out = {"best": best, "total": total}
+    if owner:
+        out["me"] = {"best": round(me["best"], 2), "total": round(me["total"], 2), "runs": me["runs"]}
+    return out

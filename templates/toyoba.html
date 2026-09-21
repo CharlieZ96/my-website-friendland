@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TOYOBA 车行</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#0e1420;color:#eaf2ff;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;padding:14px 12px 40px}
+  .wrap{max-width:560px;margin:0 auto}
+  .top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  h1{font-size:20px;margin:0;letter-spacing:1px}
+  h1 em{font-style:normal;color:#5ac8fa}
+  .coins{margin-left:auto;font-size:14px;color:#ffd85a;font-weight:800}
+  .back{font-size:13px;color:#8fa0c8;text-decoration:none}
+  .sub{color:#8fa0c8;font-size:12px;margin:2px 0 14px;line-height:1.6}
+  .go{display:block;width:100%;text-align:center;background:linear-gradient(90deg,#ff5da2,#ff9a5a);color:#180a10;
+      font-weight:800;font-size:15px;border:none;border-radius:14px;padding:13px;cursor:pointer;margin-bottom:16px;
+      box-shadow:0 6px 18px rgba(255,93,162,.35)}
+  .go:active{transform:translateY(1px)}
+  .car{background:#16203200;background:linear-gradient(180deg,#182234,#131b29);border:1px solid #26324a;border-radius:16px;
+       padding:14px;margin-bottom:12px;display:flex;gap:12px;align-items:center}
+  .ic{width:64px;height:64px;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:34px;
+      background:#0c1220;border:1px solid #2a3a58}
+  .info{flex:1;min-width:0}
+  .nm{font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px}
+  .tier{font-size:11px;font-weight:800;color:#04121a;background:#5ac8fa;border-radius:999px;padding:1px 8px}
+  .desc{color:#93a2c0;font-size:12px;margin:3px 0 8px}
+  .stats{display:flex;gap:10px;flex-wrap:wrap}
+  .stat{font-size:11px;color:#9fb3d8}
+  .bar{display:inline-block;width:64px;height:6px;background:#0c1220;border-radius:4px;overflow:hidden;vertical-align:middle;margin-left:4px;border:1px solid #2a3a58}
+  .bar i{display:block;height:100%}
+  .buyc{flex:none;text-align:center;min-width:96px}
+  .price{font-size:15px;font-weight:800;color:#ffd85a;margin-bottom:6px}
+  .price small{color:#8fa0c8;font-weight:600}
+  .btn{border:none;border-radius:11px;padding:9px 14px;font-weight:800;font-size:13px;cursor:pointer;width:100%}
+  .btn.buy{background:#27e3ff;color:#04121a}
+  .btn.buy:active{transform:translateY(1px)}
+  .btn.buy:disabled{opacity:.4;cursor:not-allowed}
+  .btn.owned{background:#1c3a2a;color:#7CFFB2;border:1px solid #2e6a48;cursor:default}
+  #toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);background:#101830;border:1px solid #ffd85a;color:#ffd85a;
+         font-size:13px;padding:9px 16px;border-radius:999px;opacity:0;transition:opacity .2s;z-index:20;pointer-events:none;max-width:90%}
+  #toast.on{opacity:.98}
+  #toast.bad{border-color:#ff6b6b;color:#ff9d9d}
+  .loading{color:#8fa0c8;text-align:center;padding:30px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>🚗 <em>TOYOBA</em> 车行</h1>
+    <span class="coins">🪙 <span id="coins">…</span></span>
+  </div>
+  <div class="top" style="margin-bottom:12px">
+    <a class="back" href="/enoshima">← 回江之岛</a>
+    <a class="back" href="/plaza" style="margin-left:12px">🚙 我的车库</a>
+  </div>
+  <p class="sub">买车后进「JZH高速」就能开对应的车。档位越高极速越快、越好操控、越好跑分。买过的车会进你的车库展示。</p>
+
+  <button class="go" onclick="location.href='/highway'">🏁 上 JZH高速 开一把</button>
+
+  <div id="list"><div class="loading">正在开门营业…</div></div>
+</div>
+<div id="toast"></div>
+<script>
+let COINS=0, busy=false;
+function toast(m,bad){const t=document.getElementById('toast');t.textContent=m;t.className='on'+(bad?' bad':'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',2200);}
+function esc(s){const d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;}
+function barHTML(val,max,color){const p=Math.round(val/max*100);return '<span class="bar"><i style="width:'+p+'%;background:'+color+'"></i></span>';}
+function carHTML(c){
+  const canBuy = !c.owned && COINS>=c.price;
+  let btn;
+  if(c.owned) btn='<button class="btn owned">✅ 已拥有</button>';
+  else btn='<button class="btn buy" '+(canBuy?'':'disabled')+' onclick="buy(\''+c.id+'\')">购买</button>';
+  return '<div class="car">'
+    + '<div class="ic" style="box-shadow:inset 0 0 0 2px '+c.color+'55">'+c.emoji+'</div>'
+    + '<div class="info">'
+      + '<div class="nm">'+esc(c.name)+'<span class="tier">T'+c.tier+'</span></div>'
+      + '<div class="desc">'+esc(c.desc||'')+'</div>'
+      + '<div class="stats">'
+        + '<span class="stat">极速 '+barHTML(c.top,320,'#ff6b6b')+' <b>'+c.top+'</b></span>'
+        + '<span class="stat">加速 '+barHTML(c.accel,1,'#ffd85a')+'</span>'
+        + '<span class="stat">操控 '+barHTML(c.grip,10,'#27e3ff')+'</span>'
+      + '</div>'
+    + '</div>'
+    + '<div class="buyc"><div class="price">'+c.price+'<small>🪙</small></div>'+btn+'</div>'
+    + '</div>';
+}
+async function load(){
+  try{
+    const d=await (await fetch('/toyoba/data')).json();
+    COINS=d.coins||0; document.getElementById('coins').textContent=COINS;
+    document.getElementById('list').innerHTML=(d.cars||[]).map(carHTML).join('');
+  }catch(e){ document.getElementById('list').innerHTML='<div class="loading">加载失败，刷新试试</div>'; }
+}
+async function buy(id){
+  if(busy) return; busy=true;
+  try{
+    const d=await (await fetch('/toyoba/buy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({car_id:id})})).json();
+    toast(d.msg||(d.ok?'提车成功':'买不了'), !d.ok);
+    if(d.coins!==undefined) COINS=d.coins;
+    await load();
+  }catch(e){ toast('网络出错，待会儿再试',true); }
+  finally{ busy=false; }
+}
+load();
+</script>
+</body>
+</html>
