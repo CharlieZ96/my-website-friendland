@@ -441,25 +441,25 @@
     </div>
   </div>
 
-  <p class="hint">点场景里的<b style="color:#27e3ff">🎡轮盘</b>、<b style="color:#27e3ff">🎰老虎机</b>、<b style="color:#27e3ff">🃏21点</b>或<b style="color:#27e3ff">🂡德州扑克</b>机器进入游戏 · 点吧台里的<b style="color:var(--amber)">🍷老江</b>唠嗑 / 买饮品 / 再听规则</p>
+  <p class="hint">点场景里的<b style="color:#27e3ff">🎡轮盘</b>、<b style="color:#27e3ff">🎰老虎机</b>、<b style="color:#27e3ff">🃏21点</b>或<b style="color:#27e3ff">🂡德州扑克</b>机器进入游戏 · 点吧台里的<b style="color:var(--amber)">🍷老江</b>留言 / 买饮品 / 再听规则</p>
 </div>
 
-<!-- 老江 · 聊天面板（点老江本人打开：能唠嗑说好话乞讨、买饮品、再听规则） -->
+<!-- 老江 · 留言面板（点老江本人打开：给老板留言、买饮品、再听规则；发币由 joejoe 后台决定） -->
 <div id="joeModal" class="modal-bg" hidden>
   <div class="modal joepanel">
     <div class="joehead">
       <div class="joeface">🍸</div>
       <div style="min-width:0">
         <div class="joename">老江</div>
-        <div class="joetip">JZH赌场的老板 · 嘴甜点儿，兴许有好处</div>
+        <div class="joetip">JZH赌场的老板 · 留个言，老板高兴兴许发你金币</div>
       </div>
       <span class="joeclose" id="joeClose">✕</span>
     </div>
     <div class="joelog" id="joeLog"></div>
     <div class="joeinput">
-      <input id="joeText" type="text" maxlength="200" placeholder="跟老江说两句…"
+      <input id="joeText" type="text" maxlength="200" placeholder="给老江留句话…"
              onkeydown="if(event.key==='Enter')joeSend()">
-      <button id="joeSendBtn" onclick="joeSend()">说</button>
+      <button id="joeSendBtn" onclick="joeSend()">留言</button>
     </div>
     <div class="joebtns">
       <button class="mbtn multi" id="joeBuy">🍷买饮品</button>
@@ -676,9 +676,29 @@
     const t=document.createElement('div'); t.className='jreward'+(cls?' '+cls:''); t.textContent=text;
     joeLog.appendChild(t); joeLog.scrollTop=joeLog.scrollHeight;
   }
+  async function loadJoeHistory(){
+    joeLog.innerHTML='';
+    try{
+      const d=await (await fetch('/casino/joe/mine')).json();
+      const msgs=(d&&d.messages)||[];
+      if(!msgs.length){
+        joeTip('给老江/JZH留句话吧——老板会看，心情好周末兴许发你金币。(留言老板本人可见，懂得都懂~)');
+      }else{
+        msgs.forEach(m=>{
+          joeAdd(m.msg,'me');
+          if(m.reply || m.coins){
+            let t = m.reply ? ('老江：'+m.reply) : '老江：（收到）';
+            if(m.coins) t += '  🪙+'+m.coins;
+            joeAdd(t,'joe');
+          }
+        });
+      }
+    }catch(e){ joeTip('给老江/JZH留句话吧——老板会看，心情好周末兴许发你金币。'); }
+  }
   function openJoe(){
     joeModal.hidden=false;
-    if(!joeOpened){ joeOpened=true; joeTip('老江正在看你。——他心情好可能爆金币。(注意JZH本人可查看，懂得都懂~)'); }
+    joeOpened=true;
+    loadJoeHistory();
     setTimeout(()=>joeText.focus(),50);
   }
   function closeJoe(){ joeModal.hidden=true; }
@@ -688,20 +708,11 @@
     joeText.value=''; joeAdd(msg,'me');
     joeBusy=true; joeSendBtn.disabled=true;
     try{
-      const r=await fetch('/casino/joe/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});
+      const r=await fetch('/casino/joe/post',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});
       const d=await r.json();
-      if(d.reply) joeAdd(d.reply,'joe');
-      if(d.ok===false){ joeBusy=false; joeSendBtn.disabled=false; return; }
-      // 奖励：小钱 / 千金大奖 / 请客拉缇娜
-      (d.rewards||[]).forEach(rw=>{
-        if(rw.type==='beg'){ joeReward('老江塞给你 '+rw.coins+' 🪙'); toast('老江给了你 '+rw.coins+' 金币'); }
-        else if(rw.type==='jackpot'){ joeReward('🎉 老江今天特别高兴，甩给你 '+rw.coins+' 金币！','jackpot'); toast('🎉 千金大奖！+'+rw.coins); }
-        else if(rw.type==='latina'){ joeReward('🍖 老江带你搓了顿拉缇娜烤肉——你的JZH吃饱喝足，状态全满了！','latina'); toast('🍖 老江请你吃拉缇娜！JZH状态拉满'); }
-      });
-      // 同步金币 / 精神值
-      if(d.coins!==undefined){ document.getElementById('coin').textContent=Math.floor(d.coins); LOBBY.coins=d.coins; }
-      if(d.spirit!==undefined){ document.getElementById('spirit').textContent=Math.floor(d.spirit); LOBBY.spirit=d.spirit; }
-    }catch(e){ joeTip('网络出了点岔子，待会儿再聊。'); }
+      // 纯留言：没有 AI 回话、没有即时奖励。发币由老板 joejoe 在后台按留言决定。
+      joeTip(d.msg || (d.ok? '留言送到老江那儿了～' : '留言没发出去，待会儿再试。'));
+    }catch(e){ joeTip('网络出了点岔子，待会儿再试。'); }
     finally{ joeBusy=false; joeSendBtn.disabled=false; joeText.focus(); }
   }
   document.getElementById('barman').addEventListener('click', openJoe);   // 点老江 → 打开聊天面板（内含买饮品/听规则）

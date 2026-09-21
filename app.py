@@ -1142,14 +1142,20 @@ def casino_holdem_action(rid):
 def casino_holdem_leave(rid):
     return casino.leave_holdem_room(session["username"], rid)
 
-# —— 老江 AI 对话（说好话乞讨 / 千金大奖 / 请客拉缇娜；奖励全在服务器端封顶+冷却，防话术刷金）——
-@app.route("/casino/joe/chat", methods=["POST"])
+# —— 老江留言板：玩家给老江/JZH 留一句话（纯人工，不再有 AI）——
+@app.route("/casino/joe/post", methods=["POST"])
 @login_required
-def casino_joe_chat():
+def casino_joe_post():
     d = request.get_json(silent=True) or {}
-    return casino.joe_chat(session["username"], d.get("message", ""))
+    return casino.joe_post(session["username"], d.get("message", ""))
 
-# —— 老江账本后台：只有 joejoe 本人 + admin 能看（严格区分大小写，只认小写这两个名）——
+# —— 玩家看自己最近的留言 + 老江的回复（老江面板打开时拉取）——
+@app.route("/casino/joe/mine")
+@login_required
+def casino_joe_mine():
+    return casino.joe_my_messages(session["username"])
+
+# —— 老江账本后台：只有 joejoe 本人 + admin 能看/发币（严格区分大小写，只认小写这两个名）——
 JOE_BOARD_VIEWERS = ("joejoe", "admin")
 def _can_see_joe_board():
     return (session.get("username", "") or "") in JOE_BOARD_VIEWERS
@@ -1170,7 +1176,35 @@ def joe_board_data():
     limit = request.args.get("limit", 50, type=int)
     offset = request.args.get("offset", 0, type=int)
     q = request.args.get("q", "", type=str)
-    return casino.joe_logs(limit=limit, offset=offset, owner=q)
+    data = casino.joe_logs(limit=limit, offset=offset, owner=q)
+    data["grant"] = casino.joe_grant_status(session["username"])   # 本周发币额度 + 明细
+    data["claim"] = casino.joe_claim_status(session["username"])   # 每周登录自领金币的状态
+    data["me"] = session["username"]
+    return data
+
+# —— joejoe / admin 发币给某玩家（每周额度、不能发自己都在后端校验）——
+@app.route("/joe/board/grant", methods=["POST"])
+@login_required
+def joe_board_grant():
+    if not _can_see_joe_board():
+        return {"ok": False, "msg": "forbidden"}, 403
+    d = request.get_json(silent=True) or {}
+    return casino.joe_grant(session["username"], d.get("target", ""), d.get("amount", 0))
+
+# —— joejoe / admin 针对某条留言：发钱（可选）+ 回复（可选），回复挂到那条留言上 ——
+@app.route("/joe/board/reply", methods=["POST"])
+@login_required
+def joe_board_reply():
+    if not _can_see_joe_board():
+        return {"ok": False, "msg": "forbidden"}, 403
+    d = request.get_json(silent=True) or {}
+    return casino.joe_reply_grant(session["username"], d.get("log_id"), d.get("amount", 0), d.get("reply", ""))
+
+# —— joejoe 每周登录论坛自领 500 金币（与“发给别人”的额度分开；资格/每周一次都在后端校验）——
+@app.route("/joe/claim", methods=["POST"])
+@login_required
+def joe_weekly_claim():
+    return casino.joe_weekly_claim(session["username"])
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=False, port=5000)

@@ -5,6 +5,7 @@
 import json
 import time
 import random
+import sqlite3      # 仅用于捕获 IntegrityError（并发自领防重复）
 import pet          # 复用同一个 users.db、_connect、_now，以及“金币”这份数据
 
 DB = pet.DB
@@ -67,26 +68,13 @@ BJ_RESULT_SECS = 12       # 公共房结果展示后自动开下一局（单人�
 BJ_SUITS = ["♠", "♥", "♦", "♣"]
 BJ_RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
 
-# ====== 老江 AI 对话 + 乞讨给币（金额/概率都在这里，随时可改）======
-JOE_CHAT_MIN_GAP     = 3          # 两句之间最少间隔秒（防刷 AI）
-# —— 给钱：必须 mood 到门槛才可能给（低于门槛＝白嘴讨钱，一毛没有；不让人白要金币）——
-#    命中概率与单次金额都随 mood 从「门槛→100」线性放大：说得越好、给得越勤越多，像真人。
-JOE_BEG_MOOD         = 55         # 老江 mood 到这个值才可能给钱
-JOE_BEG_COOLDOWN     = 45         # 给过钱后多少秒内不再给（原 60→45，回馈更勤）
-JOE_BEG_DAILY_CAP    = 300        # 每人每天靠聊天最多拿多少币（原 80 → 300）
-JOE_BEG_PROB_MIN     = 0.25       # mood 刚够(55)时的命中概率（原来固定 0.15，整体调高）
-JOE_BEG_PROB_MAX     = 0.55       # mood 拉满(100)时的命中概率
-JOE_BEG_AMT_LO_MIN, JOE_BEG_AMT_LO_MAX = 5, 15    # 单次“最少给”：mood55→5，mood100→15（原来固定 3）
-JOE_BEG_AMT_HI_MIN, JOE_BEG_AMT_HI_MAX = 15, 45   # 单次“最多给”：mood55→15，mood100→45（原来固定 15）
-JOE_JACKPOT_MOOD     = 90         # 大奖需要老江“非常满意”
-JOE_JACKPOT_PROB     = 0.004      # 满足上面后，再 0.4% 概率直接爆（极低概率，和日常回馈另算、不占每日上限）
-JOE_JACKPOT_COINS    = 1000
-JOE_JACKPOT_COOLDOWN = 3 * 86400  # 中了大奖后至少隔 3 天不再触发
-JOE_LATINA_MOOD      = 60         # 请客也要看心情：低于此不请（不能白蹭一顿）
-JOE_LATINA_PROB      = 0.012      # 请吃拉缇娜的概率下调（原 0.03 → 0.012）
-JOE_LATINA_COOLDOWN  = 6 * 3600   # 拉缇娜 6 小时冷却
-JOE_LOG_KEEP         = 1500       # 聊天日志最多留多少条（控制存储；joejoe 后台看）
-JOE_HISTORY_TURNS    = 12         # 给老江带上这个人最近多少轮对话作记忆（便于结合上下文打分）
+# ====== 老江留言板 + joejoe 每周发币（已去掉原来的 AI 对话/乞讨玩法）======
+JOE_LOG_KEEP         = 1500       # 留言最多留多少条（控制存储；joejoe 后台看）
+JOE_MSG_MIN_GAP      = 3          # 同一个人两条留言最少间隔秒（防刷屏）
+JOE_WEEKLY_BUDGET    = 500        # joejoe（测试期 admin 同样）每个自然周最多能发多少金币，可拆分发给多人
+JOE_GRANTERS         = ("joejoe", "admin")   # 有发币权限的用户名（严格小写）
+JOE_WEEKLY_BONUS     = 500        # joejoe 每周登录论坛可自领的金币（和“发给别人”的额度完全分开）
+JOE_CLAIM_USERS      = ("joejoe", "admin")   # 有每周自领资格的用户名（测试期含 admin）
 
 
 def _now(): return time.time()
@@ -126,10 +114,18 @@ def ensure_casino_tables():
             owner TEXT PRIMARY KEY, last_chat REAL DEFAULT 0, last_beg REAL DEFAULT 0,
             day TEXT DEFAULT '', day_coins INTEGER DEFAULT 0,
             last_jackpot REAL DEFAULT 0, last_latina REAL DEFAULT 0)""")
-        # 老江对话日志：给论坛玩家 joejoe 的后台看（大家对老江说的所有话）
+        # 老江留言板：大家留给老江/JZH 的话（joejoe 后台看，并据此发币）
         conn.execute("""CREATE TABLE IF NOT EXISTS casino_joe_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT, owner TEXT NOT NULL, msg TEXT NOT NULL,
             reply TEXT, mood INTEGER, reward TEXT, created_at REAL NOT NULL)""")
+        # joejoe 每周发币记录：用于统计本周已发额度（每个自然周封顶 JOE_WEEKLY_BUDGET）
+        conn.execute("""CREATE TABLE IF NOT EXISTS casino_joe_grant (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, granter TEXT NOT NULL, target TEXT NOT NULL,
+            amount INTEGER NOT NULL, week TEXT NOT NULL, created_at REAL NOT NULL)""")
+        # joejoe 每周登录自领金币记录：每人每个自然周只能领一次（(owner,week) 唯一）
+        conn.execute("""CREATE TABLE IF NOT EXISTS casino_joe_claim (
+            owner TEXT NOT NULL, week TEXT NOT NULL, amount INTEGER NOT NULL,
+            created_at REAL NOT NULL, PRIMARY KEY (owner, week))""")
         conn.commit()
     finally:
         conn.close()
@@ -215,6 +211,11 @@ def _drinks_catalog():
 
 def _today():
     return time.strftime("%Y-%m-%d", time.localtime())
+
+
+def _isoweek():
+    """当前自然周的标识（ISO 年-周，周一为一周之始）。用于 joejoe 每周发币额度，周一自动重置。"""
+    return time.strftime("%G-W%V", time.localtime())
 
 
 def _bump_daily(conn, owner, net):
@@ -1451,121 +1452,237 @@ def leave_bj_room(owner, room_id):
 
 
 # ============================================================
-#  老江 AI 对话 + 乞讨给币 + 请客拉缇娜 + 日志（给 joejoe 后台）
+#  老江留言板 + joejoe 每周发币（已删掉原来的 AI 对话/乞讨/请客玩法）
+#  · 玩家在老江那儿留言（joe_post）——纯人工，不再调用任何 AI。
+#  · 只有 joejoe / admin 能发币（joe_grant）：每个自然周共 JOE_WEEKLY_BUDGET 金币，
+#    可自己填金额、拆分发给多个玩家，发满为止；不能发给自己；周一自动重置额度。
 # ============================================================
-def _latina_maxout(conn, owner):
-    """老江请客拉缇娜（带你去吃烤肉自助）：把该玩家 JZH 的状态拉满（饱食/清洁/精神=100，顺手清病、+一点好感）。"""
-    row = conn.execute("SELECT data FROM pets WHERE owner=?", (owner,)).fetchone()
-    if not row:
-        return False
-    try:
-        s = json.loads(row[0])
-    except Exception:
-        return False
-    s["hunger"] = 100; s["clean"] = 100; s["spirit"] = 100
-    if "affection" in s:
-        s["affection"] = min(100, int(s.get("affection", 0)) + 20)
-    s["sick_since"] = 0
-    conn.execute(
-        "INSERT OR REPLACE INTO pets (owner, version, status, data, updated_at) VALUES (?,?,?,?,?)",
-        (owner, s.get("version", "v1"), s.get("status", "home"),
-         json.dumps(s, ensure_ascii=False), _now()))
-    return True
-
-
-def joe_chat(owner, message):
-    """和老江聊天：老江(AI)回话并打分；服务器按分数+概率+冷却决定给不给钱/拉缇娜。
-    所有奖励都在服务器端封顶+冷却，AI 只提供“满意度”，玩家无法靠话术直接掏空老江。"""
+def joe_post(owner, message):
+    """玩家给老江/JZH 留一句话。存进 casino_joe_log（reply/mood/reward 都留空），joejoe 后台看。"""
     conn = _connect()
     try:
-        message = (message or "").strip()[:500]
-        now = _now()
+        message = (message or "").strip()[:300]
         if not message:
-            return {"ok": False, "reply": "想说点啥？", "coins": _coins_get(conn, owner)}
+            return {"ok": False, "msg": "留言不能为空"}
+        now = _now()
         row = conn.execute(
-            "SELECT last_chat,last_beg,day,day_coins,last_jackpot,last_latina FROM casino_joe WHERE owner=?",
+            "SELECT created_at FROM casino_joe_log WHERE owner=? ORDER BY id DESC LIMIT 1",
             (owner,)).fetchone()
-        last_chat, last_beg, day, day_coins, last_jackpot, last_latina = row or (0, 0, "", 0, 0, 0)
-        if now - last_chat < JOE_CHAT_MIN_GAP:      # 防刷：说太快
-            return {"ok": False, "reply": "慢点儿，一句一句来。", "coins": _coins_get(conn, owner)}
-        today = _today()
-        if day != today:
-            day, day_coins = today, 0               # 跨天重置乞讨上限
-
-        # —— 取这个人最近几轮对话，作为老江的“记忆”，让他结合上下文打分 ——
-        history = []
-        for m, rp in reversed(conn.execute(
-                "SELECT msg, reply FROM casino_joe_log WHERE owner=? ORDER BY id DESC LIMIT ?",
-                (owner, JOE_HISTORY_TURNS)).fetchall()):
-            history.append({"role": "user",  "text": m or ""})
-            history.append({"role": "model", "text": rp or ""})
-
-        # —— 叫老江(AI)回话 + 打分（拿不到就用兜底话、mood 低）——
-        say, mood = None, 0
-        try:
-            import ai_bot
-            res = ai_bot.joe_reply(owner, message, history)      # 带上这个人的历史对话
-            if res:
-                say = res.get("say"); mood = int(res.get("mood", 0) or 0)
-        except Exception as e:
-            print("【老江回话出错】", repr(e))
-        if not say:
-            say = random.choice(["嗯，说来听听。", "这杯我请，慢慢聊。", "钱难挣，少赌两把吧。"])
-        mood = max(0, min(100, mood))
-
-        rewards = []; coins_gain = 0
-        # 1) 聊天给钱：老江受用(mood≥门槛) + 冷却过了 + 没到每日上限。
-        #    概率和金额都随 mood 从「门槛→100」放大——说得越好，给得越勤、越多；
-        #    低于门槛＝白嘴讨钱，直接一毛没有（不让人白要金币）。
-        if mood >= JOE_BEG_MOOD and (now - last_beg) >= JOE_BEG_COOLDOWN and day_coins < JOE_BEG_DAILY_CAP:
-            t = (mood - JOE_BEG_MOOD) / float(max(1, 100 - JOE_BEG_MOOD))   # 0(刚够门槛)→1(满分)
-            t = max(0.0, min(1.0, t))
-            prob = JOE_BEG_PROB_MIN + (JOE_BEG_PROB_MAX - JOE_BEG_PROB_MIN) * t
-            if random.random() < prob:
-                lo = int(round(JOE_BEG_AMT_LO_MIN + (JOE_BEG_AMT_LO_MAX - JOE_BEG_AMT_LO_MIN) * t))
-                hi = int(round(JOE_BEG_AMT_HI_MIN + (JOE_BEG_AMT_HI_MAX - JOE_BEG_AMT_HI_MIN) * t))
-                if hi < lo:
-                    hi = lo
-                amt = random.randint(lo, hi)
-                amt = min(amt, JOE_BEG_DAILY_CAP - day_coins)   # 不超每日上限
-                if amt > 0:
-                    coins_gain += amt; day_coins += amt; last_beg = now
-                    rewards.append({"type": "beg", "coins": amt})
-        # 2) 千金大奖：老江非常满意 + 冷却过了 + 极小概率直接爆 1000。
-        #    与日常回馈另算、不计入每日上限（day_coins 不加），保留“天降横财”的稀有感。
-        if mood >= JOE_JACKPOT_MOOD and (now - last_jackpot) >= JOE_JACKPOT_COOLDOWN:
-            if random.random() < JOE_JACKPOT_PROB:
-                coins_gain += JOE_JACKPOT_COINS; last_jackpot = now
-                rewards.append({"type": "jackpot", "coins": JOE_JACKPOT_COINS})
-        # 3) 请客拉缇娜：也要看心情(≥门槛) + 冷却 +（已下调的）概率，把 JZH 状态拉满
-        latina = False
-        if mood >= JOE_LATINA_MOOD and (now - last_latina) >= JOE_LATINA_COOLDOWN \
-                and random.random() < JOE_LATINA_PROB:
-            if _latina_maxout(conn, owner):
-                latina = True; last_latina = now
-                rewards.append({"type": "latina"})
-
-        if coins_gain > 0:
-            _coins_add(conn, owner, coins_gain)     # 乞讨来的不算赌博，不计入今日大赢家榜
-
-        conn.execute("""INSERT OR REPLACE INTO casino_joe
-            (owner,last_chat,last_beg,day,day_coins,last_jackpot,last_latina) VALUES (?,?,?,?,?,?,?)""",
-            (owner, now, last_beg, day, day_coins, last_jackpot, last_latina))
-        # 记日志（给 joejoe 后台看），并修剪旧日志控制存储
-        conn.execute("INSERT INTO casino_joe_log (owner,msg,reply,mood,reward,created_at) VALUES (?,?,?,?,?,?)",
-                     (owner, message, say, mood, json.dumps(rewards, ensure_ascii=False), now))
+        if row and now - float(row[0] or 0) < JOE_MSG_MIN_GAP:
+            return {"ok": False, "msg": "慢点儿，别刷屏。"}
+        conn.execute(
+            "INSERT INTO casino_joe_log (owner,msg,reply,mood,reward,created_at) VALUES (?,?,?,?,?,?)",
+            (owner, message, None, None, None, now))
         conn.execute("DELETE FROM casino_joe_log WHERE id NOT IN "
                      "(SELECT id FROM casino_joe_log ORDER BY id DESC LIMIT ?)", (JOE_LOG_KEEP,))
         conn.commit()
-        return {"ok": True, "reply": say, "mood": mood, "rewards": rewards, "latina": latina,
-                "coins": _coins_get(conn, owner), "spirit": _spirit_get(conn, owner)}
+        return {"ok": True, "msg": "留言送到老江那儿了，等老板翻牌～"}
+    finally:
+        conn.close()
+
+
+def _joe_week_used(conn, granter, week=None):
+    week = week or _isoweek()
+    r = conn.execute("SELECT COALESCE(SUM(amount),0) FROM casino_joe_grant WHERE granter=? AND week=?",
+                     (granter, week)).fetchone()
+    return int(r[0] or 0)
+
+
+def joe_grant(granter, target, amount):
+    """joejoe / admin 发币给某玩家。每个自然周共 JOE_WEEKLY_BUDGET，可拆分；不能发自己；查无此人不发。"""
+    conn = _connect()
+    try:
+        granter = (granter or "").strip()
+        target = (target or "").strip()
+        if granter not in JOE_GRANTERS:
+            return {"ok": False, "msg": "你没有发币权限"}
+        if not target:
+            return {"ok": False, "msg": "要发给谁？填个用户名"}
+        if target.lower() == granter.lower():
+            return {"ok": False, "msg": "不能发给自己哦"}
+        try:
+            amount = int(amount)
+        except (TypeError, ValueError):
+            amount = 0
+        if amount <= 0:
+            return {"ok": False, "msg": "金额要大于 0"}
+        if not conn.execute("SELECT 1 FROM pets WHERE owner=?", (target,)).fetchone():
+            return {"ok": False, "msg": "查无此人：" + target}
+        week = _isoweek()
+        used = _joe_week_used(conn, granter, week)
+        remain = JOE_WEEKLY_BUDGET - used
+        if remain <= 0:
+            return {"ok": False, "msg": "本周额度 %d 已发完，下周一恢复" % JOE_WEEKLY_BUDGET,
+                    "week_used": used, "week_remaining": 0}
+        if amount > remain:
+            return {"ok": False, "msg": "超出本周剩余额度，最多还能发 %d" % remain,
+                    "week_used": used, "week_remaining": remain}
+        now = _now()
+        _coins_add(conn, target, amount)
+        conn.execute("INSERT INTO casino_joe_grant (granter,target,amount,week,created_at) VALUES (?,?,?,?,?)",
+                     (granter, target, amount, week, now))
+        conn.commit()
+        used += amount
+        return {"ok": True, "msg": "已发 %d 金币给 %s" % (amount, target),
+                "target": target, "amount": amount,
+                "week_used": used, "week_remaining": JOE_WEEKLY_BUDGET - used,
+                "target_coins": _coins_get(conn, target)}
+    finally:
+        conn.close()
+
+
+def joe_reply_grant(granter, log_id, amount, reply):
+    """针对某条留言：给这条留言的作者发钱（可选）+ 写一句回复（可选），回复直接挂到这条留言上，
+    玩家下次打开老江面板能看到。金额走每周额度、不能发给自己；金额可为 0（只回复不发钱）。"""
+    conn = _connect()
+    try:
+        granter = (granter or "").strip()
+        reply = (reply or "").strip()[:200]
+        if granter not in JOE_GRANTERS:
+            return {"ok": False, "msg": "你没有权限"}
+        try:
+            log_id = int(log_id)
+        except (TypeError, ValueError):
+            return {"ok": False, "msg": "留言不存在"}
+        try:
+            amount = int(amount)
+        except (TypeError, ValueError):
+            amount = 0
+        if amount < 0:
+            amount = 0
+        if amount == 0 and not reply:
+            return {"ok": False, "msg": "填个金额，或者写句回复"}
+        row = conn.execute("SELECT owner FROM casino_joe_log WHERE id=?", (log_id,)).fetchone()
+        if not row:
+            return {"ok": False, "msg": "这条留言不存在了"}
+        target = row[0]
+        if (target or "").lower() == granter.lower():
+            return {"ok": False, "msg": "不能给自己发钱/回复哦"}
+        week = _isoweek()
+        used = _joe_week_used(conn, granter, week)
+        remain = JOE_WEEKLY_BUDGET - used
+        # 只有真的要发钱时才校验额度
+        if amount > 0:
+            if remain <= 0:
+                return {"ok": False, "msg": "本周额度 %d 已发完，下周一恢复" % JOE_WEEKLY_BUDGET,
+                        "week_used": used, "week_remaining": 0}
+            if amount > remain:
+                return {"ok": False, "msg": "超出本周剩余额度，最多还能发 %d" % remain,
+                        "week_used": used, "week_remaining": remain}
+        now = _now()
+        if amount > 0:
+            _coins_add(conn, target, amount)
+            conn.execute("INSERT INTO casino_joe_grant (granter,target,amount,week,created_at) VALUES (?,?,?,?,?)",
+                         (granter, target, amount, week, now))
+            used += amount
+        # 把回复 + 本次发的钱挂回这条留言（reward 存本次发放金额，供玩家端显示"给了你N金币"）
+        reward = json.dumps({"coins": amount, "by": granter}, ensure_ascii=False) if (amount > 0 or reply) else None
+        conn.execute("UPDATE casino_joe_log SET reply=?, mood=?, reward=? WHERE id=?",
+                     (reply or None, None, reward, log_id))
+        conn.commit()
+        parts = []
+        if amount > 0:
+            parts.append("已发 %d 金币给 %s" % (amount, target))
+        if reply:
+            parts.append("回复已送出")
+        return {"ok": True, "msg": "，".join(parts) or "已处理",
+                "target": target, "amount": amount, "reply": reply,
+                "week_used": used, "week_remaining": JOE_WEEKLY_BUDGET - used,
+                "target_coins": _coins_get(conn, target)}
+    finally:
+        conn.close()
+
+
+def joe_my_messages(owner, limit=12):
+    """玩家自己最近的留言 + 老江的回复（玩家在老江面板里看）。倒序取、正序展示。"""
+    conn = _connect()
+    try:
+        limit = max(1, min(50, int(limit)))
+        rows = conn.execute(
+            "SELECT msg, reply, reward, created_at FROM casino_joe_log WHERE owner=? ORDER BY id DESC LIMIT ?",
+            (owner, limit)).fetchall()
+        out = []
+        for msg, reply, reward, ts in rows:
+            coins = 0
+            if reward:
+                try:
+                    coins = int(json.loads(reward).get("coins", 0) or 0)
+                except Exception:
+                    coins = 0
+            out.append({"msg": msg, "reply": reply, "coins": coins,
+                        "time": time.strftime("%m-%d %H:%M", time.localtime(ts))})
+        out.reverse()   # 正序：早的在上、晚的在下
+        return {"messages": out}
+    finally:
+        conn.close()
+
+
+def joe_grant_status(granter):
+    """本周发币额度情况 + 本周发放明细（后台展示用）。"""
+    conn = _connect()
+    try:
+        granter = (granter or "").strip()
+        week = _isoweek()
+        used = _joe_week_used(conn, granter, week)
+        rows = conn.execute(
+            "SELECT target,amount,created_at FROM casino_joe_grant WHERE granter=? AND week=? "
+            "ORDER BY id DESC LIMIT 50", (granter, week)).fetchall()
+        recent = [{"target": t, "amount": a,
+                   "time": time.strftime("%m-%d %H:%M", time.localtime(ts))} for t, a, ts in rows]
+        return {"week": week, "budget": JOE_WEEKLY_BUDGET, "used": used,
+                "remaining": max(0, JOE_WEEKLY_BUDGET - used), "grants": recent}
+    finally:
+        conn.close()
+
+
+def joe_claim_status(owner):
+    """joejoe 每周登录自领金币的状态：有没有资格、本周领没领、能领多少。"""
+    owner = (owner or "").strip()
+    eligible = owner in JOE_CLAIM_USERS
+    week = _isoweek()
+    claimed = False
+    if eligible:
+        conn = _connect()
+        try:
+            claimed = conn.execute(
+                "SELECT 1 FROM casino_joe_claim WHERE owner=? AND week=?", (owner, week)).fetchone() is not None
+        finally:
+            conn.close()
+    return {"eligible": eligible, "claimed": claimed, "amount": JOE_WEEKLY_BONUS, "week": week}
+
+
+def joe_weekly_claim(owner):
+    """joejoe 每周登录论坛自领 JOE_WEEKLY_BONUS 金币。每个自然周只能领一次（周一重置）；
+    这是给他本人的登录福利，和“发币给别人”的额度完全分开，也不算发给自己。"""
+    owner = (owner or "").strip()
+    if owner not in JOE_CLAIM_USERS:
+        return {"ok": False, "msg": "你没有领取资格"}
+    conn = _connect()
+    try:
+        week = _isoweek()
+        if conn.execute("SELECT 1 FROM casino_joe_claim WHERE owner=? AND week=?",
+                        (owner, week)).fetchone():
+            return {"ok": False, "claimed": True,
+                    "msg": "本周已经领过了，下周一恢复", "coins": _coins_get(conn, owner)}
+        now = _now()
+        # 先占坑（(owner,week) 主键唯一，天然防并发重复领），再加币
+        conn.execute("INSERT INTO casino_joe_claim (owner, week, amount, created_at) VALUES (?,?,?,?)",
+                     (owner, week, JOE_WEEKLY_BONUS, now))
+        _coins_add(conn, owner, JOE_WEEKLY_BONUS)
+        conn.commit()
+        return {"ok": True, "amount": JOE_WEEKLY_BONUS, "week": week,
+                "coins": _coins_get(conn, owner), "msg": "已领取本周 %d 金币" % JOE_WEEKLY_BONUS}
+    except sqlite3.IntegrityError:
+        # 并发下另一个请求已经占了坑：视为本周已领，不重复发
+        return {"ok": False, "claimed": True, "msg": "本周已经领过了",
+                "coins": _coins_get(conn, owner)}
     finally:
         conn.close()
 
 
 def joe_logs(limit=200, offset=0, owner=None):
-    """给 joejoe 后台：倒序列出大家对老江说的话 + 老江回复 + 满意度 + 触发的奖励。
-    owner 非空时按玩家名筛选（模糊匹配）。"""
+    """给 joejoe 后台：倒序列出大家给老江的留言（id + owner + 留言 + 已有回复/发放 + 时间）。
+    owner 非空则按名字模糊筛选。id 用于后台针对这条留言发钱/回复。"""
     conn = _connect()
     try:
         limit = max(1, min(500, int(limit)))
@@ -1574,22 +1691,23 @@ def joe_logs(limit=200, offset=0, owner=None):
         if owner:
             like = "%" + owner + "%"
             rows = conn.execute(
-                "SELECT owner,msg,reply,mood,reward,created_at FROM casino_joe_log "
-                "WHERE owner LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?",
-                (like, limit, offset)).fetchall()
+                "SELECT id,owner,msg,reply,reward,created_at FROM casino_joe_log WHERE owner LIKE ? "
+                "ORDER BY id DESC LIMIT ? OFFSET ?", (like, limit, offset)).fetchall()
             total = conn.execute("SELECT COUNT(*) FROM casino_joe_log WHERE owner LIKE ?", (like,)).fetchone()[0]
         else:
             rows = conn.execute(
-                "SELECT owner,msg,reply,mood,reward,created_at FROM casino_joe_log ORDER BY id DESC LIMIT ? OFFSET ?",
+                "SELECT id,owner,msg,reply,reward,created_at FROM casino_joe_log ORDER BY id DESC LIMIT ? OFFSET ?",
                 (limit, offset)).fetchall()
             total = conn.execute("SELECT COUNT(*) FROM casino_joe_log").fetchone()[0]
         out = []
-        for o, msg, reply, mood, reward, ts in rows:
-            try:
-                rw = json.loads(reward or "[]")
-            except Exception:
-                rw = []
-            out.append({"owner": o, "msg": msg, "reply": reply, "mood": mood, "rewards": rw,
+        for rid, o, m, reply, reward, ts in rows:
+            coins = 0
+            if reward:
+                try:
+                    coins = int(json.loads(reward).get("coins", 0) or 0)
+                except Exception:
+                    coins = 0
+            out.append({"id": rid, "owner": o, "msg": m, "reply": reply, "coins": coins,
                         "time": time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))})
         return {"logs": out, "total": total, "offset": offset, "limit": limit}
     finally:

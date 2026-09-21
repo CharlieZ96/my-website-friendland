@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>乞讨记录</title>
+<title>老江的账本</title>
 <style>
   *{box-sizing:border-box}
   body{margin:0;background:#f4f6f8;color:#333;font-family:"Segoe UI","Microsoft YaHei",sans-serif;}
@@ -11,42 +11,80 @@
   .top{margin-bottom:6px;}
   .top a{color:#888;text-decoration:none;font-size:14px;}
   h1{font-size:22px;margin:6px 0 4px;color:#333;}
-  .sub{color:#888;font-size:13px;margin:0 0 18px;line-height:1.6;}
+  .sub{color:#888;font-size:13px;margin:0 0 16px;line-height:1.6;}
   .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4a90e2;margin:0 3px;animation:pulse 1.6s infinite;}
   @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
-  .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
-  .stat{background:#fff;border:1px solid #e6e9ef;border-radius:10px;padding:8px 14px;font-size:13px;color:#555;
-        box-shadow:0 1px 4px rgba(0,0,0,.04);}
+
+  /* 每周登录自领 */
+  .claim{background:#fff8e1;border:1px solid #ffe08a;border-radius:12px;padding:12px 16px;margin-bottom:14px;
+         display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 2px 10px rgba(0,0,0,.04);}
+  .claim .ctxt{font-size:14px;color:#8a6d1a;}
+  .claim button{margin-left:auto;background:#f0a92b;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-weight:700;font-size:14px;cursor:pointer;}
+  .claim button:hover{opacity:.92;}
+  .claim button:disabled{opacity:.45;cursor:default;}
+  .claim .cdone{margin-left:auto;color:#1f9d63;font-weight:700;font-size:14px;}
+
+  /* 本周额度 */
+  .budget{background:#fff;border:1px solid #e6e9ef;border-radius:12px;padding:14px 16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.05);}
+  .budget .line{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .budget .big{font-size:22px;font-weight:800;color:#1f9d63;}
+  .budget .cap{color:#888;font-size:13px;}
+  .budget .wk{margin-left:auto;color:#bbb;font-size:12px;}
+  .bararea{height:10px;background:#eef0f3;border-radius:999px;overflow:hidden;}
+  .bararea i{display:block;height:100%;background:linear-gradient(90deg,#5ad18f,#1f9d63);transition:width .3s;}
+  .grants{margin-top:10px;font-size:12px;color:#777;line-height:1.8;}
+  .grants b{color:#1f9d63;}
+  .grants .none{color:#bbb;}
+
+  /* 手动发币 */
+  .give{background:#fff;border:1px solid #e6e9ef;border-radius:12px;padding:14px 16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.05);}
+  .give h3{margin:0 0 10px;font-size:15px;color:#444;}
+  .give .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .give input{border:1px solid #ddd;border-radius:8px;padding:9px 12px;font-size:14px;outline:none;}
+  .give input:focus{border-color:#1f9d63;}
+  .give .u{flex:1;min-width:120px;}
+  .give .a{width:110px;}
+  .give button{background:#1f9d63;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;}
+  .give button:hover{opacity:.92;}
+  .give button:disabled{opacity:.45;cursor:default;}
+  .hint{color:#aaa;font-size:12px;margin-top:8px;}
+
+  .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .stat{background:#fff;border:1px solid #e6e9ef;border-radius:10px;padding:8px 14px;font-size:13px;color:#555;box-shadow:0 1px 4px rgba(0,0,0,.04);}
   .stat b{color:#4a90e2;}
   .filter{margin-left:auto;display:flex;gap:8px;}
   .filter input{background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px 12px;font-size:14px;outline:none;min-width:150px;}
   .filter input:focus{border-color:#4a90e2;}
   .filter button{background:#4a90e2;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer;}
-  .filter button:hover{opacity:.9;}
+
   .card{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,.06);}
-  .chead{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+  .chead{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
   .who{color:#4a90e2;font-weight:bold;font-size:15px;}
-  .mood{font-size:12px;font-weight:bold;padding:2px 10px;border-radius:999px;}
   .when{color:#bbb;font-size:12px;margin-left:auto;white-space:nowrap;}
-  .say,.rep{font-size:14px;line-height:1.6;border-radius:8px;padding:9px 12px;margin:6px 0;}
-  .say{background:#eef4fb;border-left:3px solid #4a90e2;}
-  .rep{background:#fbf3e6;border-left:3px solid #efa832;color:#5a4a2e;}
-  .lbl{color:#aaa;font-size:12px;margin-right:6px;}
-  .rewards{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;}
-  .rw{font-size:12px;font-weight:bold;border-radius:999px;padding:3px 11px;}
-  .rw.beg{background:#fff3d6;color:#b8770b;}
-  .rw.jackpot{background:#fde8ef;color:#d9345b;}
-  .rw.latina{background:#f1e8fb;color:#8a4fd0;}
+  .say{font-size:14px;line-height:1.6;border-radius:8px;padding:9px 12px;background:#eef4fb;border-left:3px solid #4a90e2;}
+  .give2{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;}
+  .give2 input{border:1px solid #ddd;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;}
+  .give2 input.amt{width:120px;flex:none;}
+  .give2 input.rep{flex:1;min-width:150px;}
+  .give2 input:focus{border-color:#1f9d63;}
+  .give2 button{background:#1f9d63;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .give2 button:disabled{opacity:.45;cursor:default;}
+  .give2 .self{color:#c0392b;font-size:12px;}
+  .replied{margin-top:8px;font-size:13px;color:#5a4a2e;background:#fbf3e6;border-left:3px solid #efa832;border-radius:8px;padding:8px 12px;line-height:1.5;}
+  .replied .rc{color:#b8770b;font-weight:700;}
+
   .empty{text-align:center;color:#aaa;margin-top:50px;}
-  .more{display:block;margin:16px auto 0;background:#fff;border:1px solid #cfd6e0;color:#4a90e2;border-radius:10px;
-        padding:10px 24px;font-size:14px;cursor:pointer;}
+  .more{display:block;margin:16px auto 0;background:#fff;border:1px solid #cfd6e0;color:#4a90e2;border-radius:10px;padding:10px 24px;font-size:14px;cursor:pointer;}
   .more:hover{background:#f0f4fa;}
   .more[disabled]{opacity:.45;cursor:default;}
-  /* 手机窄屏：筛选框单独占满一行，输入框自动伸缩，绝不和统计块挤一起 */
+  #toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);background:#222;color:#fff;font-size:14px;padding:10px 18px;border-radius:999px;opacity:0;transition:opacity .2s;z-index:20;pointer-events:none;}
+  #toast.on{opacity:.95;}
+  #toast.bad{background:#c0392b;}
   @media (max-width:480px){
     .filter{ margin-left:0; width:100%; }
     .filter input{ flex:1; min-width:0; }
     .stat{ flex:1; text-align:center; }
+    .give .u{ width:100%; flex:none; }
   }
 </style>
 </head>
@@ -54,9 +92,39 @@
 <div class="wrap">
   <div class="top"><a href="/hub">← 返回主页</a></div>
   <h1>🍖 老江的账本</h1>
-  <p class="sub">这里是大家跑来跟老江说的每一句话，还有老江当时的心情分和有没有掏钱／请客。<span class="dot"></span>每 10 秒自动刷新。</p>
+  <p class="sub">大家给老江/JZH 的留言都在这儿。你（老板）每个自然周有 <b id="capTxt">500</b> 金币额度，可以按留言给玩家发钱，可分几次发给不同人，不能发给自己。<span class="dot"></span>每 10 秒自动刷新。</p>
+
+  <!-- 每周登录自领金币（老板专属，和"发给别人"的额度分开） -->
+  <div class="claim" id="claimBox" hidden>
+    <span class="ctxt">🎁 老板每周登录可自领 <b id="claimAmt">500</b> 金币（周一重置，和发给别人的额度分开）</span>
+    <button id="claimBtn" onclick="doClaim()">领取本周 <span id="claimAmt2">500</span> 金币</button>
+    <span class="cdone" id="claimDone" hidden>✅ 本周已领</span>
+  </div>
+
+  <!-- 本周发币额度 -->
+  <div class="budget">
+    <div class="line">
+      <span class="big" id="remainTxt">…</span>
+      <span class="cap">/ <b id="budgetTxt">500</b> 金币　本周还能发</span>
+      <span class="wk" id="weekTxt"></span>
+    </div>
+    <div class="bararea"><i id="barFill" style="width:0%"></i></div>
+    <div class="grants" id="grantList"></div>
+  </div>
+
+  <!-- 手动发币 -->
+  <div class="give">
+    <h3>给某位玩家发币</h3>
+    <div class="row">
+      <input class="u" id="gUser" type="text" placeholder="玩家用户名">
+      <input class="a" id="gAmt" type="number" min="1" step="10" placeholder="金额">
+      <button id="gBtn" onclick="grantManual()">发币</button>
+    </div>
+    <div class="hint">发出去的金币立刻进对方钱包；本周额度发完后要等下周一恢复。</div>
+  </div>
+
   <div class="bar">
-    <div class="stat">累计记录 <b id="total">…</b> 条</div>
+    <div class="stat">累计留言 <b id="total">…</b> 条</div>
     <div class="stat">当前显示 <b id="shown">0</b> 条</div>
     <div class="filter">
       <input id="q" type="text" placeholder="按玩家名筛选…" onkeydown="if(event.key==='Enter')applyFilter()">
@@ -64,47 +132,90 @@
     </div>
   </div>
   <div id="list"></div>
-  <div id="emptyBox" class="empty" hidden>还没有人找老江搭过话。</div>
+  <div id="emptyBox" class="empty" hidden>还没有人给老江留言。</div>
   <button id="moreBtn" class="more" hidden onclick="loadMore()">加载更早的…</button>
 </div>
+<div id="toast"></div>
 <script>
-  let offset=0, filter='', total=0, shownCount=0;
+  let offset=0, filter='', total=0, shownCount=0, ME='', REMAIN=0, busy=false;
   const PAGE=50;
-  function moodChip(m){
-    // 浅色主题：低分灰、中分琥珀、高分红
-    let bg='#eef0f3', fg='#888';
-    if(m>=90){ bg='#fde8ef'; fg='#d9345b'; }
-    else if(m>=55){ bg='#fff3d6'; fg='#b8770b'; }
-    return '<span class="mood" style="background:'+bg+';color:'+fg+'">心情 '+m+'</span>';
-  }
   function esc(s){const d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;}
-  function rewardChips(rw){
-    if(!rw||!rw.length) return '';
-    let h='<div class="rewards">';
-    rw.forEach(x=>{
-      if(x.type==='beg') h+='<span class="rw beg">乞讨 +'+x.coins+'🪙</span>';
-      else if(x.type==='jackpot') h+='<span class="rw jackpot">🎉大奖 +'+x.coins+'🪙</span>';
-      else if(x.type==='latina') h+='<span class="rw latina">🍖请吃拉缇娜(烤肉)</span>';
-    });
-    return h+'</div>';
+  function toast(m,bad){const t=document.getElementById('toast');t.textContent=m;t.className='on'+(bad?' bad':'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',2200);}
+
+  function renderClaim(c){
+    const box=document.getElementById('claimBox');
+    if(!c || !c.eligible){ box.hidden=true; return; }
+    box.hidden=false;
+    document.getElementById('claimAmt').textContent=c.amount;
+    document.getElementById('claimAmt2').textContent=c.amount;
+    const btn=document.getElementById('claimBtn'), done=document.getElementById('claimDone');
+    if(c.claimed){ btn.hidden=true; done.hidden=false; }
+    else { btn.hidden=false; done.hidden=true; btn.disabled=false; }
+  }
+  async function doClaim(){
+    if(busy) return; busy=true;
+    const btn=document.getElementById('claimBtn'); btn.disabled=true;
+    try{
+      const d=await (await fetch('/joe/claim',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+      toast(d.msg||(d.ok?'已领取':'领取失败'), !d.ok);
+      await fetchPage(0,true);   // 刷新自领状态（领过就变“本周已领”）
+    }catch(e){ toast('网络出错，待会儿再试',true); btn.disabled=false; }
+    finally{ busy=false; }
+  }
+  function renderBudget(g){
+    if(!g) return;
+    REMAIN = g.remaining||0;
+    document.getElementById('remainTxt').textContent = REMAIN;
+    document.getElementById('budgetTxt').textContent = g.budget;
+    document.getElementById('capTxt').textContent = g.budget;
+    document.getElementById('weekTxt').textContent = '本周 '+(g.week||'');
+    const pct = g.budget? Math.round((g.used||0)/g.budget*100):0;
+    document.getElementById('barFill').style.width = Math.min(100,pct)+'%';
+    const gl=document.getElementById('grantList');
+    if(g.grants && g.grants.length){
+      gl.innerHTML = '本周已发：' + g.grants.map(x=>'<b>'+esc(x.target)+'</b> +'+x.amount+'🪙 <span style="color:#bbb">('+esc(x.time)+')</span>').join('　');
+    } else {
+      gl.innerHTML = '<span class="none">本周还没发过金币。</span>';
+    }
+    document.getElementById('gBtn').disabled = REMAIN<=0;
+  }
+
+  function cardHTML(l){
+    const isMe = (l.owner===ME);
+    // 已有的回复/发放（若之前处理过这条留言）
+    let done = '';
+    if(l.reply || l.coins){
+      done = '<div class="replied">老江回复：'+(l.reply?esc(l.reply):'（无文字）')
+           + (l.coins? ' <span class="rc">+'+l.coins+'🪙</span>':'') + '</div>';
+    }
+    let give = '';
+    if(isMe){
+      give = '<div class="give2"><span class="self">这是你自己的留言，不能发给自己</span></div>';
+    } else {
+      give = '<div class="give2" data-id="'+l.id+'">'
+           + '<input class="amt" type="number" min="0" step="10" placeholder="金额(可空)" value="">'
+           + '<input class="rep" type="text" maxlength="200" placeholder="回复一句（可空）">'
+           + '<button onclick="replyFromCard(this,'+l.id+')">发钱/回复</button>'
+           + '</div>';
+    }
+    return '<div class="card">'
+      + '<div class="chead"><span class="who">'+esc(l.owner)+'</span><span class="when">'+esc(l.time)+'</span></div>'
+      + '<div class="say">'+esc(l.msg)+'</div>'
+      + done + give + '</div>';
   }
   function render(logs, replace){
     const list=document.getElementById('list');
     if(replace) list.innerHTML='';
-    logs.forEach(l=>{
-      const card=document.createElement('div'); card.className='card';
-      card.innerHTML=
-        '<div class="chead"><span class="who">'+esc(l.owner)+'</span>'+moodChip(l.mood)+
-        '<span class="when">'+esc(l.time)+'</span></div>'+
-        '<div class="say"><span class="lbl">TA说</span>'+esc(l.msg)+'</div>'+
-        '<div class="rep"><span class="lbl">老江</span>'+esc(l.reply)+'</div>'+
-        rewardChips(l.rewards);
-      list.appendChild(card);
-    });
+    logs.forEach(l=>{ list.insertAdjacentHTML('beforeend', cardHTML(l)); });
   }
+
   async function fetchPage(off, replace){
     const url='/joe/board/data?offset='+off+'&limit='+PAGE+(filter?'&q='+encodeURIComponent(filter):'');
     const d=await (await fetch(url)).json();
+    if(d.error){ toast('没有权限',true); return; }
+    ME = d.me||'';
+    renderClaim(d.claim);
+    renderBudget(d.grant);
     total=d.total||0;
     document.getElementById('total').textContent=total;
     if(replace) shownCount=0;
@@ -118,9 +229,48 @@
   }
   function applyFilter(){ filter=document.getElementById('q').value.trim(); offset=0; fetchPage(0,true); }
   function loadMore(){ fetchPage(offset,false); }
-  // 首屏 + 定时刷新（只刷新最新一页，不打断“加载更早”的浏览）
+
+  async function doGrant(target, amount){
+    if(busy) return;
+    target=(target||'').trim();
+    amount=parseInt(amount,10);
+    if(!target){ toast('填个用户名',true); return; }
+    if(!(amount>0)){ toast('金额要大于 0',true); return; }
+    busy=true;
+    try{
+      const r=await fetch('/joe/board/grant',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({target:target,amount:amount})});
+      const d=await r.json();
+      toast(d.msg||(d.ok?'已发放':'发放失败'), !d.ok);
+      // 刷新额度与列表
+      await fetchPage(0,true);
+    }catch(e){ toast('网络出错，待会儿再试',true); }
+    finally{ busy=false; }
+  }
+  function grantManual(){
+    doGrant(document.getElementById('gUser').value, document.getElementById('gAmt').value);
+  }
+  // 针对某条留言：发钱（可空）+ 回复（可空），至少填一样
+  async function replyFromCard(btn, logId){
+    if(busy) return;
+    const box=btn.parentElement;
+    const amt=parseInt((box.querySelector('.amt').value||'0'),10)||0;
+    const rep=(box.querySelector('.rep').value||'').trim();
+    if(!(amt>0) && !rep){ toast('填个金额，或者写句回复',true); return; }
+    busy=true; btn.disabled=true;
+    try{
+      const r=await fetch('/joe/board/reply',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({log_id:logId, amount:amt, reply:rep})});
+      const d=await r.json();
+      toast(d.msg||(d.ok?'已处理':'处理失败'), !d.ok);
+      await fetchPage(0,true);
+    }catch(e){ toast('网络出错，待会儿再试',true); btn.disabled=false; }
+    finally{ busy=false; }
+  }
+
+  // 首屏 + 定时刷新（只在浏览最新一页、且没在发币时刷新，避免打断操作）
   fetchPage(0,true);
-  setInterval(()=>{ if(offset<=PAGE) fetchPage(0,true); }, 10000);
+  setInterval(()=>{ if(offset<=PAGE && !busy) fetchPage(0,true); }, 10000);
 </script>
 </body>
 </html>
