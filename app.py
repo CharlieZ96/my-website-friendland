@@ -1098,6 +1098,50 @@ def casino_bj_next(rid):
 def casino_bj_leave(rid):
     return casino.leave_bj_room(session["username"], rid)
 
+# —— 德州扑克（2~3 真人，无机器人；四轮下注，赢家通吃）——
+@app.route("/casino/holdem/create", methods=["POST"])
+@login_required
+def casino_holdem_create():
+    return {"room": casino.create_holdem_room(session["username"])}
+
+@app.route("/casino/holdem/join", methods=["POST"])
+@login_required
+def casino_holdem_join():
+    return {"room": casino.quick_join_holdem(session["username"])}
+
+@app.route("/casino/holdem/<int:rid>")
+@login_required
+def casino_holdem_page(rid):
+    return render_template("casino_holdem.html", rid=rid)
+
+@app.route("/casino/holdem/<int:rid>/state")
+@login_required
+def casino_holdem_state(rid):
+    return casino.get_holdem_room(session["username"], rid)
+
+@app.route("/casino/holdem/<int:rid>/ready", methods=["POST"])
+@login_required
+def casino_holdem_ready(rid):
+    d = request.get_json(silent=True) or {}
+    return casino.holdem_ready(session["username"], rid, bool(d.get("ready")))
+
+@app.route("/casino/holdem/<int:rid>/buyin", methods=["POST"])
+@login_required
+def casino_holdem_buyin(rid):
+    d = request.get_json(silent=True) or {}
+    return casino.holdem_buyin(session["username"], rid, d.get("amount", 0))
+
+@app.route("/casino/holdem/<int:rid>/action", methods=["POST"])
+@login_required
+def casino_holdem_action(rid):
+    d = request.get_json(silent=True) or {}
+    return casino.holdem_action(session["username"], rid, d.get("action", ""), d.get("amount", 0))
+
+@app.route("/casino/holdem/<int:rid>/leave", methods=["POST"])
+@login_required
+def casino_holdem_leave(rid):
+    return casino.leave_holdem_room(session["username"], rid)
+
 # —— 老江 AI 对话（说好话乞讨 / 千金大奖 / 请客拉缇娜；奖励全在服务器端封顶+冷却，防话术刷金）——
 @app.route("/casino/joe/chat", methods=["POST"])
 @login_required

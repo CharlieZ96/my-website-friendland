@@ -1594,3 +1594,637 @@ def joe_logs(limit=200, offset=0, owner=None):
         return {"logs": out, "total": total, "offset": offset, "limit": limit}
     finally:
         conn.close()
+
+
+# ============================================================
+#  德州扑克 Texas Hold'em —— 2~3 真人、无机器人、四轮下注、赢家通吃
+#  设计要点：整局进行中不动钱包 coins，只在开局把 coins 快照成本局筹码 stack，
+#  每注从 stack 扣进 committed；仅在“一局结束”一次性结算 coins（net=赢得-投入）。
+#  => 房间中途被清理/全员离开时 coins 从未被动过，绝不丢币，也不需要退币逻辑。
+# ============================================================
+HOLDEM_MAX_PLAYERS = 3
+HOLDEM_MIN_PLAYERS = 2
+HOLDEM_SB          = 5
+HOLDEM_BB          = 10
+HOLDEM_TURN_SECS   = 30
+HOLDEM_RESULT_SECS = 12
+HOLDEM_MAX_BUYIN   = 500   # 每人最多带 500 金币进场（赌桌上限）
+HOLDEM_MIN_BUYIN   = 20    # 最少带进场的金币（至少够玩两个大盲）
+_HD_RANKS = "23456789TJQKA"
+_HD_SUITS = "shdc"
+_HD_CAT = {8:"同花顺",7:"四条",6:"葫芦",5:"同花",4:"顺子",3:"三条",2:"两对",1:"一对",0:"高牌"}
+
+# ---------- 纯逻辑：牌堆 / 评估 / 边池 ----------
+def _hd_new_deck():
+    deck = [r+s for r in _HD_RANKS for s in _HD_SUITS]
+    random.shuffle(deck)
+    return deck
+
+def _hd_cardval(card):
+    return _HD_RANKS.index(card[0]) + 2
+
+def _hd_rank5(cards):
+    from collections import Counter
+    vals = sorted((_hd_cardval(c) for c in cards), reverse=True)
+    suits = [c[1] for c in cards]
+    flush = len(set(suits)) == 1
+    cnt = Counter(vals)
+    uniq = sorted(set(vals), reverse=True)
+    straight_high = None
+    if len(uniq) == 5:
+        if uniq[0] - uniq[4] == 4:
+            straight_high = uniq[0]
+        elif uniq == [14, 5, 4, 3, 2]:
+            straight_high = 5
+    by = sorted(cnt.items(), key=lambda kv: (-kv[1], -kv[0]))
+    counts = [c for _, c in by]
+    ov = [v for v, _ in by]
+    if straight_high and flush:
+        return (8, straight_high)
+    if counts[0] == 4:
+        return (7, ov[0], ov[1])
+    if counts[0] == 3 and len(counts) > 1 and counts[1] >= 2:
+        return (6, ov[0], ov[1])
+    if flush:
+        return (5, *vals)
+    if straight_high:
+        return (4, straight_high)
+    if counts[0] == 3:
+        return (3, ov[0], *[v for v in vals if v != ov[0]][:2])
+    if counts[0] == 2 and len(counts) > 1 and counts[1] == 2:
+        ph, pl = ov[0], ov[1]
+        kicker = max(v for v in vals if v != ph and v != pl)
+        return (2, ph, pl, kicker)
+    if counts[0] == 2:
+        return (1, ov[0], *[v for v in vals if v != ov[0]][:3])
+    return (0, *vals)
+
+def _hd_best(cards):
+    import itertools
+    best = None
+    for combo in itertools.combinations(cards, 5):
+        r = _hd_rank5(list(combo))
+        if best is None or r > best:
+            best = r
+    return best
+
+def _hd_side_pots(contrib, folded):
+    pots = []
+    levels = sorted(set(v for v in contrib.values() if v > 0))
+    prev = 0
+    for lv in levels:
+        layer = lv - prev
+        contributors = [p for p, v in contrib.items() if v >= lv]
+        amount = layer * len(contributors)
+        eligible = set(p for p in contributors if p not in folded)
+        if amount > 0:
+            pots.append((amount, eligible))
+        prev = lv
+    return pots
+
+# ---------- 座位 / 房间 ----------
+def _hd_humans(room):
+    return [s for s in room["seats"] if not s.get("isBot")]
+
+def _hd_log(room, msg):
+    room.setdefault("log", []).insert(0, msg); room["log"] = room["log"][:40]
+
+def _hd_seat(conn, owner):
+    sp = _sprite_of(conn, owner)
+    return {"owner": owner, "name": owner, "isBot": False,
+            "version": sp["version"], "hat": sp["hat"], "outfit": sp["outfit"],
+            "hair": sp["hair"], "skin": sp["skin"], "clothes": sp["clothes"],
+            "ready": False, "hole": [], "stack": 0, "committed": 0, "committed_round": 0,
+            "folded": False, "allin": False, "acted": False, "last_action": "",
+            "last_net": 0, "in_hand": False,
+            "bought_in": False, "buyin": 0}
+
+def _hd_fresh_room(conn, owner):
+    return {"game": "holdem", "mode": "public", "phase": "waiting",
+            "seats": [_hd_seat(conn, owner)],
+            "button": 0, "button_pos": 0, "order": [], "act_pos": -1,
+            "deck": [], "board": [], "current_bet": 0, "min_raise": HOLDEM_BB, "pot": 0,
+            "turn_deadline": 0, "resolved_at": 0, "hand_no": 0, "result": None,
+            "log": ["🃏 德州扑克房开好了，等朋友来（先设进场额度，再点准备；2~3人即可开）"]}
+
+def _hd_ready_players(room, conn):
+    # 开局资格：已设进场额度(buyin>0) + 已准备 + 钱包够玩(至少一个大盲)
+    return [s for s in _hd_humans(room)
+            if s.get("ready") and s.get("buyin", 0) > 0
+            and _coins_get(conn, s["owner"]) >= HOLDEM_BB]
+
+# ---------- 开局 ----------
+def _hd_pot(room):
+    return sum(s.get("committed", 0) for s in room["seats"])
+
+def _hd_post(room, seat_idx, amount, label):
+    s = room["seats"][seat_idx]
+    put = min(amount, s["stack"])
+    s["stack"] -= put; s["committed"] += put; s["committed_round"] += put
+    if s["stack"] == 0:
+        s["allin"] = True
+    s["last_action"] = label
+
+def _hd_start_hand(room, conn):
+    players = _hd_ready_players(room, conn)
+    if len(players) < HOLDEM_MIN_PLAYERS:
+        return False
+    seats = room["seats"]
+    order = [i for i, s in enumerate(seats) if s in players]
+    room["hand_no"] += 1
+    if room["hand_no"] == 1:
+        bpos = 0
+    else:
+        prev_btn = room.get("button", order[0])
+        bpos = 0
+        for k, idx in enumerate(order):
+            if idx > prev_btn:
+                bpos = k; break
+        else:
+            bpos = 0
+    room["order"] = order
+    room["button_pos"] = bpos
+    room["button"] = order[bpos]
+    n = len(order)
+    for i, s in enumerate(seats):
+        if i in order:
+            # 本局可用筹码 = min(玩家选的进场额度, 钱包余额)；进场额度上限 500，
+            # 所以一局最多押掉自己选的额度，做到“进场资金限制”。
+            cap = s.get("buyin", 0) or HOLDEM_MAX_BUYIN
+            stake = min(cap, HOLDEM_MAX_BUYIN, _coins_get(conn, s["owner"]))
+            s.update({"in_hand": True, "hole": [], "committed": 0, "committed_round": 0,
+                      "folded": False, "allin": False, "acted": False, "last_action": "",
+                      "last_net": 0, "stack": stake})
+        else:
+            s.update({"in_hand": False, "hole": [], "folded": True, "allin": False,
+                      "committed": 0, "committed_round": 0, "last_action": "旁观"})
+    deck = _hd_new_deck()
+    for i in order:
+        seats[i]["hole"] = [deck.pop(), deck.pop()]
+    room["deck"] = deck
+    room["board"] = []
+    room["result"] = None
+    room["resolved_at"] = 0
+    if n == 2:
+        sb_pos, bb_pos = bpos, (bpos + 1) % 2
+    else:
+        sb_pos, bb_pos = (bpos + 1) % n, (bpos + 2) % n
+    _hd_post(room, order[sb_pos], HOLDEM_SB, "小盲")
+    _hd_post(room, order[bb_pos], HOLDEM_BB, "大盲")
+    room["current_bet"] = HOLDEM_BB
+    room["min_raise"] = HOLDEM_BB
+    room["phase"] = "preflop"
+    room["act_pos"] = _hd_find_actor(room, (bb_pos + 1) % n)
+    room["turn_deadline"] = _now() + HOLDEM_TURN_SECS
+    room["pot"] = _hd_pot(room)
+    _hd_log(room, f"—— 第 {room['hand_no']} 局开始，发牌！——")
+    return True
+
+# ---------- 行动顺序 ----------
+def _hd_seat_at(room, pos):
+    return room["seats"][room["order"][pos]]
+
+def _hd_find_actor(room, start_pos):
+    n = len(room["order"])
+    for k in range(n):
+        pos = (start_pos + k) % n
+        s = _hd_seat_at(room, pos)
+        if s["folded"] or s["allin"]:
+            continue
+        if (not s["acted"]) or s["committed_round"] < room["current_bet"]:
+            return pos
+    return -1
+
+def _hd_alive(room):
+    return [i for i in room["order"] if not room["seats"][i]["folded"]]
+
+def _hd_can_act(room):
+    return [i for i in room["order"] if not room["seats"][i]["folded"] and not room["seats"][i]["allin"]]
+
+# ---------- 玩家动作 ----------
+def _hd_do_action(room, conn, owner, action, amount=0):
+    if room["phase"] not in ("preflop", "flop", "turn", "river"):
+        return {"ok": False, "msg": "现在不能操作"}
+    pos = room["act_pos"]
+    if pos < 0:
+        return {"ok": False, "msg": "还没轮到行动"}
+    s = _hd_seat_at(room, pos)
+    if s["owner"] != owner:
+        return {"ok": False, "msg": "还没轮到你"}
+    cb = room["current_bet"]
+    need = cb - s["committed_round"]
+    if action == "fold":
+        s["folded"] = True; s["acted"] = True; s["last_action"] = "弃牌"
+        _hd_log(room, f"　{s['name']}：弃牌")
+    elif action == "check":
+        if need > 0:
+            return {"ok": False, "msg": "有人下注了，不能过牌"}
+        s["acted"] = True; s["last_action"] = "过牌"
+        _hd_log(room, f"　{s['name']}：过牌")
+    elif action == "call":
+        put = min(need, s["stack"])
+        s["stack"] -= put; s["committed"] += put; s["committed_round"] += put
+        if s["stack"] == 0: s["allin"] = True
+        s["acted"] = True; s["last_action"] = ("全下跟" if s["allin"] else "跟注")
+        _hd_log(room, f"　{s['name']}：{'全下' if s['allin'] else '跟注'} {put}")
+    elif action in ("raise", "allin"):
+        if action == "allin":
+            target = s["committed_round"] + s["stack"]
+        else:
+            target = int(amount or 0)
+        min_target = cb + room["min_raise"]
+        max_target = s["committed_round"] + s["stack"]
+        if action == "raise":
+            if target < min_target:
+                return {"ok": False, "msg": f"加注至少要到 {min_target}"}
+            if target > max_target:
+                return {"ok": False, "msg": "筹码不够"}
+        put = min(target - s["committed_round"], s["stack"])
+        if put <= 0:
+            return {"ok": False, "msg": "下注额无效"}
+        s["stack"] -= put; s["committed"] += put; s["committed_round"] += put
+        if s["stack"] == 0: s["allin"] = True
+        raise_size = s["committed_round"] - cb
+        if raise_size >= room["min_raise"]:
+            room["min_raise"] = raise_size
+        if s["committed_round"] > cb:
+            room["current_bet"] = s["committed_round"]
+            for i in room["order"]:
+                o = room["seats"][i]
+                if o is not s and not o["folded"] and not o["allin"]:
+                    o["acted"] = False
+        s["acted"] = True
+        s["last_action"] = ("全下" if s["allin"] else f"加注到{s['committed_round']}")
+        _hd_log(room, f"　{s['name']}：{'全下 '+str(put) if s['allin'] else '加注到 '+str(s['committed_round'])}")
+    else:
+        return {"ok": False, "msg": "未知操作"}
+    room["pot"] = _hd_pot(room)
+    _hd_after_action(room, conn)
+    return {"ok": True}
+
+def _hd_after_action(room, conn):
+    if len(_hd_alive(room)) <= 1:
+        _hd_end_one_left(room, conn)
+        return
+    nxt = _hd_find_actor(room, (room["act_pos"] + 1) % len(room["order"]))
+    if nxt == -1:
+        _hd_advance_street(room, conn)
+    else:
+        room["act_pos"] = nxt
+        room["turn_deadline"] = _now() + HOLDEM_TURN_SECS
+
+def _hd_reset_round(room):
+    for i in room["order"]:
+        s = room["seats"][i]
+        s["committed_round"] = 0; s["acted"] = False
+    room["current_bet"] = 0
+    room["min_raise"] = HOLDEM_BB
+
+def _hd_advance_street(room, conn):
+    _hd_reset_round(room)
+    while True:
+        ph = room["phase"]
+        if ph == "preflop":
+            room["board"] += [room["deck"].pop() for _ in range(3)]; room["phase"] = "flop"; _hd_log(room, "—— 翻牌 ——")
+        elif ph == "flop":
+            room["board"].append(room["deck"].pop()); room["phase"] = "turn"; _hd_log(room, "—— 转牌 ——")
+        elif ph == "turn":
+            room["board"].append(room["deck"].pop()); room["phase"] = "river"; _hd_log(room, "—— 河牌 ——")
+        elif ph == "river":
+            _hd_showdown(room, conn); return
+        if len(_hd_can_act(room)) >= 2:
+            room["act_pos"] = _hd_find_actor(room, (room["button_pos"] + 1) % len(room["order"]))
+            if room["act_pos"] != -1:
+                room["turn_deadline"] = _now() + HOLDEM_TURN_SECS
+                room["pot"] = _hd_pot(room)
+                return
+        continue
+
+def _hd_settle(room, conn, winnings):
+    # 钱包在牌局中完全不动，只有一局结束时按净胜负一次性结算到钱包。
+    # 因为本局每人的 stack（可下注上限）= min(进场额度, 钱包)，所以单局最多输掉
+    # 自己选的进场额度（≤500），这就是“进场资金限制”。
+    room["pot"] = _hd_pot(room)   # 先记下本局总彩池（含离场者留下的注），供摊牌展示
+    for i in room["order"]:
+        s = room["seats"][i]
+        net = winnings.get(i, 0) - s["committed"]
+        s["last_net"] = net
+        _coins_add(conn, s["owner"], net)
+        _bump_daily(conn, s["owner"], net)
+    room["phase"] = "showdown"
+    room["resolved_at"] = _now()
+    room["act_pos"] = -1
+    room["turn_deadline"] = 0
+    for s in room["seats"]:
+        s["ready"] = False
+    # 结算完成后，移除“中途离开”的影子座位——它们已经在上面按已投入的注扣了钱，
+    # 那笔注也已随彩池归了赢家。座位就此清走，下一局不再出现。
+    room["seats"] = [s for s in room["seats"] if not s.get("left")]
+    room["order"] = []
+
+def _hd_end_one_left(room, conn):
+    alive = _hd_alive(room)
+    if alive:
+        winnings = {alive[0]: _hd_pot(room)}
+        nm = room["seats"][alive[0]]["name"]
+        room["result"] = {"winners": [nm], "by": "其他人都弃牌", "hands": {}}
+        _hd_log(room, f"🏆 {nm} 赢得彩池 {_hd_pot(room)}（其他人弃牌）")
+        _hd_settle(room, conn, winnings)
+    else:
+        # 极端情况：最后一个还在牌的人也离场了，没有赢家。本局作废、谁的钱都不动
+        # （保持金币守恒），并清掉影子座位。
+        room["result"] = {"winners": [], "by": "全员离场，本局作废", "hands": {}}
+        room["phase"] = "showdown"; room["resolved_at"] = _now()
+        room["act_pos"] = -1; room["turn_deadline"] = 0
+        room["pot"] = 0
+        for s in room["seats"]:
+            s["ready"] = False
+        room["seats"] = [s for s in room["seats"] if not s.get("left")]
+        room["order"] = []
+
+def _hd_showdown(room, conn):
+    while len(room["board"]) < 5:
+        room["board"].append(room["deck"].pop())
+    alive = _hd_alive(room)
+    ranks = {i: _hd_best(room["seats"][i]["hole"] + room["board"]) for i in alive}
+    contrib = {i: room["seats"][i]["committed"] for i in room["order"]}
+    folded = set(i for i in room["order"] if room["seats"][i]["folded"])
+    winnings = {}
+    for amount, eligible in _hd_side_pots(contrib, folded):
+        elig = [i for i in eligible if i in ranks] or alive[:]
+        best = max(ranks[i] for i in elig)
+        winners = [i for i in elig if ranks[i] == best]
+        share = amount // len(winners)
+        rem = amount - share * len(winners)
+        for w in winners:
+            winnings[w] = winnings.get(w, 0) + share
+        if rem and winners:
+            winnings[winners[0]] += rem
+    best_overall = max(alive, key=lambda i: ranks[i])
+    win_names = [room["seats"][i]["name"] for i in alive if ranks[i] == ranks[best_overall]]
+    hands_disp = {room["seats"][i]["name"]: _HD_CAT.get(ranks[i][0], "?") for i in alive}
+    room["result"] = {"winners": win_names, "by": _HD_CAT.get(ranks[best_overall][0], "?"), "hands": hands_disp}
+    _hd_log(room, f"🏆 摊牌：{'、'.join(win_names)} 以【{_HD_CAT.get(ranks[best_overall][0],'?')}】获胜")
+    _hd_settle(room, conn, winnings)
+
+# ---------- 惰性推进 ----------
+def _hd_tick(room, conn):
+    ph = room["phase"]
+    if ph == "waiting":
+        if len(_hd_ready_players(room, conn)) >= HOLDEM_MIN_PLAYERS:
+            _hd_start_hand(room, conn)
+    elif ph in ("preflop", "flop", "turn", "river"):
+        if room["turn_deadline"] and _now() > room["turn_deadline"] and room["act_pos"] >= 0:
+            s = _hd_seat_at(room, room["act_pos"])
+            if room["current_bet"] - s["committed_round"] <= 0:
+                _hd_do_action(room, conn, s["owner"], "check")
+            else:
+                _hd_do_action(room, conn, s["owner"], "fold")
+    elif ph == "showdown":
+        if room["resolved_at"] and _now() > room["resolved_at"] + HOLDEM_RESULT_SECS:
+            if len(_hd_ready_players(room, conn)) >= HOLDEM_MIN_PLAYERS:
+                _hd_start_hand(room, conn)
+            else:
+                room["phase"] = "waiting"; room["result"] = None
+                _hd_log(room, "—— 等待玩家准备下一局 ——")
+
+# ---------- 客户端视图（隐藏别人的底牌）----------
+def _hd_view(room, room_id, owner):
+    ph = room["phase"]
+    show_all = (ph == "showdown")
+    seats = []
+    for idx, s in enumerate(room["seats"]):
+        is_me = (s["owner"] == owner)
+        reveal = is_me or (show_all and s.get("in_hand") and not s.get("folded"))
+        seats.append({
+            "name": s["name"], "isBot": False, "is_me": is_me,
+            "version": s["version"], "hat": s["hat"], "outfit": s["outfit"],
+            "hair": s["hair"], "skin": s["skin"], "clothes": s["clothes"],
+            "ready": bool(s.get("ready")), "in_hand": bool(s.get("in_hand")),
+            "bought_in": bool(s.get("bought_in")), "buyin": s.get("buyin", 0),
+            "folded": bool(s.get("folded")), "allin": bool(s.get("allin")),
+            "stack": s.get("stack", 0), "committed_round": s.get("committed_round", 0),
+            "committed": s.get("committed", 0), "last_action": s.get("last_action", ""),
+            "last_net": s.get("last_net", 0),
+            "is_button": (idx == room.get("button")),
+            "is_turn": (ph in ("preflop","flop","turn","river") and room["order"]
+                        and 0 <= room["act_pos"] < len(room["order"])
+                        and room["order"][room["act_pos"]] == idx),
+            "hole": (s.get("hole", []) if reveal else (["??","??"] if (s.get("in_hand") and not s.get("folded")) else [])),
+        })
+    mine = next((s for s in room["seats"] if s["owner"] == owner), None)
+    my_turn = (ph in ("preflop","flop","turn","river") and room["order"]
+               and 0 <= room["act_pos"] < len(room["order"])
+               and _hd_seat_at(room, room["act_pos"])["owner"] == owner)
+    to_call = 0; can_check = False; min_raise_to = 0; my_stack = 0
+    if mine:
+        my_stack = mine.get("stack", 0)
+        if my_turn:
+            to_call = max(0, room["current_bet"] - mine.get("committed_round", 0))
+            can_check = (to_call == 0)
+            min_raise_to = room["current_bet"] + room["min_raise"]
+    remain = 0
+    if room.get("turn_deadline") and ph in ("preflop","flop","turn","river"):
+        remain = max(0, int(room["turn_deadline"] - _now()))
+    v = {
+        "phase": ph, "me": owner, "seats": seats, "board": room.get("board", []),
+        "pot": room.get("pot", _hd_pot(room)), "current_bet": room.get("current_bet", 0),
+        "hand_no": room.get("hand_no", 0), "min_players": HOLDEM_MIN_PLAYERS,
+        "max_players": HOLDEM_MAX_PLAYERS, "sb": HOLDEM_SB, "bb": HOLDEM_BB,
+        "my_turn": bool(my_turn), "to_call": to_call, "can_check": can_check,
+        "min_raise_to": min_raise_to, "my_stack": my_stack,
+        "my_ready": bool(mine.get("ready")) if mine else False,
+        "my_bought_in": bool(mine.get("bought_in")) if mine else False,
+        "my_buyin": (mine.get("buyin", 0) if mine else 0),
+        "max_buyin": HOLDEM_MAX_BUYIN, "min_buyin": HOLDEM_MIN_BUYIN,
+        "in_room": mine is not None,
+        "ready_count": len([s for s in _hd_humans(room)
+                            if s.get("ready") and s.get("bought_in")]),
+        "human_count": len(_hd_humans(room)),
+        "turn_remain": remain, "result": room.get("result"),
+        "log": room.get("log", [])[:24],
+    }
+    return v
+
+# ---------- 对外 DB API（app.py 调这些）----------
+def create_holdem_room(owner):
+    conn = _connect()
+    try:
+        _cleanup(conn)
+        room = _hd_fresh_room(conn, owner)
+        cur = conn.execute(
+            "INSERT INTO casino_rooms (game, mode, status, data, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+            ("holdem", "public", "waiting", json.dumps(room, ensure_ascii=False), _now(), _now()))
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+def quick_join_holdem(owner):
+    conn = _connect()
+    try:
+        _cleanup(conn)
+        rows = conn.execute(
+            "SELECT id, data FROM casino_rooms WHERE game='holdem' ORDER BY id DESC LIMIT 30").fetchall()
+        for rid, data in rows:
+            try:
+                room = json.loads(data)
+            except Exception:
+                continue
+            if any(s.get("owner") == owner for s in room["seats"]):
+                return rid
+            if len(_hd_humans(room)) < HOLDEM_MAX_PLAYERS:
+                room["seats"].append(_hd_seat(conn, owner))
+                _hd_log(room, f"👋 {owner} 进房了")
+                _save(conn, rid, room)
+                return rid
+        room = _hd_fresh_room(conn, owner)
+        cur = conn.execute(
+            "INSERT INTO casino_rooms (game, mode, status, data, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+            ("holdem", "public", "waiting", json.dumps(room, ensure_ascii=False), _now(), _now()))
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+def get_holdem_room(owner, room_id):
+    conn = _connect()
+    try:
+        room = _load(conn, room_id)
+        if not room or room.get("game") != "holdem":
+            return {"error": "房间不存在或已解散"}
+        _hd_tick(room, conn)
+        _save(conn, room_id, room)
+        v = _hd_view(room, room_id, owner)
+        v["coins"] = _coins_get(conn, owner)
+        v["top_winner"] = top_winner(conn)
+        return v
+    finally:
+        conn.close()
+
+def holdem_ready(owner, room_id, ready):
+    conn = _connect()
+    try:
+        room = _load(conn, room_id)
+        if not room or room.get("game") != "holdem":
+            return {"error": "房间不存在或已解散"}
+        s = next((x for x in room["seats"] if x["owner"] == owner), None)
+        if s and room["phase"] in ("waiting", "showdown"):
+            # 必须先设好进场额度、且钱包够玩，才能点准备
+            if ready and (s.get("buyin", 0) <= 0 or _coins_get(conn, owner) < HOLDEM_BB):
+                s["ready"] = False
+            else:
+                s["ready"] = bool(ready)
+        _hd_tick(room, conn)
+        _save(conn, room_id, room)
+        v = _hd_view(room, room_id, owner)
+        v["coins"] = _coins_get(conn, owner)
+        v["top_winner"] = top_winner(conn)
+        return v
+    finally:
+        conn.close()
+
+def holdem_buyin(owner, room_id, amount):
+    """玩家进场时设定“进场资金额度”（每局最多押多少，上限 500）。只能在
+    等待/摊牌间隙设定；设好顺手把自己置为准备。钱包不会在这里被扣，真正的
+    额度在每局开始时按 min(额度, 钱包余额) 生效。"""
+    conn = _connect()
+    try:
+        room = _load(conn, room_id)
+        if not room or room.get("game") != "holdem":
+            return {"error": "房间不存在或已解散"}
+        s = next((x for x in room["seats"] if x["owner"] == owner), None)
+        if s and room["phase"] in ("waiting", "showdown"):
+            cap = max(HOLDEM_MIN_BUYIN, min(int(amount or 0), HOLDEM_MAX_BUYIN))
+            s["buyin"] = cap
+            s["bought_in"] = True
+            if _coins_get(conn, owner) >= HOLDEM_BB:
+                s["ready"] = True   # 设好额度顺手准备，人齐即开
+            _hd_log(room, f"💰 {s['name']} 设定进场额度 {cap} 金币")
+        _hd_tick(room, conn)
+        _save(conn, room_id, room)
+        v = _hd_view(room, room_id, owner)
+        v["coins"] = _coins_get(conn, owner)
+        v["top_winner"] = top_winner(conn)
+        return v
+    finally:
+        conn.close()
+
+def holdem_action(owner, room_id, action, amount=0):
+    conn = _connect()
+    try:
+        room = _load(conn, room_id)
+        if not room or room.get("game") != "holdem":
+            return {"error": "房间不存在或已解散"}
+        res = _hd_do_action(room, conn, owner, action, amount)
+        _hd_tick(room, conn)
+        _save(conn, room_id, room)
+        v = _hd_view(room, room_id, owner)
+        v["coins"] = _coins_get(conn, owner)
+        v["top_winner"] = top_winner(conn)
+        if not res.get("ok"):
+            v["act_error"] = res.get("msg", "操作无效")
+        return v
+    finally:
+        conn.close()
+
+def leave_holdem_room(owner, room_id):
+    conn = _connect()
+    try:
+        room = _load(conn, room_id)
+        if not room or room.get("game") != "holdem":
+            return {"ok": True}
+        res = _hd_leave(room, conn, owner)
+        if res.get("delete") or not _hd_humans(room):
+            conn.execute("DELETE FROM casino_rooms WHERE id=?", (room_id,)); conn.commit()
+        else:
+            _save(conn, room_id, room)
+        return {"ok": True}
+    finally:
+        conn.close()
+
+def _hd_leave(room, conn, owner):
+    s = next((x for x in room["seats"] if x["owner"] == owner), None)
+    if not s:
+        return {"gone": True}
+    active = room["phase"] in ("preflop", "flop", "turn", "river")
+    in_hand = active and s.get("in_hand")
+
+    if in_hand:
+        # —— 牌局进行中离场 = 弃牌，且已经押进池子的注算输掉（留在彩池里给赢家）——
+        # 不能“看到坏牌就直接退还能把下注拿回来”。做法：把座位标成“影子”先留在牌局里，
+        # 它已投入的 committed 依旧算在彩池中；等本局结算时照常从它钱包扣掉这笔注、
+        # 归给赢家，结算完再把影子座位清走。
+        was_acting = (room["order"] and 0 <= room["act_pos"] < len(room["order"])
+                      and _hd_seat_at(room, room["act_pos"])["owner"] == owner)
+        if not s.get("folded"):
+            s["folded"] = True
+        s["acted"] = True
+        s["left"] = True
+        s["last_action"] = "离开弃牌"
+        _hd_log(room, f"🚪 {s['name']} 中途离开（弃牌，已下的注归入彩池）")
+        if len(_hd_alive(room)) <= 1:
+            _hd_end_one_left(room, conn)
+        elif was_acting:
+            nxt = _hd_find_actor(room, (room["act_pos"] + 1) % len(room["order"]))
+            if nxt == -1:
+                _hd_advance_street(room, conn)
+            else:
+                room["act_pos"] = nxt
+                room["turn_deadline"] = _now() + HOLDEM_TURN_SECS
+        room["pot"] = _hd_pot(room)
+        if not _hd_humans(room):
+            return {"gone": True, "delete": True}
+        return {"gone": True}
+
+    # —— 非牌局中（等待 / 摊牌 / 本局旁观）离场：钱包没扣过钱，直接移除座位即可 ——
+    left_idx = room["seats"].index(s)
+    room["seats"].remove(s)
+    if room.get("order"):
+        room["order"] = [i - (1 if i > left_idx else 0) for i in room["order"] if i != left_idx]
+        if room.get("button") is not None and room["button"] > left_idx:
+            room["button"] -= 1
+    if not _hd_humans(room):
+        return {"gone": True, "delete": True}
+    room["pot"] = _hd_pot(room)
+    return {"gone": True}
