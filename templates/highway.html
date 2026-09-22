@@ -511,7 +511,7 @@ function addCoin(seg, li, y){
   placeCoin(c); coins.push(c);
 }
 function spawnCoinLine(si){
-  const li=Math.floor(Math.random()*3), k=3+Math.floor(Math.random()*4);
+  const li=Math.floor(Math.random()*3), k=2+Math.floor(Math.random()*3);   // 每串 2~4 枚(原3~6)
   for(let j=0;j<k;j++){ const s=si+j*1.4; if(s<N-3) addCoin(s, li, 0.95); }
 }
 
@@ -650,7 +650,7 @@ function update(dt){
   traffic=traffic.filter(t=>{ if(t.seg < car.seg-3){ freeTraffic(t); return false;} return true; });
 
   // —— 金币：生成 + 旋转 + 吃到累计 ——
-  while(car.seg >= nextCoinSeg){ spawnCoinLine(nextCoinSeg+22); nextCoinSeg += 6+Math.floor(Math.random()*6); }
+  while(car.seg >= nextCoinSeg){ spawnCoinLine(nextCoinSeg+22); nextCoinSeg += 7+Math.floor(Math.random()*7); }   // 币串间距拉开(原6~11段→7~13段)
   coins=coins.filter(c=>{
     if(c.seg < car.seg-3){ freeCoin(c); return false; }
     c.mesh.rotation.y += dt*3;                        // 硬币旋转闪光
