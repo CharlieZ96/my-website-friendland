@@ -35,6 +35,11 @@ ROAD_MAX_ELAPSED = 6 * 3600  # 单次最多按 6 小时算
 ROAD_FUDGE       = 1.15       # 里程允许比“极速×时间”多一点点（起步/波动余量）
 ROAD_ABS_CAP     = 100000.0   # 单次里程绝对上限(km)，兜底
 
+# 开车沿途金币 → 真金币入账的防作弊上限
+ROAD_COIN_PER_KM = 80         # 每公里最多结算的金币
+ROAD_COIN_BASE   = 30         # 起步补偿（跑一小段也有点）
+ROAD_COIN_ABS    = 2000       # 单次绝对上限，兜底
+
 
 def ensure_highway_tables():
     conn = _connect()
@@ -75,6 +80,25 @@ def _coins_spend(conn, owner, amount):
     if have < amount:
         return None
     s["coins"] = have - int(amount)
+    conn.execute("INSERT OR REPLACE INTO pets (owner, version, status, data, updated_at) VALUES (?,?,?,?,?)",
+                 (owner, s.get("version", "v1"), s.get("status", "home"),
+                  json.dumps(s, ensure_ascii=False), _now()))
+    return s["coins"]
+
+
+def _coins_add(conn, owner, amount):
+    """给钱包加金币（开车沿途收集）。返回加后余额；没有存档返回 None。"""
+    amount = int(amount)
+    row = conn.execute("SELECT data, version, status FROM pets WHERE owner=?", (owner,)).fetchone()
+    if not row:
+        return None
+    try:
+        s = json.loads(row[0])
+    except Exception:
+        return None
+    if amount <= 0:
+        return int(s.get("coins", 0))
+    s["coins"] = int(s.get("coins", 0)) + amount
     conn.execute("INSERT OR REPLACE INTO pets (owner, version, status, data, updated_at) VALUES (?,?,?,?,?)",
                  (owner, s.get("version", "v1"), s.get("status", "home"),
                   json.dumps(s, ensure_ascii=False), _now()))
@@ -183,8 +207,9 @@ def road_data(owner):
             "me": {"best": round(me["best"], 2), "total": round(me["total"], 2), "runs": me["runs"]}}
 
 
-def road_submit(owner, car_id, dist_km, elapsed_s):
-    """上报一次跑的里程。服务器按 极速×时间×余量 夹取上限防作弊；更新 best/total/runs。"""
+def road_submit(owner, car_id, dist_km, elapsed_s, coins=0):
+    """上报一次跑的里程 + 沿途收集的金币。
+    里程按 极速×时间×余量 夹取上限防作弊；金币按里程设上限后存进钱包。更新 best/total/runs。"""
     car_id = (car_id or "").strip()
     v = VMAP.get(car_id)
     conn = _connect()
@@ -210,12 +235,28 @@ def road_submit(owner, car_id, dist_km, elapsed_s):
         accepted = min(dist, cap)
         accepted = round(max(0.0, accepted), 2)
 
+        # 沿途金币：按（防作弊后的）里程设上限，多报无效
+        try:
+            got = int(float(coins))
+        except (TypeError, ValueError):
+            got = 0
+        coin_cap = min(int(accepted * ROAD_COIN_PER_KM) + ROAD_COIN_BASE, ROAD_COIN_ABS)
+        coins_earned = max(0, min(got, coin_cap))
+
         prev = _score_row(conn, owner)
-        # 防刷：两次上报太近就不再累计（但仍返回当前榜单状态）
+        # 防刷：两次上报太近就不再累计，也不再入账金币（但仍返回当前状态）
         now = _now()
         if now - prev["updated_at"] < ROAD_MIN_GAP:
+            wallet = _coins_get(conn, owner)
             return {"ok": False, "msg": "慢点儿，成绩刚记过了",
-                    "best": round(prev["best"], 2), "total": round(prev["total"], 2), "runs": prev["runs"]}
+                    "best": round(prev["best"], 2), "total": round(prev["total"], 2), "runs": prev["runs"],
+                    "coins_earned": 0, "wallet": wallet}
+
+        # 金币入账（钱包 = pets.data.coins，和赌场/车行同一份）
+        wallet = _coins_add(conn, owner, coins_earned)
+        if wallet is None:
+            wallet = _coins_get(conn, owner)
+            coins_earned = 0
 
         new_total = prev["total"] + accepted
         new_best = max(prev["best"], accepted)
@@ -229,7 +270,8 @@ def road_submit(owner, car_id, dist_km, elapsed_s):
         conn.commit()
         return {"ok": True, "accepted": accepted, "capped": accepted < round(dist, 2),
                 "best": round(new_best, 2), "total": round(new_total, 2), "runs": new_runs,
-                "is_best": accepted >= prev["best"] and accepted > 0}
+                "is_best": accepted >= prev["best"] and accepted > 0,
+                "coins_earned": coins_earned, "coins_capped": coins_earned < got, "wallet": wallet}
     finally:
         conn.close()
 

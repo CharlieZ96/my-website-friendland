@@ -21,18 +21,44 @@
   #warn{position:absolute;top:52px;left:50%;transform:translateX(-50%);z-index:5;background:#7a1d1dcc;color:#ffd0d0;
     border:1px solid #c94b4b;border-radius:10px;padding:5px 14px;font-size:13px;font-weight:800;opacity:0;transition:opacity .15s;pointer-events:none}
   #warn.on{opacity:1}
-  .ctrl{position:absolute;bottom:0;left:0;right:0;z-index:6;pointer-events:none}
-  #wheelWrap{position:absolute;left:14px;bottom:14px;width:148px;height:148px;pointer-events:auto;touch-action:none;cursor:grab}
+  #coinBox{transition:transform .12s}
+  #coinBox.pop{transform:scale(1.22)}
+  #mile{position:absolute;top:52px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:6;
+    background:#0a5a2acc;color:#eafff0;border:1px solid #43c07a;border-radius:10px;padding:6px 16px;
+    font-size:14px;font-weight:800;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+  #mile.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  .ctrl{position:absolute;bottom:0;left:0;right:0;height:168px;z-index:6;pointer-events:none}
+  /* 座舱侧板：只在左右两侧(方向盘/踏板处)有背景，中间露出路面，别挡视线 */
+  .pod{position:absolute;bottom:0;height:118px;pointer-events:none;border-top:2px solid rgba(0,0,0,.5);
+    box-shadow:inset 0 12px 22px rgba(0,0,0,.36)}
+  #dashL{left:0;width:44%;border-radius:0 18px 0 0}
+  #dashR{right:0;width:44%;border-radius:18px 0 0 0}
+  .pod::before{content:"";position:absolute;left:0;right:0;top:0;height:12px;background:linear-gradient(rgba(255,255,255,.06),transparent)}
+  #wheelWrap{position:absolute;left:14px;bottom:12px;width:150px;height:150px;pointer-events:auto;touch-action:none;cursor:grab}
   #wheelWrap:active{cursor:grabbing}
   #wheel{width:100%;height:100%;display:block;filter:drop-shadow(0 6px 10px rgba(0,0,0,.5))}
-  .pedals{position:absolute;right:14px;bottom:14px;display:flex;gap:12px;align-items:flex-end;pointer-events:auto}
-  .pedal{width:76px;height:100px;border-radius:16px;border:2px solid #000;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#04121a;touch-action:none;
-    box-shadow:0 6px 0 rgba(0,0,0,.4)}
-  #gas{background:linear-gradient(#8affc0,#22c565);height:128px}
-  #brake{background:linear-gradient(#ffb3b3,#ff5a5a)}
-  .pedal .em{font-size:24px;line-height:1}
-  .pedal.on{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.4);filter:brightness(1.1)}
+  .pedals{position:absolute;right:14px;bottom:12px;display:flex;gap:12px;align-items:flex-end;pointer-events:auto}
+  .pedal{width:74px;height:96px;border-radius:13px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+    gap:6px;padding-bottom:12px;font-weight:800;font-size:13px;color:#dfe5ee;touch-action:none;
+    background:linear-gradient(#3d434f,#20242c);border:2px solid #10131a;
+    box-shadow:0 5px 0 rgba(0,0,0,.5), inset 0 2px 0 rgba(255,255,255,.06)}
+  #gas{height:120px}
+  .pedal .led{width:24px;height:5px;border-radius:3px;background:#3a4150;box-shadow:inset 0 0 2px #000}
+  #gas .led{background:#2f8f52}
+  #brake .led{background:#a03e3e}
+  .pedal.on{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.5);filter:brightness(1.14)}
+  .pedal.on .led{filter:brightness(1.7)}
+  /* 座舱侧板材质：档位越高越讲究 */
+  .ctrl[data-tier="1"] .pod{background:linear-gradient(#39404b,#22262e)}
+  .ctrl[data-tier="2"] .pod{background:linear-gradient(#404753,#242932)}
+  .ctrl[data-tier="3"] .pod{background:linear-gradient(#333a45,#1d212a);border-top-color:#7a2b2b}
+  .ctrl[data-tier="4"] .pod{background:repeating-linear-gradient(45deg,#1e222a 0 5px,#14171d 5px 10px)}
+  .ctrl[data-tier="5"] .pod{background:linear-gradient(#4b3624,#2c2015);border-top-color:#caa06a}
+  /* 高档打孔铝踏板 */
+  .ctrl[data-tier="4"] .pedal,.ctrl[data-tier="5"] .pedal{
+    background:linear-gradient(#5b626e,#2b303a);
+    background-image:radial-gradient(circle at 4px 4px,rgba(0,0,0,.45) 1.5px,transparent 1.7px),linear-gradient(#5b626e,#2b303a);
+    background-size:12px 12px, auto}
   .panel{position:absolute;inset:0;z-index:10;background:#0a0e18ee;display:flex;align-items:center;justify-content:center;padding:18px}
   .panel[hidden]{display:none}
   .card{background:linear-gradient(180deg,#141d2e,#0f1626);border:1px solid #26324a;border-radius:18px;
@@ -43,7 +69,7 @@
   .cars{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
   .crow{display:flex;align-items:center;gap:10px;background:#0e1626;border:1px solid #26324a;border-radius:12px;padding:10px;cursor:pointer}
   .crow.sel{border-color:#5ac8fa;box-shadow:0 0 0 2px #5ac8fa44}
-  .crow .ic{font-size:28px;width:40px;text-align:center}
+  .crow .ic{font-size:28px;width:64px;height:38px;flex:none;text-align:center}
   .crow .nm{font-weight:800}
   .crow .st{font-size:11px;color:#9fb3d8;margin-top:2px}
   .crow .tier{font-size:11px;font-weight:800;color:#04121a;background:#5ac8fa;border-radius:999px;padding:1px 7px;margin-left:6px}
@@ -56,6 +82,7 @@
   .result .rkm{font-size:40px;font-weight:900;color:#7CFFB2;line-height:1}
   .result .sub{color:#8fa0c8;font-size:13px;margin:6px 0 2px}
   .badge{display:inline-block;background:#3a2e12;color:#ffd85a;border:1px solid #6a5320;border-radius:999px;padding:3px 12px;font-size:12px;font-weight:800;margin-top:8px}
+  .coinres{margin-top:10px;background:#1a1607;border:1px solid #5a4a18;color:#ffe9a8;border-radius:10px;padding:8px 10px;font-size:13px}
   .tabs{display:flex;gap:8px;margin:14px 0 8px}
   .tabs button{flex:1;background:#131b29;border:1px solid #2a3a58;color:#9fb3d8;border-radius:10px;padding:8px;font-weight:700;font-size:13px;cursor:pointer}
   .tabs button.on{background:#1c2a44;color:#eaf2ff;border-color:#5ac8fa}
@@ -78,27 +105,20 @@
   <div class="hud" id="hud" hidden>
     <div class="box"><span class="km" id="hkm">0.00</span> <span style="color:#7CFFB2">km</span></div>
     <div class="box"><span class="spd" id="hspd">0</span> <span style="color:#ffd85a">km/h</span></div>
+    <div class="box" id="coinBox">🪙 <b id="hcoin" style="color:#ffd85a">0</b></div>
     <div class="box best">最高 <b id="hbest">0</b></div>
     <button class="quit" id="quitBtn">退出</button>
   </div>
   <div id="warn">⚠️ 偏离路面</div>
+  <div id="mile"></div>
 
-  <div class="ctrl" id="ctrl" hidden>
-    <div id="wheelWrap">
-      <svg id="wheel" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="46" fill="#11161f" stroke="#2a3242" stroke-width="3"/>
-        <circle cx="50" cy="50" r="38" fill="none" stroke="#454f61" stroke-width="7"/>
-        <rect x="46" y="12" width="8" height="20" rx="3" fill="#5ac8fa"/>
-        <g stroke="#2b3444" stroke-width="7" stroke-linecap="round">
-          <line x1="50" y1="50" x2="50" y2="16"/><line x1="50" y1="50" x2="20" y2="66"/><line x1="50" y1="50" x2="80" y2="66"/>
-        </g>
-        <circle cx="50" cy="50" r="12" fill="#1b2230" stroke="#3a4457" stroke-width="3"/>
-        <text x="50" y="55" font-size="10" fill="#5ac8fa" text-anchor="middle" font-weight="bold">JZH</text>
-      </svg>
-    </div>
+  <div class="ctrl" id="ctrl" hidden data-tier="1">
+    <div id="dashL" class="pod"></div>
+    <div id="dashR" class="pod"></div>
+    <div id="wheelWrap"><svg id="wheel" viewBox="0 0 100 100"></svg></div>
     <div class="pedals">
-      <div class="pedal" id="brake"><span class="em">🛑</span>刹车</div>
-      <div class="pedal" id="gas"><span class="em">⛽</span>油门</div>
+      <div class="pedal" id="brake"><i class="led"></i><span>刹车</span></div>
+      <div class="pedal" id="gas"><i class="led"></i><span>油门</span></div>
     </div>
   </div>
 
@@ -107,7 +127,7 @@
   <div class="panel" id="selPanel">
     <div class="card">
       <h2>🏁 <em>JZH高速</em></h2>
-      <p class="muted">选一辆你在 TOYOBA 买过的车上高速。踩油门加速，<b>拧方向盘让车头跟着公路拐弯</b>，别开出路面、别撞前车——里程即成绩。档位越高越快越好开。</p>
+      <p class="muted">从<b>静安区</b>一路开往<b>苏州</b>。踩油门加速，<b>拧方向盘让车头跟着公路拐弯</b>，别开出路面、别撞前车——里程即成绩。沿途<b>吃金币能换成乐园金币</b>，遇到<b>跳板开上去还能加速</b>。档位越高越快越好开。</p>
       <div class="cars" id="carList"></div>
       <button class="big" id="startBtn" disabled>选辆车开始</button>
       <a class="ghost" href="/toyoba">🚗 没有车？去 TOYOBA 买一辆</a>
@@ -121,6 +141,7 @@
         <div class="sub">本次里程</div>
         <div class="rkm"><span id="runKm">0.00</span> km</div>
         <div id="bestBadge" class="badge" hidden>🎉 新纪录！</div>
+        <div class="coinres" id="coinResult" hidden></div>
         <div class="sub" style="margin-top:10px">你的最高 <b id="myBest" style="color:#7CFFB2">0</b> km ｜ 累计 <b id="myTotal" style="color:#7CFFB2">0</b> km</div>
       </div>
       <div class="tabs">
@@ -137,14 +158,27 @@
   <div id="err"><div><div style="font-size:40px">🚧</div><p>这台设备/浏览器好像不支持 3D(WebGL)。<br>换个新点的浏览器再来试试吧。</p><a class="ghost" href="/enoshima" style="max-width:220px;margin:10px auto 0">← 回江之岛</a></div></div>
 </div>
 
+<script src="/static/car_sprites.js"></script>
 <script>
 const ME=(document.body.dataset.me||'');
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;}
 function fmt(x){return (Math.round(x*100)/100).toFixed(2);}
+// 顶部横幅：立交牌/跳板提示
+let _mileT=null;
+function showMile(txt){
+  const el=document.getElementById('mile'); if(!el) return;
+  el.textContent=txt; el.classList.add('on');
+  clearTimeout(_mileT); _mileT=setTimeout(()=>el.classList.remove('on'), 1900);
+}
+// 吃到金币时 HUD 金币框闪一下
+function flashCoin(){
+  const el=document.getElementById('coinBox'); if(!el) return;
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+}
 
 // ===== three 场景（一次性）=====
 let renderer, scene, camera, ground, roadMesh=null, hood;
-let sceneryGroup=null, SIGN_TEX=null;
+let sceneryGroup=null, SIGN_TEX=null, CLOUDS=[];
 let CARS=[], CAR=null, MEBEST=0;
 let state='select';
 let THREE_OK=true;
@@ -157,8 +191,8 @@ function initThree(){
   renderer.setClearColor(0x8fc7ff);
   scene=new THREE.Scene();
   scene.background=new THREE.Color(0x8fc7ff);
-  scene.fog=new THREE.Fog(0x8fc7ff, 180, 560);
-  camera=new THREE.PerspectiveCamera(68, 1, 0.1, 1200);
+  scene.fog=new THREE.Fog(0x9fd0ff, 200, 640);
+  camera=new THREE.PerspectiveCamera(68, 1, 0.1, 1600);
   // 光照（受光材质才有立体感）
   scene.add(new THREE.HemisphereLight(0xdceeff, 0x3a5a30, 1.05));
   const sun=new THREE.DirectionalLight(0xffffff, 0.55); sun.position.set(60,120,40); scene.add(sun);
@@ -168,7 +202,41 @@ function initThree(){
     polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1}));  // 把草地往后压，别盖住路
   ground.position.y=-0.5; scene.add(ground);
   scene.add(camera);
+  buildSky();
   resize();
+}
+
+// ===== 蓝天白云：跟随相机的云朵精灵（不吃雾、缓慢飘动）=====
+function buildSky(){
+  // 一张柔和的白色云团贴图
+  const c=document.createElement('canvas'); c.width=256; c.height=128;
+  const g=c.getContext('2d');
+  function puff(cx,cy,r){ const rad=g.createRadialGradient(cx,cy,0,cx,cy,r);
+    rad.addColorStop(0,'rgba(255,255,255,0.95)'); rad.addColorStop(0.55,'rgba(255,255,255,0.75)');
+    rad.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=rad; g.beginPath(); g.arc(cx,cy,r,0,7); g.fill(); }
+  puff(96,74,46); puff(150,66,52); puff(120,58,44); puff(186,78,40); puff(66,80,36);
+  const tex=new THREE.CanvasTexture(c);
+  CLOUDS=[];
+  for(let i=0;i<16;i++){
+    const mat=new THREE.SpriteMaterial({map:tex, transparent:true, opacity:0.82+Math.random()*0.15, fog:false, depthWrite:false});
+    const sp=new THREE.Sprite(mat);
+    const sc=54+Math.random()*70;
+    sp.scale.set(sc, sc*0.52, 1);
+    // 相对相机的偏移：铺在前方天际线之上（每帧跟随相机 + 缓慢横向飘动）
+    const off={ox:(Math.random()*2-1)*300, oy:44+Math.random()*54, oz:110+Math.random()*380,
+                drift:4+Math.random()*6 };
+    sp.userData.off=off;
+    CLOUDS.push(sp); scene.add(sp);
+  }
+}
+function updateClouds(dt){
+  if(!camera) return;
+  for(const sp of CLOUDS){
+    const o=sp.userData.off;
+    o.ox -= o.drift*dt;
+    if(o.ox < -420) o.ox = 420;
+    sp.position.set(camera.position.x+o.ox, o.oy, camera.position.z+o.oz);
+  }
 }
 function resize(){
   if(!renderer) return;
@@ -182,6 +250,19 @@ window.addEventListener('resize',resize);
 // ===== 赛道 =====
 const STEP=10, N=4000, HALFW=8;                 // 每节10米、共4000节(40km)、半宽8米
 const LANES=[-4.6,0,4.6];
+// 静安区 → 苏州 一路的立交/出口牌（按“游戏里 km”摆放；看得见出口，开不下去）
+const MILESTONES=[
+  {km:1.5,  place:'内环高速',     exit:'内环高架 出口 →'},
+  {km:4.0,  place:'中环路',       exit:'中环路 出口 →'},
+  {km:7.0,  place:'外环 A20',     exit:'外环高速 出口 →'},
+  {km:10.5, place:'G2 京沪高速',  exit:'嘉定 · 安亭 出口 →'},
+  {km:14.5, place:'花桥 · 江苏',  exit:'欢迎进入 江苏 →'},
+  {km:19.0, place:'昆山',         exit:'昆山 · 阳澄湖 出口 →'},
+  {km:24.0, place:'苏州工业园',   exit:'苏州工业园区 出口 →'},
+  {km:29.0, place:'苏州',         exit:'苏州 · 金鸡湖 出口 →'},
+  {km:34.0, place:'苏州西',       exit:'苏州西 出口 →'},
+  {km:38.5, place:'太湖 · 木渎',  exit:'太湖 · 木渎 出口 →'},
+];
 let node=[], head=[], nrm=[];                    // 中心线点/朝向/法向
 function buildTrack(){
   node=[]; head=[]; nrm=[];
@@ -250,6 +331,22 @@ function signTextures(){
   SIGN_TEX={ hw:hw, s120:round('120'), s100:round('100') };
   return SIGN_TEX;
 }
+// 立交/出口龙门牌贴图（绿底白字 + 右转出口箭头）
+function gantryTexture(place, exit){
+  const c=document.createElement('canvas'); c.width=512; c.height=176;
+  const x=c.getContext('2d');
+  x.fillStyle='#0a7a34'; x.fillRect(0,0,512,176);
+  x.strokeStyle='#fff'; x.lineWidth=6; x.strokeRect(9,9,494,158);
+  x.fillStyle='#fff'; x.textAlign='left'; x.textBaseline='middle';
+  x.font='bold 52px sans-serif'; x.fillText(place, 30, 64);
+  x.font='bold 28px sans-serif'; x.fillText(exit, 30, 120);
+  // 右上角一个下高速的弯箭头（示意“出口”，但玩家开不下去）
+  x.save(); x.translate(452,52); x.strokeStyle='#fff'; x.lineWidth=11; x.lineCap='round';
+  x.beginPath(); x.moveTo(-26,-8); x.quadraticCurveTo(24,-8,24,44); x.stroke();
+  x.beginPath(); x.moveTo(24,66); x.lineTo(9,40); x.lineTo(39,40); x.closePath(); x.fillStyle='#fff'; x.fill();
+  x.restore();
+  const t=new THREE.CanvasTexture(c); return t;
+}
 function buildScenery(){
   if(sceneryGroup){ scene.remove(sceneryGroup);
     sceneryGroup.traverse(o=>{ if(o.geometry)o.geometry.dispose(); if(o.material){ (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.dispose()); } }); }
@@ -286,20 +383,28 @@ function buildScenery(){
   });
   G.add(trunk); G.add(crown);
 
-  // —— 远处楼房（天际线）——
+  // —— 楼房天际线（近景密集 + 远景高楼两层，营造大城市背景）——
   const bs=[];
-  for(let i=40;i<N-2;i+=(11+((i*5)%9))){
+  // 近景：贴着路边的密集楼群
+  for(let i=36;i<N-2;i+=(6+((i*5)%5))){
     for(const s of [1,-1]){
-      if(((i*3+ (s>0?1:0))%2)===0) continue;
-      const off=HALFW+26+((i*19)%40), p=node[i], n=nrm[i];
-      bs.push({x:p.x+n.x*off*s, z:p.z+n.z*off*s, w:6+((i*7)%9), h:9+((i*23)%34), rot:head[i]});
+      const off=HALFW+22+((i*19)%26), p=node[i], n=nrm[i];
+      bs.push({x:p.x+n.x*off*s, z:p.z+n.z*off*s, w:6+((i*7)%8), h:11+((i*23)%28), rot:head[i]});
+    }
+  }
+  // 远景：更高更大的摩天楼天际线
+  for(let i=50;i<N-2;i+=(8+((i*3)%7))){
+    for(const s of [1,-1]){
+      const off=HALFW+64+((i*29)%72), p=node[i], n=nrm[i];
+      bs.push({x:p.x+n.x*off*s, z:p.z+n.z*off*s, w:11+((i*11)%13), h:38+((i*37)%70), rot:head[i], far:1});
     }
   }
   const bld=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshLambertMaterial({color:0xffffff}), bs.length);
-  const cols=[0x8a93a6,0x6f7b90,0x9aa6b8,0x7d8aa0,0xb0b8c6,0x5f6a80]; const col=new THREE.Color();
+  const cols=[0x8a93a6,0x6f7b90,0x9aa6b8,0x7d8aa0,0xb0b8c6,0x5f6a80];
+  const glass=[0x7fa8d0,0x6f9ec8,0x9ec2e0,0x88b0d8,0xa9c8e2]; const col=new THREE.Color();
   bs.forEach((b,i)=>{
     dummy.rotation.set(0,b.rot,0); dummy.position.set(b.x,b.h/2,b.z); dummy.scale.set(b.w,b.h,b.w); dummy.updateMatrix(); bld.setMatrixAt(i,dummy.matrix);
-    col.setHex(cols[i%cols.length]); bld.setColorAt(i,col);
+    col.setHex(b.far ? glass[i%glass.length] : cols[i%cols.length]); bld.setColorAt(i,col);
   });
   if(bld.instanceColor) bld.instanceColor.needsUpdate=true;
   G.add(bld);
@@ -323,6 +428,26 @@ function buildScenery(){
     const post=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,hy,6), new THREE.MeshLambertMaterial({color:0x8a8f98}));
     post.position.set(p.x+n.x*off, hy/2, p.z+n.z*off); G.add(post);
   }
+
+  // —— 立交/出口龙门牌（静安 → 苏州，按游戏 km 摆放；看得见，开不下去）——
+  const gantryMat=new THREE.MeshLambertMaterial({color:0x3a4150});
+  MILESTONES.forEach(m=>{
+    const s=Math.round(m.km*1000/STEP);
+    if(s<8 || s>N-4) return;
+    const p=node[s], n=nrm[s], hy=6.4, span=HALFW+1.4;
+    // 横梁（沿路面法向横跨）
+    const beam=new THREE.Mesh(new THREE.BoxGeometry(span*2+1.0, 0.5, 0.5), gantryMat);
+    beam.position.set(p.x, hy, p.z); beam.rotation.y=head[s]; G.add(beam);
+    // 两侧立柱
+    [1,-1].forEach(sd=>{
+      const post=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,hy,8), gantryMat);
+      post.position.set(p.x+n.x*span*sd, hy/2, p.z+n.z*span*sd); G.add(post);
+    });
+    // 悬挂的绿色出口牌（正对迎面来车）
+    const board=new THREE.Mesh(new THREE.PlaneGeometry(7.6, 2.5),
+      new THREE.MeshBasicMaterial({map:gantryTexture(m.place, m.exit), side:THREE.DoubleSide}));
+    board.position.set(p.x, hy-1.55, p.z); board.rotation.y=head[s]+Math.PI; G.add(board);
+  });
 
   scene.add(G);
 }
@@ -349,6 +474,77 @@ function getTrafficMesh(color){
   m.visible=true; scene.add(m); return m;
 }
 function freeTraffic(t){ scene.remove(t.mesh); t.mesh.visible=false; TR_POOL.push(t.mesh); }
+// 把交通车按它当前的（浮点）路段 seg + 车道，插值定位到公路上
+function placeTraffic(t){
+  let si=Math.floor(t.seg); if(si<0)si=0; if(si>N-2)si=N-2;
+  const f=t.seg-si, a=node[si], b=node[si+1], na=nrm[si], nb=nrm[si+1];
+  const cx=a.x+(b.x-a.x)*f, cz=a.z+(b.z-a.z)*f;
+  const nx=na.x+(nb.x-na.x)*f, nz=na.z+(nb.z-na.z)*f, off=LANES[t.li];
+  t.x=cx+nx*off; t.z=cz+nz*off;
+  t.mesh.position.set(t.x,0,t.z);
+  t.mesh.rotation.y=head[si]+(head[si+1]-head[si])*f;
+}
+
+// ===== 金币（对象池）=====
+let coins=[], coinCount=0;
+const COIN_POOL=[];
+function getCoinMesh(){
+  let m=COIN_POOL.pop();
+  if(!m){
+    m=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.12,18),
+      new THREE.MeshLambertMaterial({color:0xffd24a, emissive:0x6a5210, emissiveIntensity:0.6}));
+    m.rotation.x=Math.PI/2;   // 立起来像硬币
+  }
+  m.visible=true; scene.add(m); return m;
+}
+function freeCoin(c){ scene.remove(c.mesh); c.mesh.visible=false; COIN_POOL.push(c.mesh); }
+function placeCoin(c){
+  let si=Math.floor(c.seg); if(si<0)si=0; if(si>N-2)si=N-2;
+  const f=c.seg-si, a=node[si], b=node[si+1], na=nrm[si], nb=nrm[si+1];
+  const nx=na.x+(nb.x-na.x)*f, nz=na.z+(nb.z-na.z)*f, off=LANES[c.li];
+  c.x=a.x+(b.x-a.x)*f + nx*off;
+  c.z=a.z+(b.z-a.z)*f + nz*off;
+  c.mesh.position.set(c.x, c.y, c.z);
+}
+function addCoin(seg, li, y){
+  const c={mesh:getCoinMesh(), seg:seg, li:li, y:(y==null?0.95:y), x:0, z:0};
+  placeCoin(c); coins.push(c);
+}
+function spawnCoinLine(si){
+  const li=Math.floor(Math.random()*3), k=3+Math.floor(Math.random()*4);
+  for(let j=0;j<k;j++){ const s=si+j*1.4; if(s<N-3) addCoin(s, li, 0.95); }
+}
+
+// ===== 跳板（对象池）=====
+let ramps=[];
+const RAMP_POOL=[];
+function getRampMesh(){
+  let m=RAMP_POOL.pop();
+  if(!m){
+    m=new THREE.Group();
+    const top=new THREE.Mesh(new THREE.BoxGeometry(3.3,0.22,3.6),
+      new THREE.MeshLambertMaterial({color:0xff8c1a}));
+    top.rotation.x=-0.30; top.position.y=0.58; m.add(top);
+    const base=new THREE.Mesh(new THREE.BoxGeometry(3.3,0.5,1.3),
+      new THREE.MeshLambertMaterial({color:0x2b2f38}));
+    base.position.set(0,0.25,1.35); m.add(base);
+    const stripe=new THREE.Mesh(new THREE.BoxGeometry(3.34,0.02,0.45),
+      new THREE.MeshBasicMaterial({color:0x14181f}));
+    stripe.rotation.x=-0.30; stripe.position.set(0,0.74,-0.5); m.add(stripe);
+    m.userData.top=top;
+  }
+  m.visible=true; scene.add(m); return m;
+}
+function freeRamp(r){ scene.remove(r.mesh); r.mesh.visible=false; RAMP_POOL.push(r.mesh); }
+function spawnRamp(si){
+  si=Math.min(N-4, si);
+  const li=Math.floor(Math.random()*3), p=node[si], n=nrm[si], off=LANES[li];
+  const m=getRampMesh();
+  m.position.set(p.x+n.x*off, 0, p.z+n.z*off); m.rotation.y=head[si];
+  ramps.push({mesh:m, seg:si, li:li, x:p.x+n.x*off, z:p.z+n.z*off, used:false});
+  // 跳板上偶尔悬着一串金币（开上去顺带收）
+  if(Math.random()<0.55){ const arc=[1.3,1.7,1.7,1.3]; for(let j=0;j<arc.length;j++){ const s=si+j*1.2; if(s<N-3) addCoin(s, li, arc[j]); } }
+}
 
 // ===== 运行时 =====
 let car, last=performance.now(), runStart=0, submitted=false;
@@ -357,32 +553,37 @@ const MAX_ROT=130;
 
 function resetRun(){
   buildTrack();
-  // 清交通
+  // 清交通/金币/跳板
   traffic.forEach(t=>freeTraffic(t)); traffic=[];
+  coins.forEach(c=>freeCoin(c)); coins=[];
+  ramps.forEach(r=>freeRamp(r)); ramps=[];
+  coinCount=0; boostT=0; nextMile=0;
   car={x:node[2].x, z:node[2].z, head:head[2], v:0, seg:2, lateral:0, off:false, distM:0};
-  nextSpawnSeg=car.seg+8;
+  nextSpawnSeg=car.seg+8; nextCoinSeg=car.seg+16; nextRampSeg=car.seg+40;
   submitted=false; wheelRot=0; keySteer=0; gasOn=false; brakeOn=false; setWheel(0);
+  camera.fov=68; camera.updateProjectionMatrix();
   // 先摆好第一人称相机，倒计时时就能看到前方公路
   const fx=Math.sin(car.head), fz=Math.cos(car.head);
   camera.position.set(car.x, 1.7, car.z);
   camera.lookAt(car.x + fx*20, 1.25, car.z + fz*20);
   // 起步时先在前方铺几波车流（约120~180米），让路上有车但别顶脸
   for(let s=0;s<5;s++) spawnAhead(car.seg + 12 + s*13);
+  // 起步先撒两串金币，让人一上路就看到
+  spawnCoinLine(car.seg+18); spawnCoinLine(car.seg+30);
 }
 
-let nextSpawnSeg=30;
+let nextSpawnSeg=30, nextCoinSeg=30, nextRampSeg=60, nextMile=0, boostT=0;
 function spawnAhead(si){
   const km=car.distM/1000;
   let block=Math.min(2, 1+Math.floor(km/3));      // 3车道最多封2条，留活路
   const idx=[0,1,2].sort(()=>Math.random()-0.5).slice(0,block);
   si=Math.min(N-3, si);
   idx.forEach(li=>{
-    const nn=nrm[si], p=node[si], off=LANES[li];
     const mesh=getTrafficMesh([0xc0c7d0,0xe0b04b,0x7fd0ff,0xff8fae,0xb18cff][Math.floor(Math.random()*5)]);
-    const wx=p.x+nn.x*off, wz=p.z+nn.z*off;
-    mesh.position.set(wx,0,wz);
-    mesh.rotation.y=head[si];
-    traffic.push({mesh:mesh, seg:si, x:wx, z:wz});
+    const spd=11+Math.random()*6;                 // 车流慢速前移(约40~61km/h)，玩家更快会追上
+    const t={mesh:mesh, seg:si, li:li, spd:spd, x:0, z:0};
+    placeTraffic(t);
+    traffic.push(t);
   });
 }
 
@@ -432,13 +633,52 @@ function update(dt){
   car.off = al > HALFW-0.5;
   document.getElementById('warn').className = car.off ? 'on':'';
   if(al > HALFW+1.6){ crash('off'); return; }   // 撞上护栏 = 结束
-  // 生成 + 碰撞
+  // —— 交通车：随车流缓慢前移 + 生成 + 碰撞 ——
   while(car.seg >= nextSpawnSeg){ spawnAhead(nextSpawnSeg+20); nextSpawnSeg += Math.max(9, 20-Math.floor(car.distM/1000)); }
+  for(const t of traffic){ t.seg += (t.spd*dt)/STEP; }   // 车流往前挪
+  // 同车道跟车：后车不能追上前车重叠（保持最小车距）
+  const TR_GAP=0.9;   // 约9米
+  for(let li=0; li<3; li++){
+    const lane=traffic.filter(t=>t.li===li).sort((a,b)=>b.seg-a.seg);  // 靠前(seg大)在先
+    for(let i=1;i<lane.length;i++){ if(lane[i].seg > lane[i-1].seg - TR_GAP) lane[i].seg = lane[i-1].seg - TR_GAP; }
+  }
+  for(const t of traffic){ placeTraffic(t); }
   for(const t of traffic){
     const dx=car.x-t.x, dz=car.z-t.z;
     if(dx*dx+dz*dz < 9){ crash('hit'); return; }   // 3米内撞上
   }
   traffic=traffic.filter(t=>{ if(t.seg < car.seg-3){ freeTraffic(t); return false;} return true; });
+
+  // —— 金币：生成 + 旋转 + 吃到累计 ——
+  while(car.seg >= nextCoinSeg){ spawnCoinLine(nextCoinSeg+22); nextCoinSeg += 6+Math.floor(Math.random()*6); }
+  coins=coins.filter(c=>{
+    if(c.seg < car.seg-3){ freeCoin(c); return false; }
+    c.mesh.rotation.y += dt*3;                        // 硬币旋转闪光
+    const dx=car.x-c.x, dz=car.z-c.z;
+    if(dx*dx+dz*dz < 6.25){ coinCount++; freeCoin(c); flashCoin(); return false; }  // 2.5米内吃到
+    return true;
+  });
+
+  // —— 跳板：生成 + 开上去加速（板上金币顺带被吃）——
+  while(car.seg >= nextRampSeg){ spawnRamp(nextRampSeg+24); nextRampSeg += 45+Math.floor(Math.random()*45); }
+  for(const r of ramps){
+    if(r.used) continue;
+    const dx=car.x-r.x, dz=car.z-r.z;
+    if(dx*dx+dz*dz < 6.25){ r.used=true; car.v=Math.min(CAR.top, car.v+58); boostT=0.5; showMile('🚀 跳板加速！'); }
+  }
+  ramps=ramps.filter(r=>{ if(r.seg < car.seg-3){ freeRamp(r); return false;} return true; });
+
+  // —— 立交出口牌：经过时顶部提示（静安 → 苏州，看得见开不下去）——
+  const kmNow=car.distM/1000;
+  while(nextMile<MILESTONES.length && kmNow>=MILESTONES[nextMile].km){
+    showMile('🛣️ '+MILESTONES[nextMile].place+'　出口（本线直行，无法下道）');
+    nextMile++;
+  }
+
+  // —— 冲刺时 FOV 略放大，速度感更强 ——
+  if(boostT>0){ boostT=Math.max(0,boostT-dt); camera.fov=68+12*(boostT/0.5); camera.updateProjectionMatrix(); }
+  else if(camera.fov!==68){ camera.fov=68; camera.updateProjectionMatrix(); }
+
   // 相机：第一人称驾驶位，看向前方公路（车头随转向摆动）
   const fx=Math.sin(car.head), fz=Math.cos(car.head);
   camera.position.set(car.x, 1.7, car.z);
@@ -446,6 +686,8 @@ function update(dt){
   // HUD
   document.getElementById('hkm').textContent=fmt(car.distM/1000);
   document.getElementById('hspd').textContent=Math.round(car.v);
+  var hc=document.getElementById('hcoin'); if(hc) hc.textContent=coinCount;
+  var sc=document.getElementById('cscreen'); if(sc) sc.textContent=Math.round(car.v);  // 中控屏(高档车)
 }
 
 // ===== 主循环 =====
@@ -453,6 +695,7 @@ function loop(t){
   requestAnimationFrame(loop);
   let dt=(t-last)/1000; last=t; if(dt>0.05)dt=0.05; if(dt<0)dt=0;
   if(state==='play') update(dt);
+  if(scene) updateClouds(dt);
   if(renderer && (state==='play'||state==='count')) renderer.render(scene,camera);
 }
 
@@ -472,7 +715,7 @@ function renderCarList(){
   const box=document.getElementById('carList');
   if(!CARS.length){ box.innerHTML='<div class="muted" style="text-align:center;padding:10px">你还没有车。先去 TOYOBA 买一辆吧！</div>';
     document.getElementById('startBtn').disabled=true; return; }
-  box.innerHTML=CARS.map((c,i)=>'<div class="crow" data-i="'+i+'"><div class="ic">'+c.emoji+'</div>'
+  box.innerHTML=CARS.map((c,i)=>'<div class="crow" data-i="'+i+'"><div class="ic">'+(window.carSprite?carSprite(c.id):c.emoji)+'</div>'
     +'<div style="flex:1"><div class="nm">'+esc(c.name)+'<span class="tier">T'+c.tier+'</span></div>'
     +'<div class="st">极速 '+c.top+' ｜ 加速 '+Math.round(c.accel*10)+'/10 ｜ 操控 '+c.grip+'/10</div></div></div>').join('');
   box.querySelectorAll('.crow').forEach(el=>el.addEventListener('click',()=>{
@@ -485,6 +728,7 @@ function renderCarList(){
 function startRun(){
   if(!CAR||!THREE_OK) return;
   resetRun();
+  applyInterior(CAR);              // 按车型档位切换方向盘/内饰/装饰
   document.getElementById('selPanel').hidden=true;
   document.getElementById('overPanel').hidden=true;
   document.getElementById('hud').hidden=false;
@@ -507,13 +751,24 @@ async function endRun(){
   let res=null;
   if(!submitted && km>0){ submitted=true;
     try{ res=await (await fetch('/highway/submit',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({car_id:CAR.id, dist_km:km, elapsed_s:elapsed})})).json(); }catch(e){}
+      body:JSON.stringify({car_id:CAR.id, dist_km:km, elapsed_s:elapsed, coins:coinCount})})).json(); }catch(e){}
   }
   if(res&&res.ok){ MEBEST=res.best;
     document.getElementById('myBest').textContent=fmt(res.best);
     document.getElementById('myTotal').textContent=fmt(res.total);
     document.getElementById('bestBadge').hidden=!res.is_best;
   } else document.getElementById('bestBadge').hidden=true;
+  // 本次金币收益（已存进乐园钱包）
+  const cr=document.getElementById('coinResult');
+  if(cr){
+    const earned=(res&&res.ok&&res.coins_earned!=null)?res.coins_earned:0;
+    if(coinCount>0){
+      cr.innerHTML='🪙 本次收集 <b>'+coinCount+'</b> 金币，已存入钱包 <b style="color:#ffd85a">+'+earned+'</b>'
+        + ((res&&res.coins_capped)?' <span style="color:#8fa0c8">(已封顶)</span>':'')
+        + (res&&res.wallet!=null?' <span style="color:#8fa0c8">｜ 钱包 '+res.wallet+'</span>':'');
+      cr.hidden=false;
+    } else cr.hidden=true;
+  }
   document.getElementById('overPanel').hidden=false;
   LBDATA=null; loadLB('best');
 }
@@ -530,6 +785,53 @@ async function loadLB(which){
     const king=(i===0)?' <span style="color:#ffd85a;font-weight:800">· 高速之王</span>':'';
     return '<li class="'+(meRow?'me':'')+'"><span class="rk">'+rk+'</span><span class="who">'+esc(r.owner)+king
       +' <span style="color:#6b7a99;font-size:11px">'+esc(extra)+'</span></span><span class="val">'+fmt(r.km)+' km</span></li>';}).join('');
+}
+
+// ===== 车内饰：随车型档位升级的方向盘 + 仪表台装饰 =====
+function wheelSVG(t){
+  if(t<=1){ // 基础塑料两幅盘
+    return '<circle cx="50" cy="50" r="45" fill="#171b22"/>'
+      +'<circle cx="50" cy="50" r="37" fill="none" stroke="#4a515d" stroke-width="8"/>'
+      +'<g stroke="#3a414d" stroke-width="8" stroke-linecap="round"><line x1="50" y1="50" x2="16" y2="56"/><line x1="50" y1="50" x2="84" y2="56"/></g>'
+      +'<circle cx="50" cy="50" r="10" fill="#2a303b"/>';
+  }
+  if(t==2){ // 三幅 + 喇叭
+    return '<circle cx="50" cy="50" r="45" fill="#12151c"/>'
+      +'<circle cx="50" cy="50" r="37" fill="none" stroke="#565e6b" stroke-width="9"/>'
+      +'<g stroke="#2f3641" stroke-width="8" stroke-linecap="round"><line x1="50" y1="50" x2="50" y2="16"/><line x1="50" y1="50" x2="18" y2="64"/><line x1="50" y1="50" x2="82" y2="64"/></g>'
+      +'<circle cx="50" cy="50" r="13" fill="#20262f" stroke="#454e5e" stroke-width="2"/>'
+      +'<text x="50" y="54" font-size="9" fill="#8fa0c8" text-anchor="middle" font-weight="bold">JZH</text>';
+  }
+  if(t==3){ // 运动盘 + 红色顶标
+    return '<circle cx="50" cy="50" r="45" fill="#0f1219"/>'
+      +'<circle cx="50" cy="50" r="37" fill="none" stroke="#3b424e" stroke-width="10"/>'
+      +'<rect x="46" y="11" width="8" height="9" rx="2" fill="#e0403a"/>'
+      +'<g stroke="#242a34" stroke-width="8" stroke-linecap="round"><line x1="50" y1="50" x2="50" y2="18"/><line x1="50" y1="50" x2="18" y2="64"/><line x1="50" y1="50" x2="82" y2="64"/></g>'
+      +'<circle cx="50" cy="50" r="13" fill="#1a1f28" stroke="#e0403a" stroke-width="1.5"/>'
+      +'<text x="50" y="54" font-size="9" fill="#e0705a" text-anchor="middle" font-weight="bold">JZH</text>';
+  }
+  if(t==4){ // 平底碳纤维运动盘
+    return '<path d="M18,72 A34,34 0 1 1 82,72" fill="none" stroke="#2a2f39" stroke-width="11" stroke-linecap="round"/>'
+      +'<line x1="18" y1="72" x2="82" y2="72" stroke="#2a2f39" stroke-width="11" stroke-linecap="round"/>'
+      +'<rect x="46" y="10" width="8" height="10" rx="2" fill="#e0403a"/>'
+      +'<g stroke="#171b22" stroke-width="9" stroke-linecap="round"><line x1="50" y1="52" x2="20" y2="60"/><line x1="50" y1="52" x2="80" y2="60"/><line x1="50" y1="52" x2="50" y2="72"/></g>'
+      +'<circle cx="50" cy="52" r="13" fill="#0f1219" stroke="#3b424e" stroke-width="2"/>'
+      +'<text x="50" y="56" font-size="8" fill="#9fb3d8" text-anchor="middle" font-weight="bold">JZH</text>';
+  }
+  // t>=5：平底真皮盘 + 白色缝线 + 银色幅条
+  return '<path d="M18,72 A34,34 0 1 1 82,72" fill="none" stroke="#5a3f28" stroke-width="12" stroke-linecap="round"/>'
+    +'<line x1="18" y1="72" x2="82" y2="72" stroke="#5a3f28" stroke-width="12" stroke-linecap="round"/>'
+    +'<path d="M18,70 A32,32 0 1 1 82,70" fill="none" stroke="#efe0c0" stroke-width="1.3" stroke-dasharray="2 3" stroke-linecap="round"/>'
+    +'<line x1="20" y1="70" x2="80" y2="70" stroke="#efe0c0" stroke-width="1.3" stroke-dasharray="2 3"/>'
+    +'<rect x="46" y="9" width="8" height="10" rx="2" fill="#caa06a"/>'
+    +'<g stroke="#8b929e" stroke-width="9" stroke-linecap="round"><line x1="50" y1="52" x2="20" y2="60"/><line x1="50" y1="52" x2="80" y2="60"/><line x1="50" y1="52" x2="50" y2="72"/></g>'
+    +'<circle cx="50" cy="52" r="14" fill="#241a12" stroke="#caa06a" stroke-width="2"/>'
+    +'<text x="50" y="56" font-size="9" fill="#e6c89a" text-anchor="middle" font-weight="bold">JZH</text>';
+}
+function applyInterior(car){
+  var t=(car&&car.tier)||1;
+  document.getElementById('ctrl').setAttribute('data-tier', t);
+  document.getElementById('wheel').innerHTML=wheelSVG(t);
 }
 
 // ===== 控制：方向盘 =====
@@ -572,7 +874,7 @@ document.getElementById('tabTotal').addEventListener('click',()=>loadLB('total')
 document.getElementById('quitBtn').addEventListener('click',async()=>{ if(state==='play'||state==='count'){ state='over'; await endRun(); } });
 document.addEventListener('visibilitychange',()=>{ if(document.hidden){ gasOn=false; brakeOn=false; } });
 // 调试钩子（自测用，无害）
-window.__dbg=()=>car?{km:car.distM/1000, spd:car.v, head:car.head, lateral:car.lateral, off:car.off, seg:car.seg, traffic:traffic.length}:null;
+window.__dbg=()=>car?{km:car.distM/1000, spd:car.v, head:car.head, lateral:car.lateral, off:car.off, seg:car.seg, traffic:traffic.length, coins:coins.length, ramps:ramps.length, coinCount:coinCount, clouds:CLOUDS.length}:null;
 
 // ===== 加载 three：先本地 static，再依次 CDN 兜底；哪个成了就开始 =====
 const THREE_SRCS=[

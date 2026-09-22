@@ -62,6 +62,7 @@
   <div id="list"><div class="loading">正在开门营业…</div></div>
 </div>
 <div id="toast"></div>
+<script src="/static/car_sprites.js"></script>
 <script>
 let COINS=0, busy=false;
 function toast(m,bad){const t=document.getElementById('toast');t.textContent=m;t.className='on'+(bad?' bad':'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',2200);}
@@ -73,7 +74,7 @@ function carHTML(c){
   if(c.owned) btn='<button class="btn owned">✅ 已拥有</button>';
   else btn='<button class="btn buy" '+(canBuy?'':'disabled')+' onclick="buy(\''+c.id+'\')">购买</button>';
   return '<div class="car">'
-    + '<div class="ic" style="box-shadow:inset 0 0 0 2px '+c.color+'55">'+c.emoji+'</div>'
+    + '<div class="ic" style="box-shadow:inset 0 0 0 2px '+c.color+'55">'+(window.carSprite?carSprite(c.id):c.emoji)+'</div>'
     + '<div class="info">'
       + '<div class="nm">'+esc(c.name)+'<span class="tier">T'+c.tier+'</span></div>'
       + '<div class="desc">'+esc(c.desc||'')+'</div>'

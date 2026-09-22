@@ -998,7 +998,8 @@ def highway_leaderboard():
 def highway_submit():
     d = request.get_json(silent=True) or {}
     return highway.road_submit(session["username"], d.get("car_id", ""),
-                               d.get("dist_km", 0), d.get("elapsed_s", 0))
+                               d.get("dist_km", 0), d.get("elapsed_s", 0),
+                               d.get("coins", 0))
 
 @app.route("/pet/records")
 @login_required

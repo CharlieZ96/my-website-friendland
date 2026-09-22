@@ -56,19 +56,35 @@
     border-radius:999px;padding:1px 8px;margin-top:1px;box-shadow:0 2px 5px rgba(0,0,0,.4);white-space:nowrap}
   .hut{left:8px;width:78px}   .hut svg{width:70px}
   .garage{left:90px;width:74px}  .garage svg{width:66px}
-  /* 车库弹层 */
-  #garageModal{position:fixed;inset:0;background:rgba(38,43,51,.5);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px}
+  /* 车库弹层：做成“车库场景 + 停放的车” */
+  #garageModal{position:fixed;inset:0;background:rgba(20,24,32,.6);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px}
   #garageModal[hidden]{display:none}
-  #garageModal .box{position:relative;background:#fff;border-radius:18px;padding:18px;max-width:320px;width:100%;box-shadow:0 16px 40px rgba(0,0,0,.25)}
-  #garageModal h3{margin:0 0 4px;font-size:17px;text-align:center}
-  #garageModal p{margin:0 0 12px;color:#6B7683;font-size:12px;text-align:center}
-  #garageModal .cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;margin-bottom:12px}
-  #garageModal .car{background:#F5F8FB;border:1px solid #C6D0DA;border-radius:12px;padding:8px 4px;text-align:center;font-size:12px}
-  #garageModal .car .ic{font-size:24px}
-  #garageModal .empty{position:static;inset:auto;grid-column:1/-1;color:#9aa0ab;font-size:13px;text-align:center;padding:10px;line-height:1.6}
-  #garageModal .empty b{color:#6D4FA3}
-  #garageModal .ok{position:relative;z-index:1;display:block;width:100%;font-weight:700;font-size:14px;cursor:pointer;border:2px solid #262B33;border-radius:12px;padding:9px;background:#F5A623;box-shadow:3px 3px 0 #262B33}
-  #garageModal .ok:active{transform:translate(3px,3px);box-shadow:0 0 0 #262B33}
+  #garageModal .box{position:relative;background:#2b3444;border-radius:16px;padding:0;max-width:400px;width:100%;overflow:hidden;box-shadow:0 18px 44px rgba(0,0,0,.4)}
+  /* 卷帘门 + 招牌 */
+  #garageModal .ghead{background:repeating-linear-gradient(180deg,#454f61 0 5px,#3c footer 0),linear-gradient(#454f61,#333c4c);
+    background:linear-gradient(#4a5468,#333c4c);color:#ffd98a;font-weight:800;font-size:16px;text-align:center;padding:11px 10px;
+    letter-spacing:1px;border-bottom:3px solid #1b222e;text-shadow:0 1px 0 #1b222e}
+  #garageModal .ghead .sub{display:block;color:#9fb0c8;font-size:11px;font-weight:600;margin-top:2px;letter-spacing:0}
+  /* 车库内部：上部墙、下部地板 + 顶灯光晕 */
+  #garageModal .gfloor{position:relative;padding:14px 12px;
+    background:linear-gradient(180deg,#3b4557 0%,#3b4557 30%,#4d586c 30%,#404b5e 100%)}
+  #garageModal .gfloor::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);
+    width:60%;height:60px;background:radial-gradient(ellipse at top,rgba(255,240,190,.22),transparent 70%);pointer-events:none}
+  #garageModal .bays{position:relative;display:grid;grid-template-columns:1fr;gap:10px;max-height:52vh;overflow:auto}
+  #garageModal .bay{display:flex;align-items:center;gap:12px;background:rgba(12,18,28,.34);
+    border:1px solid #2a3446;border-radius:12px;padding:8px 10px 10px;
+    box-shadow:inset 0 -6px 10px rgba(0,0,0,.18)}
+  #garageModal .bay .ic{width:104px;height:56px;flex:none;filter:drop-shadow(0 4px 3px rgba(0,0,0,.35))}
+  #garageModal .bay .meta{flex:1;min-width:0}
+  #garageModal .bay .nm{font-weight:800;font-size:14px;color:#eaf2ff}
+  #garageModal .bay .ti{font-size:11px;color:#93a2c0;margin-top:2px}
+  #garageModal .bay .tier{font-size:11px;font-weight:800;color:#04121a;background:#5ac8fa;border-radius:999px;padding:1px 7px;margin-left:4px}
+  #garageModal .empty{color:#cdd7e4;font-size:13px;text-align:center;padding:26px 12px;line-height:1.9}
+  #garageModal .empty b{color:#ffd98a}
+  #garageModal .empty a{color:#5ac8fa}
+  #garageModal .ok{display:block;width:calc(100% - 24px);margin:12px;font-weight:800;font-size:14px;cursor:pointer;
+    border:none;border-radius:12px;padding:11px;background:#F5A623;color:#3a2400}
+  #garageModal .ok:active{transform:translateY(1px)}
 </style>
 </head>
 <body>
@@ -119,14 +135,14 @@
 
 <div id="garageModal" hidden>
   <div class="box">
-    <h3 id="garageTitle">🚗 车库</h3>
-    <p id="garageSub"></p>
-    <div class="cars" id="garageCars"></div>
+    <div class="ghead">🔧 <span id="garageTitle">我的车库</span><span class="sub" id="garageSub"></span></div>
+    <div class="gfloor"><div class="bays" id="garageCars"></div></div>
     <button class="ok" id="garageOk">知道啦</button>
   </div>
 </div>
 
 <script src="/static/pet_sprite.js"></script>
+<script src="/static/car_sprites.js"></script>
 <script>
 // 当前在看谁的牧场：Flask 把 host 注入到下面这行；本地直接打开则为空=看自己的
 let VIEW_HOST = "{{ host }}"; if(VIEW_HOST.indexOf('{')===0) VIEW_HOST="";
@@ -393,16 +409,22 @@ function renderHome(home){
   garage.innerHTML=garageSVG(nc)+'<div class="lab">🚗 车库'+(nc?('·'+nc):'')+'</div>';
   garage.onclick=()=>openGarage(home.cars||[]);
 }
-// —— 车库弹层 ——
+// —— 车库弹层：车库场景 + 停放已有车 ——
 function openGarage(cars){
-  document.getElementById('garageTitle').textContent=(IS_ME?'🚗 我的车库':('🚗 '+HOST+'的车库'));
+  document.getElementById('garageTitle').textContent=(IS_ME?'我的车库':(HOST+'的车库'));
   const box=document.getElementById('garageCars');
   if(!cars.length){
     document.getElementById('garageSub').textContent='';
-    box.innerHTML='<div class="empty">车库空空～去<b>江之岛 · TOYOBA</b>提一辆吧</div>';
+    box.innerHTML='<div class="empty">车库空空的～<br>去<b>江之岛 · TOYOBA</b> 提一辆车吧！</div>';
   }else{
     document.getElementById('garageSub').textContent='共 '+cars.length+' 辆';
-    box.innerHTML=cars.map(c=>'<div class="car"><div class="ic">'+(c.emoji||'🚗')+'</div>'+(c.name||c)+'</div>').join('');
+    box.innerHTML=cars.map(function(c){
+      var id=(c&&c.id)||'', nm=(c&&c.name)||c||'车', tier=(c&&c.tier)||'';
+      var ic=(window.carSprite&&id)?carSprite(id):('<div style="font-size:30px;text-align:center">'+((c&&c.emoji)||'🚗')+'</div>');
+      return '<div class="bay"><div class="ic">'+ic+'</div>'
+        +'<div class="meta"><div class="nm">'+nm+(tier?'<span class="tier">T'+tier+'</span>':'')+'</div>'
+        +'<div class="ti">停在你的车库里</div></div></div>';
+    }).join('');
   }
   document.getElementById('garageModal').hidden=false;
 }
