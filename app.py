@@ -993,13 +993,19 @@ def highway_data():
 def highway_leaderboard():
     return highway.road_leaderboard(limit=20, owner=session["username"])
 
+@app.route("/highway/start", methods=["POST"])
+@login_required
+def highway_start():
+    d = request.get_json(silent=True) or {}
+    return highway.road_start(session["username"], d.get("car_id", ""))
+
 @app.route("/highway/submit", methods=["POST"])
 @login_required
 def highway_submit():
     d = request.get_json(silent=True) or {}
     return highway.road_submit(session["username"], d.get("car_id", ""),
-                               d.get("dist_km", 0), d.get("elapsed_s", 0),
-                               d.get("coins", 0))
+                               d.get("dist_km", 0), d.get("coins", 0),
+                               d.get("token", ""))
 
 @app.route("/pet/records")
 @login_required

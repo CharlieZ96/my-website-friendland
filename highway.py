@@ -5,10 +5,14 @@
 
 import json
 import time
+import uuid
 import pet
 
 def _now():
     return time.time()
+
+def _today():
+    return time.strftime("%Y-%m-%d", time.localtime())
 
 def _connect():
     return pet._connect()
@@ -36,9 +40,16 @@ ROAD_FUDGE       = 1.15       # 里程允许比“极速×时间”多一点点�
 ROAD_ABS_CAP     = 100000.0   # 单次里程绝对上限(km)，兜底
 
 # 开车沿途金币 → 真金币入账的防作弊上限
-ROAD_COIN_PER_KM = 80         # 每公里最多结算的金币
-ROAD_COIN_BASE   = 30         # 起步补偿（跑一小段也有点）
-ROAD_COIN_ABS    = 2000       # 单次绝对上限，兜底
+ROAD_COIN_PER_KM = 50         # 每公里最多结算的金币（真人实收≈20/km，留 2.5 倍余量）
+ROAD_COIN_BASE   = 20         # 起步补偿（跑一小段也有点）
+ROAD_COIN_ABS    = 1000       # 单次绝对上限，兜底
+ROAD_DAILY_COIN_CAP = 3000    # ★每人每天靠开车能入账的金币上限（挂机脚本刷了也白刷；可调）
+
+# 一局令牌（防脚本直接构造上报）：开局向服务器领令牌，结算必须带回，服务器自己计时、一局只结算一次
+ROAD_TOKEN_TTL   = 3 * 3600   # 令牌有效期（秒）
+ROAD_START_GAP   = 1.0        # 同一人两次开局的最小间隔（秒）
+ROAD_RUN_MIN_S   = 2.0        # 一局至少要真的过 2 秒才算数（挡瞬间上报）
+ROAD_MAX_OPEN    = 8          # 单人未结算的令牌上限（挡狂刷开局）
 
 
 def ensure_highway_tables():
@@ -51,6 +62,20 @@ def ensure_highway_tables():
             runs INTEGER NOT NULL DEFAULT 0,
             best_car TEXT,
             updated_at REAL NOT NULL DEFAULT 0)""")
+        # 一局令牌：开局领、结算销；服务器凭 started_at 自己算耗时
+        conn.execute("""CREATE TABLE IF NOT EXISTS road_runs (
+            token TEXT PRIMARY KEY,
+            owner TEXT NOT NULL,
+            car_id TEXT NOT NULL,
+            started_at REAL NOT NULL,
+            used INTEGER NOT NULL DEFAULT 0)""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_road_runs_owner ON road_runs(owner)")
+        # 每人每天靠开车入账的金币累计（用于每日封顶）
+        conn.execute("""CREATE TABLE IF NOT EXISTS road_coin_day (
+            day TEXT NOT NULL,
+            owner TEXT NOT NULL,
+            coins INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (day, owner))""")
         conn.commit()
     finally:
         conn.close()
@@ -103,6 +128,22 @@ def _coins_add(conn, owner, amount):
                  (owner, s.get("version", "v1"), s.get("status", "home"),
                   json.dumps(s, ensure_ascii=False), _now()))
     return s["coins"]
+
+
+# ---------- 每日开车金币累计（每日封顶用）----------
+def _coin_day_get(conn, owner):
+    r = conn.execute("SELECT coins FROM road_coin_day WHERE day=? AND owner=?",
+                     (_today(), owner)).fetchone()
+    return int(r[0]) if r else 0
+
+
+def _coin_day_add(conn, owner, amount):
+    if amount <= 0:
+        return
+    conn.execute(
+        "INSERT INTO road_coin_day (day, owner, coins) VALUES (?,?,?) "
+        "ON CONFLICT(day, owner) DO UPDATE SET coins = coins + ?",
+        (_today(), owner, int(amount), int(amount)))
 
 
 # ---------- 车行 / 车库 ----------
@@ -207,57 +248,101 @@ def road_data(owner):
             "me": {"best": round(me["best"], 2), "total": round(me["total"], 2), "runs": me["runs"]}}
 
 
-def road_submit(owner, car_id, dist_km, elapsed_s, coins=0):
-    """上报一次跑的里程 + 沿途收集的金币。
-    里程按 极速×时间×余量 夹取上限防作弊；金币按里程设上限后存进钱包。更新 best/total/runs。"""
+def road_start(owner, car_id):
+    """开局：向服务器领一枚“一局令牌”。服务器记下开始时间，结算时必须带回。
+    这样脚本没法伪造耗时（服务器自己计时），也没法一份成绩反复上报。"""
     car_id = (car_id or "").strip()
     v = VMAP.get(car_id)
     conn = _connect()
     try:
-        # 必须真的拥有这辆车才算数
+        d = pet.homestead_get(conn, owner)
+        if not v or v["id"] not in _owned_ids(d):
+            return {"ok": False, "msg": "你没有这辆车"}
+        now = _now()
+        # 清理：过期的、以及本人已结算的旧令牌
+        conn.execute("DELETE FROM road_runs WHERE used=1 OR started_at < ?", (now - ROAD_TOKEN_TTL,))
+        # 开局太频繁 / 未结算令牌太多 → 挡住（防脚本狂刷开局）
+        row = conn.execute("SELECT COUNT(*), MAX(started_at) FROM road_runs WHERE owner=? AND used=0",
+                           (owner,)).fetchone()
+        open_cnt = int(row[0] or 0)
+        last_start = float(row[1] or 0)
+        if now - last_start < ROAD_START_GAP or open_cnt >= ROAD_MAX_OPEN:
+            conn.commit()
+            return {"ok": False, "msg": "开得太快啦，缓一下"}
+        token = uuid.uuid4().hex
+        conn.execute("INSERT INTO road_runs (token, owner, car_id, started_at, used) VALUES (?,?,?,?,0)",
+                     (token, owner, v["id"], now))
+        conn.commit()
+        return {"ok": True, "token": token}
+    finally:
+        conn.close()
+
+
+def road_submit(owner, car_id, dist_km, coins=0, token=""):
+    """结算：必须带回开局领到的令牌。服务器用「令牌记录的开始时间」自己算耗时，
+    再按 极速×耗时×余量 夹取里程、按里程夹取金币、并套每日封顶；令牌一次性作废。"""
+    car_id = (car_id or "").strip()
+    token = (token or "").strip()
+    v = VMAP.get(car_id)
+    conn = _connect()
+    try:
         d = pet.homestead_get(conn, owner)
         if not v or v["id"] not in _owned_ids(d):
             return {"ok": False, "msg": "你没有这辆车，成绩不算"}
+
+        now = _now()
+        # —— 校验并“消费”令牌：必须是本人、未用过、未过期、车型一致 ——
+        run = conn.execute(
+            "SELECT started_at, used, car_id FROM road_runs WHERE token=? AND owner=?",
+            (token, owner)).fetchone()
+        if not run:
+            return {"ok": False, "msg": "这局没登记（请从游戏里正常开始）"}
+        started_at, used, run_car = float(run[0]), int(run[1]), run[2]
+        if used:
+            return {"ok": False, "msg": "这局已经结算过了"}
+        # 原子作废：只有这次 UPDATE 真的改到 1 行，才算抢到结算权（防并发重复上报）
+        got_lock = conn.execute("UPDATE road_runs SET used=1 WHERE token=? AND used=0", (token,)).rowcount
+        if not got_lock:
+            conn.commit()
+            return {"ok": False, "msg": "这局已经结算过了"}
+        if run_car != v["id"]:
+            v = VMAP.get(run_car) or v          # 以开局登记的车为准
+        # ★服务器自己算耗时（不信客户端）
+        elapsed = now - started_at
+        if elapsed < ROAD_RUN_MIN_S:
+            conn.commit()
+            return {"ok": False, "msg": "这局太短，不计分"}
+        elapsed = min(elapsed, ROAD_MAX_ELAPSED)
+
         try:
             dist = float(dist_km)
         except (TypeError, ValueError):
             dist = 0.0
-        try:
-            elapsed = float(elapsed_s)
-        except (TypeError, ValueError):
-            elapsed = 0.0
         if dist < 0:
             dist = 0.0
-        elapsed = max(1.0, min(elapsed, ROAD_MAX_ELAPSED))
-        # 上限：极速(km/h) × 时间(h) × 余量；再套绝对上限
-        cap = v["top"] * (elapsed / 3600.0) * ROAD_FUDGE
-        cap = min(cap, ROAD_ABS_CAP)
-        accepted = min(dist, cap)
-        accepted = round(max(0.0, accepted), 2)
+        # 里程上限：极速(km/h) × 真实耗时(h) × 余量
+        cap = min(v["top"] * (elapsed / 3600.0) * ROAD_FUDGE, ROAD_ABS_CAP)
+        accepted = round(max(0.0, min(dist, cap)), 2)
 
-        # 沿途金币：按（防作弊后的）里程设上限，多报无效
+        # 沿途金币：按里程夹取；再套「每日封顶」
         try:
             got = int(float(coins))
         except (TypeError, ValueError):
             got = 0
         coin_cap = min(int(accepted * ROAD_COIN_PER_KM) + ROAD_COIN_BASE, ROAD_COIN_ABS)
-        coins_earned = max(0, min(got, coin_cap))
+        day_used = _coin_day_get(conn, owner)
+        day_left = max(0, ROAD_DAILY_COIN_CAP - day_used)
+        coins_earned = max(0, min(got, coin_cap, day_left))
+        daily_capped = (min(got, coin_cap) > coins_earned)   # 因为到达每日上限被削
 
-        prev = _score_row(conn, owner)
-        # 防刷：两次上报太近就不再累计，也不再入账金币（但仍返回当前状态）
-        now = _now()
-        if now - prev["updated_at"] < ROAD_MIN_GAP:
-            wallet = _coins_get(conn, owner)
-            return {"ok": False, "msg": "慢点儿，成绩刚记过了",
-                    "best": round(prev["best"], 2), "total": round(prev["total"], 2), "runs": prev["runs"],
-                    "coins_earned": 0, "wallet": wallet}
-
-        # 金币入账（钱包 = pets.data.coins，和赌场/车行同一份）
         wallet = _coins_add(conn, owner, coins_earned)
         if wallet is None:
             wallet = _coins_get(conn, owner)
             coins_earned = 0
+        if coins_earned > 0:
+            _coin_day_add(conn, owner, coins_earned)
 
+        prev = _score_row(conn, owner)
         new_total = prev["total"] + accepted
         new_best = max(prev["best"], accepted)
         new_runs = prev["runs"] + 1
@@ -271,7 +356,10 @@ def road_submit(owner, car_id, dist_km, elapsed_s, coins=0):
         return {"ok": True, "accepted": accepted, "capped": accepted < round(dist, 2),
                 "best": round(new_best, 2), "total": round(new_total, 2), "runs": new_runs,
                 "is_best": accepted >= prev["best"] and accepted > 0,
-                "coins_earned": coins_earned, "coins_capped": coins_earned < got, "wallet": wallet}
+                "coins_earned": coins_earned,
+                "coins_capped": coins_earned < got, "daily_capped": daily_capped,
+                "day_left": max(0, ROAD_DAILY_COIN_CAP - _coin_day_get(conn, owner)),
+                "wallet": wallet}
     finally:
         conn.close()
 
