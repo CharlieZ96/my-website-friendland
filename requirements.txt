@@ -11,3 +11,5 @@ pillow==12.3.0
 requests==2.34.2
 urllib3==2.7.0
 Werkzeug==3.1.8
+flask-socketio==5.6.1
+simple-websocket==1.1.0

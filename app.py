@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask_socketio import SocketIO, emit
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 import re
@@ -23,6 +24,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)             # 没有这文件夹就自
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024    # 上传最大 8MB，超了拒绝
 ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp"}   # 只允许这些图片格式
 app.secret_key = "change-me"
+socketio = SocketIO(app, cors_allowed_origins="*")
 ADMIN_USERNAME = "admin"
 DAILY_DRAW_LIMIT_ON = True     # True=开启每日限制；False=关闭（无限抽）
 DAILY_DRAW_LIMIT = 1           # 每天可抽几次
@@ -267,52 +269,9 @@ def resolve_battle(deck1_ids, deck2_ids, conn):
     snap(type="end", msg="🏁 对撞结束")
     return {"winner": winner, "surplus": surplus, "steps": steps}
 
-#def make_card(image_name):
-    # -----------------------------
-    # 1. 打开人物图片
-    # -----------------------------
-    character_path = os.path.join(UPLOAD_FOLDER, image_name)
-    character = Image.open(character_path).convert("RGBA")
-
-    # -----------------------------
-    # 2. 打开卡框
-    # -----------------------------
-    frame = Image.open("frames/card.png").convert("RGBA")
-
-    # -----------------------------
-    # 3. 人物缩放
-    # -----------------------------
-    character.thumbnail((620, 620))
-
-    # -----------------------------
-    # 4. 新建透明画布
-    # -----------------------------
-    card = Image.new("RGBA", frame.size, (0, 0, 0, 0))
-
-    # -----------------------------
-    # 5. 把人物放进去
-    # -----------------------------
-    card.paste(character, (170, 120))
-
-    # -----------------------------
-    # 6. 再盖上卡框
-    # -----------------------------
-    #card.alpha_composite(frame)
-
-    # -----------------------------
-    # 7. 保存
-    # -----------------------------
-    new_name = uuid.uuid4().hex + ".png"
-
-    save_path = os.path.join(UPLOAD_FOLDER, new_name)
-
-    card.save(save_path)
-
-    return new_name
-
 
 init_db()
-ensure_bot()                                     # 程序一启动就执行一次
+ensure_bot()                # 程序一启动就执行一次
 pet.ensure_pet_tables()      # ← 加这行
 casino.ensure_casino_tables()
 highway.ensure_highway_tables()   # JZH高速：里程排行榜表
@@ -1255,5 +1214,20 @@ def joe_board_reply():
 def joe_weekly_claim():
     return casino.joe_weekly_claim(session["username"])
 
+# ===== WebSocket 测试(验证整合是否成功;之后做游戏再扩展/删掉)=====
+@app.route("/wstest")
+def wstest_page():
+    return render_template("wstest.html")
+
+@socketio.on("connect")
+def ws_on_connect():
+    print("✅ 有客户端连上 websocket")
+
+@socketio.on("ping_msg")
+def ws_on_ping(data):
+    text = (data or {}).get("text", "")
+    print("收到:", text)
+    emit("pong_msg", {"reply": "服务器收到了：" + str(text)})
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=False, port=5000)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False, allow_unsafe_werkzeug=True)
