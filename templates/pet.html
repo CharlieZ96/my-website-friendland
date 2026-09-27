@@ -28,7 +28,9 @@
   .fill{height:100%;border-radius:999px;transition:width .4s}
   .bar span:last-child{color:var(--muted);text-align:right}
   .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-  .btn{font-weight:700;font-size:14px;cursor:pointer;flex:1 1 132px;min-width:0;border:2px solid var(--ink);border-radius:12px;padding:10px 12px;background:#fff;color:var(--ink);box-shadow:3px 3px 0 var(--ink);transition:transform .1s,box-shadow .1s;text-align:center}
+  .btn{font-weight:700;font-size:14px;cursor:pointer;flex:1 1 132px;min-width:0;border:2px solid var(--ink);border-radius:12px;padding:10px 12px;background:#fff;color:var(--ink);box-shadow:3px 3px 0 var(--ink);transition:transform .1s,box-shadow .1s;text-align:center;
+       /* 链接(a)和按钮(button)长得一模一样：文字都上下左右居中、同字体同行高 */
+       display:inline-flex;align-items:center;justify-content:center;font-family:inherit;line-height:1.2;text-decoration:none}
   .btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
   .btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
   .btn.y{background:var(--marigold)}.btn.c{background:var(--coral)}.btn.g{background:var(--green)}.btn.p{background:var(--grape);color:#fff}
@@ -81,7 +83,7 @@
     <p class="lbl">肤色</p><div class="swatches" id="swSkin"></div>
     <p class="lbl">衣服</p><div class="row" id="clothesRow" style="margin-top:0"></div>
     <div class="row" style="margin-top:14px">
-      <a class="btn g" href="/plaza" style="text-decoration:none;line-height:1.2">🌿 去我的牧场</a>
+      <a class="btn g" href="/plaza">🌿 去我的牧场</a>
       <button class="btn" onclick="visitOther()">🔭 去别人的牧场</button>
     </div>
     <a class="caslink" href="/casino">🎰 去JZH读博的地方看看</a>

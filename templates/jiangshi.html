@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>江世战争</title>
+<style>
+  :root{
+    --bg:#15101f; --bg2:#1f1830; --card:#271f3b; --line:#3a2f55; --ink:#f1ecff; --muted:#a79cc4;
+    --blue:#3f8cff; --blue2:#1f5fd1; --red:#ff5a55; --red2:#c8302f;
+    --gua:#ff4b3a; --gua2:#b3172f; --gold:#ffd24d;
+    --r-com:#9aa6b4; --r-rare:#f0a83a; --r-epic:#b46ae6; --r-leg:#ffd24d;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;touch-action:manipulation;
+    -webkit-user-select:none;user-select:none}
+  button{font-family:inherit}
+  .hidden{display:none!important}
+
+  /* ================= 大厅 ================= */
+  #lobby{max-width:540px;margin:0 auto;padding:14px 12px 60px;
+    background:radial-gradient(120% 50% at 50% 0%,#3b2466 0%,rgba(21,16,31,0) 70%)}
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .top a{color:var(--muted);text-decoration:none;font-size:13px}
+  .coins{font-weight:800;color:var(--gold);font-size:14px;background:#2a2140;border:1px solid var(--line);
+    border-radius:999px;padding:4px 12px}
+  .hero{position:relative;border-radius:20px;padding:22px 18px 18px;overflow:hidden;
+    background:linear-gradient(160deg,#2f2150,#1b1330);border:1px solid var(--line);
+    box-shadow:0 12px 32px rgba(0,0,0,.35)}
+  .hero::after{content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;border-radius:50%;
+    background:radial-gradient(circle,#a47bff55,transparent 70%)}
+  .hero h1{margin:0;font-size:30px;letter-spacing:2px}
+  .hero h1 small{display:block;font-size:12px;color:var(--muted);letter-spacing:1px;font-weight:600;margin-top:4px}
+  .stats{display:flex;gap:8px;margin:14px 0 14px;flex-wrap:wrap}
+  .stat{background:#ffffff10;border-radius:10px;padding:6px 10px;font-size:12px;color:var(--muted)}
+  .stat b{color:var(--ink);font-size:15px;margin-right:2px}
+  .fight{width:100%;border:none;border-radius:14px;padding:15px;font-size:19px;font-weight:900;letter-spacing:4px;
+    color:#2a0d10;background:linear-gradient(180deg,#ffd24d,#ff9f2e);box-shadow:0 5px 0 #9c4c10;cursor:pointer}
+  .fight:active{transform:translateY(3px);box-shadow:0 2px 0 #9c4c10}
+  .fight:disabled{filter:grayscale(.8);opacity:.6}
+  .today{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.6}
+  h2{font-size:15px;margin:22px 2px 10px;display:flex;align-items:center;justify-content:space-between}
+  h2 span{font-size:12px;color:var(--muted);font-weight:600}
+  .deck{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .card{position:relative;aspect-ratio:3/4;border-radius:12px;background:var(--card);border:2px solid var(--r-com);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
+  .card .em{font-size:30px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+  .card .nm{font-size:11px;font-weight:700;margin-top:6px;padding:0 3px;text-align:center;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .card .cost{position:absolute;left:4px;top:4px}
+  .card.rare{border-color:var(--r-rare)} .card.epic{border-color:var(--r-epic)}
+  .card.leg{border-color:var(--r-leg);box-shadow:0 0 12px #ffd24d44}
+  .card.in{outline:3px solid #7cf0a0;outline-offset:-5px}
+  .card.locked{filter:grayscale(.85) brightness(.7)}
+  .card .lock{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:10px;font-weight:800;color:var(--gold)}
+  .card.empty{border:2px dashed var(--line);background:transparent;cursor:default;color:var(--muted);font-size:22px}
+  .gua{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;
+    font-size:12px;font-weight:900;color:#fff;background:radial-gradient(circle at 35% 35%,#ff7a5c,var(--gua) 55%,var(--gua2));
+    box-shadow:inset 0 -2px 0 #0003,0 1px 2px #0006;position:relative}
+  .avg{font-size:12px;color:var(--muted)}
+  .panel{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px}
+  .board li{display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid #ffffff0d;font-size:13px}
+  .board ol{margin:0;padding:0;list-style:none}
+  .board li.me{color:var(--gold);font-weight:800}
+  .rules{font-size:12.5px;color:var(--muted);line-height:1.8}
+  .rules b{color:var(--ink)}
+
+  /* 卡牌详情弹层 */
+  .sheet-bg{position:fixed;inset:0;background:#0008;z-index:60;display:flex;align-items:flex-end;justify-content:center}
+  .sheet{width:100%;max-width:540px;background:var(--bg2);border-radius:20px 20px 0 0;padding:18px 16px 26px;
+    border-top:1px solid var(--line);animation:up .18s ease-out}
+  @keyframes up{from{transform:translateY(40px);opacity:0}}
+  .sheet .row{display:flex;gap:14px;align-items:center}
+  .sheet .big{font-size:52px}
+  .sheet h3{margin:0;font-size:19px}
+  .sheet .tag{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#ffffff14;margin-left:4px}
+  .sheet p{color:var(--muted);font-size:13px;line-height:1.6;margin:10px 0}
+  .kv{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0 14px}
+  .kv div{background:#ffffff0b;border-radius:8px;padding:6px 8px;font-size:11px;color:var(--muted)}
+  .kv b{display:block;color:var(--ink);font-size:13px}
+  .btn{width:100%;border:none;border-radius:12px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;
+    background:#ffffff14;color:var(--ink)}
+  .btn.primary{background:linear-gradient(180deg,#7cf0a0,#2fbf6a);color:#063d1c}
+  .btn.gold{background:linear-gradient(180deg,#ffd24d,#ff9f2e);color:#3a1b00}
+
+  /* 排队 */
+  .overlay{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 45%,#2e1f52ee,#0d0916f5);padding:24px}
+  .qbox{text-align:center;max-width:320px}
+  .spin{width:78px;height:78px;border-radius:50%;margin:0 auto 18px;border:5px solid #ffffff18;border-top-color:#a47bff;
+    animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .qbox h3{margin:0 0 6px;font-size:19px}
+  .qbox p{color:var(--muted);font-size:13px;margin:0 0 20px;line-height:1.6}
+
+  /* ================= 对战 ================= */
+  #game{position:fixed;inset:0;background:#0e0b16;display:flex;flex-direction:column;align-items:center;z-index:40}
+  .hud{width:100%;max-width:560px;display:flex;align-items:center;justify-content:space-between;padding:6px 10px;
+    height:46px;flex:none}
+  .who{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;min-width:0;flex:1}
+  .who.r{justify-content:flex-end}
+  .who .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px}
+  .crowns{font-size:14px;letter-spacing:-2px}
+  .clock{font-variant-numeric:tabular-nums;font-weight:900;font-size:18px;padding:3px 12px;border-radius:10px;
+    background:#ffffff12;min-width:74px;text-align:center}
+  .clock.ot{background:#b3172f;color:#fff}
+  .flag{border:none;background:#ffffff12;color:var(--muted);border-radius:8px;padding:5px 7px;font-size:13px;cursor:pointer}
+  #stage{flex:1;width:100%;display:flex;align-items:center;justify-content:center;min-height:0;position:relative;overflow:hidden}
+  .hud,.dock{position:relative;z-index:2}
+  canvas{display:block;touch-action:none;border-radius:10px}
+  .banner{position:absolute;left:50%;top:18%;transform:translateX(-50%);font-weight:900;font-size:22px;
+    padding:8px 18px;border-radius:12px;background:#000a;color:var(--gold);pointer-events:none;white-space:nowrap;
+    animation:pop 1.8s ease forwards}
+  @keyframes pop{0%{opacity:0;transform:translate(-50%,10px) scale(.8)}12%{opacity:1;transform:translate(-50%,0) scale(1.05)}
+    80%{opacity:1}100%{opacity:0}}
+  .toast{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:#000c;color:#fff;font-size:13px;
+    padding:6px 14px;border-radius:999px;pointer-events:none;animation:pop 1.4s ease forwards;white-space:nowrap}
+  .dock{width:100%;max-width:560px;flex:none;padding:6px 8px 10px}
+  .hand{display:grid;grid-template-columns:52px repeat(4,1fr);gap:6px;align-items:end}
+  .hcard{position:relative;aspect-ratio:3/4;border-radius:10px;background:var(--card);border:2px solid var(--r-com);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s;
+    touch-action:none}
+  .hcard .em{font-size:28px;line-height:1}
+  .hcard .nm{font-size:10px;margin-top:4px;font-weight:700;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 2px}
+  .hcard .cost{position:absolute;left:-4px;top:-6px}
+  .hcard.rare{border-color:var(--r-rare)} .hcard.epic{border-color:var(--r-epic)} .hcard.leg{border-color:var(--r-leg)}
+  .hcard.sel{transform:translateY(-8px);box-shadow:0 0 0 3px #fff,0 8px 18px #000a}
+  .hcard.poor{filter:grayscale(.9) brightness(.6)}
+  .next{aspect-ratio:3/4;border-radius:8px;background:#ffffff0c;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;font-size:20px;opacity:.85}
+  .next small{font-size:9px;color:var(--muted);margin-top:3px}
+  .guabar{margin-top:8px;display:flex;align-items:center;gap:8px}
+  .guabar .lbl{font-size:11px;font-weight:800;color:#ffb3a3;white-space:nowrap}
+  .segs{flex:1;height:18px;border-radius:9px;background:#2a1520;position:relative;overflow:hidden;border:1px solid #4a1f2c}
+  .segs .fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(180deg,#ff8466,var(--gua) 50%,var(--gua2));
+    transition:width .1s linear}
+  .segs .ticks{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),#0006 calc(10% - 1px) 10%)}
+  .gnum{font-weight:900;font-size:18px;min-width:26px;text-align:center}
+  .gx2{font-size:10px;font-weight:900;color:#fff;background:var(--gua2);border-radius:6px;padding:1px 5px}
+
+  /* 结算 */
+  .res{text-align:center;max-width:320px;width:100%}
+  .res .t{font-size:44px;font-weight:900;letter-spacing:6px;margin-bottom:6px}
+  .res .t.win{color:var(--gold);text-shadow:0 0 24px #ffb70088}
+  .res .t.lose{color:#9aa3b5}
+  .res .cr{font-size:26px;margin:4px 0 14px}
+  .res .gain{font-size:18px;font-weight:800;color:var(--gold);margin-bottom:6px}
+  .res .note{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:18px}
+  .res .btn{margin-top:8px}
+  /* 进洞后的等待页：自带卡组预览 */
+  #wait{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;
+    background:radial-gradient(circle at 50% 38%,#3a2463 0%,#1a1229 55%,#0d0916 100%)}
+  .wbox{text-align:center;max-width:360px;width:100%}
+  .wbox h1{margin:0 0 4px;font-size:30px;letter-spacing:3px}
+  .wbox .sub{font-size:12px;color:var(--muted);margin-bottom:22px;letter-spacing:1px}
+  .wbox h3{margin:0 0 6px;font-size:18px}
+  .wbox p{color:var(--muted);font-size:13px;margin:0 0 18px;line-height:1.6;min-height:21px}
+  .mini{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin:0 0 20px}
+  .mini .mc{aspect-ratio:3/4;border-radius:7px;background:var(--card);border:2px solid var(--r-com);display:flex;
+    align-items:center;justify-content:center;font-size:17px;position:relative}
+  .mini .mc.rare{border-color:var(--r-rare)} .mini .mc.epic{border-color:var(--r-epic)} .mini .mc.leg{border-color:var(--r-leg)}
+  .mini .mc b{position:absolute;left:-3px;top:-5px;width:14px;height:14px;border-radius:50%;font-size:9px;line-height:14px;
+    color:#fff;background:var(--gua)}
+  .wbox .btn{display:block;margin-top:8px;text-decoration:none;text-align:center}
+  .spin.stop{animation:none;border-top-color:#ffffff18}
+</style>
+</head>
+<body>
+
+<!-- ======================= 进洞：排队等对手 ======================= -->
+<div id="wait">
+  <div class="wbox">
+    <h1>江世战争</h1>
+    <div class="sub">洞窟深处的竞技场 · JZH ROYALE</div>
+    <div class="spin" id="wSpin"></div>
+    <h3 id="wTitle">正在连接洞窟…</h3>
+    <p id="qText"></p>
+    <div class="mini" id="myDeck"></div>
+    <button class="btn" id="qCancel">不打了，回江之岛</button>
+    <a class="btn" href="/jiangshi/cards">🃏 去编辑卡组</a>
+  </div>
+</div>
+
+<!-- ======================= 对战 ======================= -->
+<div id="game" class="hidden">
+  <div class="hud">
+    <div class="who"><button class="flag" id="giveUp" title="投降">🏳️</button>
+      <span class="nm" id="oppName">对手</span><span class="crowns" id="oppCr"></span></div>
+    <div class="clock" id="clock">3:00</div>
+    <div class="who r"><span class="crowns" id="myCr"></span><span class="nm" id="myName">我</span></div>
+  </div>
+  <div id="stage"><canvas id="cv"></canvas></div>
+  <div class="dock">
+    <div class="hand" id="hand"></div>
+    <div class="guabar">
+      <span class="lbl">瓜拉娜</span>
+      <div class="segs"><div class="fill" id="gfill"></div><div class="ticks"></div></div>
+      <span class="gnum" id="gnum">5</span>
+      <span class="gx2 hidden" id="gx2">×2</span>
+    </div>
+  </div>
+</div>
+
+<!-- 结算 -->
+<div class="overlay hidden" id="result">
+  <div class="res">
+    <div class="t" id="resT">胜利</div>
+    <div class="cr" id="resCr"></div>
+    <div class="gain" id="resGain"></div>
+    <div class="note" id="resNote"></div>
+    <button class="btn gold" id="again">再来一局</button>
+    <a class="btn" href="/jiangshi/cards" style="display:block;text-decoration:none;text-align:center;margin-top:8px">🃏 编辑卡组</a>
+    <a class="btn" href="/enoshima" style="display:block;text-decoration:none;text-align:center;margin-top:8px">回江之岛</a>
+  </div>
+</div>
+
+<script>
+const ME = {{ me|tojson }};
+const RARITY = {"普通":"com","稀有":"rare","史诗":"epic","传奇":"leg"};
+const $ = id => document.getElementById(id);
+function esc(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+let L = null;             // 卡组/卡牌数据（在编辑卡组页里配好的那套）
+let wantQueue = false;    // 是否应该在排队
+// ================================================================
+// websocket（socket.io 客户端：先本地 static，再 CDN 兜底）
+// ================================================================
+let sock = null;
+const IO_SRCS = ['/static/socket.io.min.js','https://cdn.socket.io/4.7.5/socket.io.min.js',
+  'https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js'];
+function loadIO(i){
+  return new Promise((ok,fail)=>{
+    if(typeof io!=='undefined') return ok();
+    if(i>=IO_SRCS.length) return fail();
+    const s=document.createElement('script'); s.src=IO_SRCS[i];
+    s.onload=()=> (typeof io!=='undefined') ? ok() : loadIO(i+1).then(ok,fail);
+    s.onerror=()=> loadIO(i+1).then(ok,fail);
+    document.head.appendChild(s);
+  });
+}
+async function connect(){
+  await loadIO(0);
+  sock = io('/jiangshi');
+  // 连上（或断线重连）后：如果服务器那边我还有没打完的对局，会自动推 js_start；
+  // 等一小会儿没收到，就带着编辑好的卡组去排队
+  sock.on('connect', ()=>{
+    const t0 = Date.now();
+    setTimeout(()=>{ if(!G && wantQueue) sock.emit('js_queue', {}); }, 400);
+    // 打到一半断线重连：2 秒内服务器没接回这局，说明对局已经不在了（比如服务器重启过）
+    setTimeout(()=>{ if(G && !G.over && lastRecv < t0) onGone(); }, 2000);
+  });
+  sock.on('js_queued', d=>{ queueStart = Date.now(); queueWait = d.wait; showQueue(true); });
+  sock.on('js_cancelled', ()=>{});
+  sock.on('js_start', startGame);
+  sock.on('js_state', onState);
+  sock.on('js_end', onEnd);
+  sock.on('js_error', d=>toast(d.msg));
+  sock.on('connect_error', ()=>toast('连接洞窟失败，稍后再试'));
+}
+let queueStart = 0, queueWait = 15, qTimer = null;
+function showQueue(on){
+  clearInterval(qTimer);
+  if(on){ $('wTitle').textContent = '正在洞窟深处寻找对手…'; $('wSpin').classList.remove('stop'); }
+  if(on) qTimer = setInterval(()=>{
+    const s = Math.floor((Date.now()-queueStart)/1000), left = Math.max(0, queueWait - s);
+    $('qText').textContent = left>0 ? `已等 ${s} 秒 · ${left} 秒后没人的话，洞窟守卫会来陪你打` : '洞窟守卫正在赶来…';
+  }, 300);
+}
+$('qCancel').onclick = ()=>{ wantQueue = false; if(sock) sock.emit('js_cancel', {}); location.href = '/enoshima'; };
+
+// ================================================================
+// 对战
+// ================================================================
+const cv = $('cv'), ctx = cv.getContext('2d');
+let G = null;            // 当前对局
+let lastRecv = 0;         // 最后一次收到战场状态的时间
+let T = 20;              // 一格多少像素（CSS 像素）
+const INTERP = 100;      // 插值时长(ms)，和服务器 tick 对齐
+
+function startGame(d){
+  showQueue(false);
+  $('result').classList.add('hidden');
+  const cards = {}; d.cards.forEach(c=>cards[c.key]=c);
+  G = {side:d.side, opp:d.opp, oppAi:d.opp_ai, cards, extra:d.extra||{}, f:d.field,
+       units:new Map(), fx:[], hand:[], next:null, elixir:5, t:d.time, ot:false, m:1, cr:[0,0],
+       sel:-1, ghost:null, drag:null, over:false, last:0};
+  $('wait').classList.add('hidden'); $('game').classList.remove('hidden');
+  $('oppName').textContent = d.opp + (d.opp_ai?'（AI）':'');
+  $('myName').textContent = ME;
+  renderHand(); resize(); requestAnimationFrame(resize);
+  banner(d.opp_ai ? '洞窟守卫来了！' : '对手出现：'+d.opp);
+}
+function resize(){
+  if(!G) return;
+  const st = $('stage').getBoundingClientRect();
+  T = Math.max(8, Math.min((st.width-8)/G.f.w, (st.height-6)/G.f.h));
+  const w = T*G.f.w, h = T*G.f.h, dpr = Math.min(2, window.devicePixelRatio||1);
+  cv.style.width = w+'px'; cv.style.height = h+'px';
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', resize);
+// 手牌栏出现/屏幕旋转都会改变可用空间：场地区域一变就重算格子大小，保证不压到顶栏和手牌
+if(window.ResizeObserver) new ResizeObserver(()=>resize()).observe($('stage'));
+
+// 世界坐标 <-> 屏幕坐标（自己永远在下半场）
+function sx(x){ return (G.side===0 ? x : G.f.w - x) * T; }
+function sy(y){ return (G.side===0 ? y : G.f.h - y) * T; }
+function wx(px){ const x = px/T; return G.side===0 ? x : G.f.w - x; }
+function wy(py){ const y = py/T; return G.side===0 ? y : G.f.h - y; }
+
+function onState(s){
+  if(!G) return;
+  lastRecv = Date.now();
+  const now = performance.now();
+  const seen = new Set();
+  for(const a of s.u){
+    const [id,key,side,x,y,hp,mhp,fl] = a; seen.add(id);
+    let u = G.units.get(id);
+    if(!u){ u = {id,key,side,x,y,px:x,py:y,t0:now}; G.units.set(id,u); }
+    else { const p = curPos(u, now); u.px=p.x; u.py=p.y; u.x=x; u.y=y; u.t0=now; }
+    u.hp=hp; u.mhp=mhp; u.fl=fl;
+  }
+  for(const id of [...G.units.keys()]) if(!seen.has(id)) G.units.delete(id);
+  for(const e of s.ev) addFx(e, now);
+  G.t = s.t; G.ot = s.ot; G.m = s.m; G.cr = s.cr;
+  G.elixir = s.me.e;
+  const hk = s.me.hand.join(',') + '|' + s.me.next;
+  if(hk !== G.handKey){ G.hand = s.me.hand; G.next = s.me.next; G.handKey = hk; renderHand(); }
+  updateHud();
+}
+function curPos(u, now){
+  const a = Math.min(1, (now-u.t0)/INTERP);
+  return {x:u.px+(u.x-u.px)*a, y:u.py+(u.y-u.py)*a};
+}
+function updateHud(){
+  const t = Math.ceil(G.t), mm = Math.floor(t/60), ss = String(t%60).padStart(2,'0');
+  $('clock').textContent = (G.ot?'加时 ':'') + mm+':'+ss;
+  $('clock').classList.toggle('ot', G.ot);
+  $('myCr').textContent = '👑'.repeat(G.cr[0]) + '♔'.repeat(3-G.cr[0]);
+  $('oppCr').textContent = '👑'.repeat(G.cr[1]) + '♔'.repeat(3-G.cr[1]);
+  $('gfill').style.width = (G.elixir/10*100)+'%';
+  $('gnum').textContent = Math.floor(G.elixir);
+  $('gx2').textContent = '×'+G.m; $('gx2').classList.toggle('hidden', G.m<=1);
+  document.querySelectorAll('.hcard').forEach(el=>{
+    const c = G.cards[el.dataset.k]; el.classList.toggle('poor', c && c.cost > G.elixir+1e-6);
+  });
+}
+function renderHand(){
+  const h = $('hand'); h.innerHTML = '';
+  const nx = document.createElement('div'); nx.className='next';
+  const nc = G.cards[G.next]; nx.innerHTML = nc ? `${nc.emoji}<small>下一张</small>` : '';
+  h.appendChild(nx);
+  G.hand.forEach((k,i)=>{
+    const c = G.cards[k]; const el = document.createElement('div');
+    el.className = 'hcard '+(RARITY[c.rarity]||'') + (G.sel===i?' sel':'');
+    el.dataset.k = k; el.dataset.i = i;
+    el.innerHTML = `<span class="gua cost">${c.cost}</span><div class="em">${c.emoji}</div><div class="nm">${c.name}</div>`;
+    el.addEventListener('pointerdown', e=>{ e.preventDefault(); G.drag={i, moved:false, x:e.clientX, y:e.clientY}; });
+    h.appendChild(el);
+  });
+  updateHud();
+}
+function selectCard(i){ G.sel = (G.sel===i) ? -1 : i; renderHand(); }
+
+// —— 出牌：点卡再点场地，或者直接把卡拖到场地上 ——
+function canvasPoint(e){
+  const r = cv.getBoundingClientRect();
+  return {x:e.clientX-r.left, y:e.clientY-r.top, inside: e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom};
+}
+document.addEventListener('pointermove', e=>{
+  if(!G || G.over) return;
+  if(G.drag){
+    if(Math.hypot(e.clientX-G.drag.x, e.clientY-G.drag.y) > 8){ G.drag.moved = true; if(G.sel!==G.drag.i){ G.sel=G.drag.i; renderHand(); } }
+  }
+  if(G.sel>=0){ const p = canvasPoint(e); G.ghost = p.inside ? {x:wx(p.x), y:wy(p.y)} : null; }
+});
+document.addEventListener('pointerup', e=>{
+  if(!G || G.over) return;
+  if(G.drag){
+    const d = G.drag; G.drag = null;
+    if(!d.moved){ selectCard(d.i); return; }           // 轻点：选中/取消
+    const p = canvasPoint(e);
+    if(p.inside) tryPlay(d.i, wx(p.x), wy(p.y)); else { G.sel=-1; renderHand(); }
+    return;
+  }
+  if(G.sel>=0 && e.target===cv){ const p = canvasPoint(e); tryPlay(G.sel, wx(p.x), wy(p.y)); }
+});
+cv.addEventListener('pointerleave', ()=>{ if(G) G.ghost=null; });
+
+function towerAlive(side, slot){
+  if(G.alive) return !!G.alive[side+slot];
+  for(const u of G.units.values()){
+    if(u.side!==side) continue;
+    if(slot==='K' && u.key==='king') return true;
+    if(u.key==='princess' && ((slot==='L')===(u.x<G.f.w/2))) return true;
+  }
+  return false;
+}
+function validSpot(key, x, y){
+  const c = G.cards[key], f = G.f;
+  if(x<0.4||x>f.w-0.4||y<0.4||y>f.h-0.4) return false;
+  if(c.type==='spell') return true;
+  if(y>f.river[0] && y<f.river[1]) return false;
+  for(const t of f.towers){ if(towerAlive(t.side,t.slot) && Math.hypot(t.x-x,t.y-y) < t.r+0.3) return false; }
+  if(c.anywhere) return true;
+  const own = G.side===0 ? y>=f.river[1] : y<=f.river[0];
+  if(own) return true;
+  const lane = x < f.w/2 ? 'L' : 'R';
+  if(!towerAlive(1-G.side, lane)) return G.side===0 ? y>=9 : y<=f.h-9;
+  return false;
+}
+function tryPlay(i, x, y){
+  const k = G.hand[i], c = G.cards[k];
+  if(c.cost > G.elixir+1e-6){ toast('瓜拉娜不够'); return; }
+  if(!validSpot(k,x,y)){ toast('这里不能下'); return; }
+  sock.emit('js_play', {i, x:+x.toFixed(2), y:+y.toFixed(2)});
+  G.sel = -1; G.ghost = null; renderHand();
+}
+$('giveUp').onclick = ()=>{ if(G && !G.over && confirm('确定投降吗？')) sock.emit('js_surrender', {}); };
+
+// ================================================================
+// 画面
+// ================================================================
+const COL = {me:'#3f8cff', meD:'#1f4fb0', op:'#ff5a55', opD:'#a82624'};
+function sideCol(side, dark){ const mine = side===G.side; return mine ? (dark?COL.meD:COL.me) : (dark?COL.opD:COL.op); }
+
+function drawField(){
+  const f = G.f, w = f.w*T, h = f.h*T;
+  for(let r=0;r<f.h;r++) for(let c=0;c<f.w;c++){
+    ctx.fillStyle = ((r+c)%2) ? '#7fc463' : '#8acd6c';
+    ctx.fillRect(c*T, r*T, T+0.5, T+0.5);
+  }
+  // 自家半场更亮一点
+  ctx.fillStyle = '#ffffff10'; ctx.fillRect(0, sy(G.side===0?f.river[1]:f.river[0]) , w, h);
+  // 河
+  const ry = Math.min(sy(f.river[0]), sy(f.river[1])), rh = Math.abs(sy(f.river[1])-sy(f.river[0]));
+  const g = ctx.createLinearGradient(0,ry,0,ry+rh); g.addColorStop(0,'#5cc3ef'); g.addColorStop(1,'#3a9fd6');
+  ctx.fillStyle = g; ctx.fillRect(0, ry, w, rh);
+  ctx.strokeStyle = '#ffffff55'; ctx.lineWidth = 1.5;
+  const ph = (performance.now()/900)%1;
+  for(let i=0;i<8;i++){ const x0 = ((i/8+ph*0.12)%1)*w; ctx.beginPath(); ctx.moveTo(x0, ry+rh*0.35); ctx.quadraticCurveTo(x0+T*0.6, ry+rh*0.15, x0+T*1.2, ry+rh*0.35); ctx.stroke(); }
+  // 桥
+  for(const b of f.bridges){
+    const x0 = sx(b) - f.bridge_half*T;
+    ctx.fillStyle = '#b98a55'; ctx.fillRect(x0, ry-3, f.bridge_half*2*T, rh+6);
+    ctx.strokeStyle = '#8f6537'; ctx.lineWidth = 1;
+    for(let k=0;k<=4;k++){ const yy = ry-3 + (rh+6)*k/4; ctx.beginPath(); ctx.moveTo(x0,yy); ctx.lineTo(x0+f.bridge_half*2*T,yy); ctx.stroke(); }
+    ctx.fillStyle = '#7a532a'; ctx.fillRect(x0-2, ry-4, 3, rh+8); ctx.fillRect(x0+f.bridge_half*2*T-1, ry-4, 3, rh+8);
+  }
+  // 塔被拆后的废墟
+  for(const t of f.towers){
+    if(towerAlive(t.side, t.slot)) continue;
+    ctx.fillStyle = '#6d6a66'; circle(sx(t.x), sy(t.y), t.r*T*0.8); ctx.fill();
+    ctx.fillStyle = '#57534f'; circle(sx(t.x)-T*0.3, sy(t.y)+T*0.2, t.r*T*0.35); ctx.fill();
+  }
+}
+function drawZones(){
+  if(G.sel<0) return;
+  const k = G.hand[G.sel], c = G.cards[k], f = G.f;
+  if(c.type==='spell') return;
+  // 不能下的地方盖一层红
+  ctx.fillStyle = '#ff2d2d2a';
+  for(let r=0;r<f.h;r++) for(let col=0;col<f.w;col++){
+    const x = col+0.5, y = r+0.5;
+    const wxv = G.side===0 ? x : f.w-x, wyv = G.side===0 ? y : f.h-y;   // 屏幕格 → 世界格
+    if(!validSpot(k, wxv, wyv)) ctx.fillRect(col*T, r*T, T, T);
+  }
+}
+function circle(x,y,r){ ctx.beginPath(); ctx.arc(x,y,Math.max(0.5,r),0,Math.PI*2); }
+// 圆角血条：阵营色渐变 + 高光，可选在条里写数字
+function hpBar(x, y, w, frac, col, num){
+  const h = num ? Math.max(9, T*0.5) : Math.max(5, T*0.26), r = h/2;
+  ctx.save();
+  ctx.fillStyle = '#1b1530d0'; roundRect(x-w/2-1.5, y-1.5, w+3, h+3, r+1.5); ctx.fill();
+  const fw = Math.max(0, Math.min(1, frac)) * w;
+  if(fw > 0.5){
+    const g = ctx.createLinearGradient(0, y, 0, y+h);
+    g.addColorStop(0, shade(col, 0.45)); g.addColorStop(0.5, col); g.addColorStop(1, shade(col, -0.25));
+    ctx.fillStyle = g; roundRect(x-w/2, y, Math.max(fw, h), h, r); ctx.fill();
+    ctx.fillStyle = '#ffffff55'; roundRect(x-w/2+2, y+1, Math.max(0, fw-4), h*0.3, h*0.15); ctx.fill();
+  }
+  if(num){
+    ctx.font = `800 ${Math.round(h*0.82)}px system-ui,sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.lineWidth = 3; ctx.strokeStyle = '#1b1530'; ctx.strokeText(num, x, y+h/2+0.5);
+    ctx.fillStyle = '#fff'; ctx.fillText(num, x, y+h/2+0.5);
+  }
+  ctx.restore();
+}
+// 颜色变亮(k>0)/变暗(k<0)
+function shade(hex, k){
+  const n = parseInt(hex.slice(1,7), 16); let r = n>>16, g = (n>>8)&255, b = n&255;
+  const f = v => Math.round(k>0 ? v+(255-v)*k : v*(1+k));
+  return `rgb(${f(r)},${f(g)},${f(b)})`;
+}
+function emoji(ch, x, y, size){
+  ctx.font = `${Math.round(size)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(ch, x, y+size*0.05);
+}
+// 四角闪光星 ✦
+function sparkle(x, y, s, col){
+  ctx.fillStyle = col; ctx.beginPath();
+  ctx.moveTo(x, y-s); ctx.quadraticCurveTo(x, y, x+s, y); ctx.quadraticCurveTo(x, y, x, y+s);
+  ctx.quadraticCurveTo(x, y, x-s, y); ctx.quadraticCurveTo(x, y, x, y-s); ctx.fill();
+}
+// 品级配色：头像底色（二次元粉彩）/ 外框宝石色
+const RAR_STYLE = {
+  '普通': {bg:['#ffffff','#e6f3ff','#b9dcff'], gem:'#9fb4c9'},
+  '稀有': {bg:['#ffffff','#fff0e0','#ffc98f'], gem:'#ff9d3a'},
+  '史诗': {bg:['#ffffff','#f6e8ff','#d4a8ff'], gem:'#b45cff'},
+  '传奇': {bg:['#fffdf2','#fff1b8','#ffcf5a'], gem:'#ffd84a'},
+};
+// 头像徽章（小兵和塔上的守卫共用）
+function drawBadge(x, y, r, side, rarity, face, t, opt={}){
+  const col = sideCol(side), dk = sideCol(side, true), st = RAR_STYLE[rarity] || RAR_STYLE['普通'];
+  // 外发光
+  ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = r*0.55;
+  ctx.fillStyle = dk; circle(x, y+r*0.1, r*1.08); ctx.fill(); ctx.restore();
+  // 阵营色粗外框（上亮下暗）
+  const fr = ctx.createLinearGradient(0, y-r, 0, y+r);
+  fr.addColorStop(0, shade(col, 0.5)); fr.addColorStop(0.5, col); fr.addColorStop(1, dk);
+  ctx.fillStyle = fr; circle(x, y, r*1.08); ctx.fill();
+  // 白色细内框
+  ctx.fillStyle = '#fff'; circle(x, y, r*0.9); ctx.fill();
+  // 粉彩底色
+  const g = ctx.createRadialGradient(x-r*0.25, y-r*0.35, r*0.05, x, y, r*0.85);
+  g.addColorStop(0, st.bg[0]); g.addColorStop(0.55, st.bg[1]); g.addColorStop(1, st.bg[2]);
+  ctx.fillStyle = g; circle(x, y, r*0.82); ctx.fill();
+  // 底色上的小光点（二次元背景感）
+  ctx.save(); circle(x, y, r*0.82); ctx.clip();
+  ctx.fillStyle = '#ffffff90';
+  circle(x+r*0.45, y+r*0.35, r*0.12); ctx.fill(); circle(x-r*0.5, y+r*0.45, r*0.07); ctx.fill();
+  // 头像（带柔和投影）
+  ctx.shadowColor = '#0005'; ctx.shadowBlur = r*0.2; ctx.shadowOffsetY = r*0.06;
+  emoji(face, x, y+r*0.04, r*1.18);
+  ctx.shadowColor = 'transparent';
+  // 玻璃高光
+  const hl = ctx.createLinearGradient(0, y-r*0.82, 0, y);
+  hl.addColorStop(0, '#ffffffb0'); hl.addColorStop(1, '#ffffff00');
+  ctx.fillStyle = hl; ctx.beginPath(); ctx.ellipse(x-r*0.08, y-r*0.42, r*0.62, r*0.34, -0.25, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  // 底部品级宝石
+  const gy = y + r*0.98, gs = Math.max(3, r*0.2);
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(x, gy-gs*1.3); ctx.lineTo(x+gs*1.1, gy); ctx.lineTo(x, gy+gs*1.3); ctx.lineTo(x-gs*1.1, gy); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = st.gem; ctx.beginPath(); ctx.moveTo(x, gy-gs*0.9); ctx.lineTo(x+gs*0.7, gy); ctx.lineTo(x, gy+gs*0.9); ctx.lineTo(x-gs*0.7, gy); ctx.closePath(); ctx.fill();
+  // 史诗/传奇：一闪一闪的星星
+  if(rarity==='史诗' || rarity==='传奇'){
+    const tw = 0.5 + 0.5*Math.sin(t*4 + x*0.1);
+    sparkle(x+r*0.82, y-r*0.72, r*(0.16+0.12*tw), rarity==='传奇' ? '#fff3a0' : '#f2d9ff');
+    sparkle(x-r*0.9, y-r*0.2, r*0.1*(1-tw)+r*0.04, '#ffffff');
+  }
+  if(opt.crown) emoji('👑', x, y - r*1.12, r*0.62);
+}
+
+// —— 塔：石头圆塔 + 城垛 + 阵营旗帜 + 塔上的守卫头像 ——
+function drawTower(u, x, y){
+  const isK = u.key==='king', R = (isK?2:1.5)*T, t = performance.now()/1000;
+  const col = sideCol(u.side), dk = sideCol(u.side, true), asleep = u.fl & 16;
+  const rx = R*(isK?0.78:0.66), ry = rx*0.42;             // 塔身半宽、椭圆扁度
+  const yb = y + R*0.42, yt = y - R*(isK?0.42:0.36);      // 塔身底 / 塔顶
+  ctx.save();
+  // 地面阴影 + 石台
+  ctx.fillStyle = '#0000003a'; ctx.beginPath(); ctx.ellipse(x+R*0.08, yb+R*0.12, R*1.05, R*0.46, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#8b8373'; ctx.beginPath(); ctx.ellipse(x, yb+R*0.06, R*0.98, R*0.42, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#b3aa98'; ctx.beginPath(); ctx.ellipse(x, yb, R*0.98, R*0.4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#ffffff40'; ctx.lineWidth = 1;
+  for(let i=0;i<10;i++){ const a=i/10*Math.PI*2; ctx.beginPath();
+    ctx.moveTo(x+Math.cos(a)*R*0.72, yb+Math.sin(a)*R*0.3); ctx.lineTo(x+Math.cos(a)*R*0.96, yb+Math.sin(a)*R*0.39); ctx.stroke(); }
+  // 塔身（圆柱：两边暗中间亮）
+  const body = ctx.createLinearGradient(x-rx, 0, x+rx, 0);
+  body.addColorStop(0, '#9a917f'); body.addColorStop(0.35, '#efe8da'); body.addColorStop(0.6, '#ddd4c3'); body.addColorStop(1, '#8a816f');
+  ctx.fillStyle = body; ctx.beginPath();
+  ctx.moveTo(x-rx, yt); ctx.lineTo(x-rx, yb); ctx.ellipse(x, yb, rx, ry, 0, Math.PI, 0, true); ctx.lineTo(x+rx, yt); ctx.closePath(); ctx.fill();
+  // 砖缝
+  ctx.strokeStyle = '#7d7464aa'; ctx.lineWidth = 1;
+  const rows = 4;
+  for(let i=1;i<=rows;i++){
+    const yy = yt + (yb-yt)*i/(rows+0.3);
+    ctx.beginPath(); ctx.ellipse(x, yy, rx, ry, 0, 0.05, Math.PI-0.05); ctx.stroke();
+    for(let j=0;j<4;j++){ const a = (j + (i%2)*0.5 + 0.5)/4.5*Math.PI; const bx = x + Math.cos(a)*rx, by = yy + Math.sin(a)*ry;
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx, by - (yb-yt)/(rows+0.3)); ctx.stroke(); }
+  }
+  // 阵营色腰带 + 金边
+  const by0 = yt + (yb-yt)*0.18, bh = (yb-yt)*0.2;
+  const band = ctx.createLinearGradient(x-rx, 0, x+rx, 0);
+  band.addColorStop(0, dk); band.addColorStop(0.4, shade(col, 0.25)); band.addColorStop(1, dk);
+  ctx.fillStyle = band; ctx.beginPath();
+  ctx.ellipse(x, by0, rx+1, ry, 0, Math.PI, 0, true); ctx.lineTo(x+rx+1, by0+bh); ctx.ellipse(x, by0+bh, rx+1, ry, 0, 0, Math.PI); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = isK ? '#ffd24d' : '#fff6'; ctx.lineWidth = isK ? 2 : 1.2;
+  ctx.beginPath(); ctx.ellipse(x, by0+bh, rx+1, ry, 0, 0, Math.PI); ctx.stroke();
+  // 拱门
+  ctx.fillStyle = '#3a2d25'; const dw = rx*0.36, dh = (yb-yt)*0.36, dy = yb + ry*0.7 - dh;
+  ctx.beginPath(); ctx.moveTo(x-dw, yb+ry*0.75); ctx.lineTo(x-dw, dy+dw); ctx.arc(x, dy+dw, dw, Math.PI, 0); ctx.lineTo(x+dw, yb+ry*0.75); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#6b5a4b'; ctx.lineWidth = 1.5; ctx.stroke();
+  // 塔顶平台 + 城垛（先画后面的，再画前面的）
+  ctx.fillStyle = '#7f7666'; ctx.beginPath(); ctx.ellipse(x, yt, rx, ry, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#a79e8b'; ctx.beginPath(); ctx.ellipse(x, yt+ry*0.15, rx*0.8, ry*0.72, 0, 0, Math.PI*2); ctx.fill();
+  const N = isK ? 12 : 10, mw = rx*0.3, mh = R*0.2;
+  const merlons = [];
+  for(let i=0;i<N;i++){ const a = i/N*Math.PI*2; merlons.push({a, px:x+Math.cos(a)*rx*0.92, py:yt+Math.sin(a)*ry*0.92}); }
+  const drawMerlon = m => {
+    const lit = 0.5 + 0.5*Math.cos(m.a + 0.8);
+    ctx.fillStyle = shade('#c9c0ad', (lit-0.5)*0.5); roundRect(m.px-mw/2, m.py-mh, mw, mh, 2); ctx.fill();
+    ctx.fillStyle = '#ffffff55'; ctx.fillRect(m.px-mw/2+1, m.py-mh, mw-2, 2);
+  };
+  merlons.filter(m=>Math.sin(m.a)<0).forEach(drawMerlon);
+  // 守卫头像（公主塔：弓箭公主；国王塔：国王）
+  const br = R*(isK?0.5:0.46), bob = asleep ? 0 : Math.sin(t*3 + x)*R*0.03;
+  const bx = x, byy = yt - br*0.55 + bob;
+  if(asleep) ctx.globalAlpha = 0.85;
+  drawBadge(bx, byy, br, u.side, isK ? '传奇' : '稀有', isK ? '🤴' : '👸', t, {crown: isK});
+  ctx.globalAlpha = 1;
+  merlons.filter(m=>Math.sin(m.a)>=0).forEach(drawMerlon);
+  // 两边小旗（风里飘）
+  const flags = isK ? [-1, 1] : [x < G.f.w*T/2 ? -1 : 1];      // 公主塔的旗子朝外
+  for(const fs of flags){
+    const px = x + fs*rx*0.95, top = yt - R*(isK?1.05:0.95), bot = yt - mh*0.5;
+    ctx.strokeStyle = '#5b4a3a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(px, bot); ctx.lineTo(px, top); ctx.stroke();
+    ctx.fillStyle = '#ffd24d'; circle(px, top, 2.2); ctx.fill();
+    const fw = R*0.5*fs, fh = R*0.28, wv = Math.sin(t*5 + px*0.05);
+    const fg = ctx.createLinearGradient(px, 0, px+fw, 0); fg.addColorStop(0, dk); fg.addColorStop(1, shade(col, 0.2));
+    ctx.fillStyle = fg; ctx.beginPath(); ctx.moveTo(px, top+1);
+    ctx.quadraticCurveTo(px+fw*0.5, top+1+wv*fh*0.25, px+fw, top+fh*0.35+wv*fh*0.15);
+    ctx.lineTo(px+fw*0.85, top+fh*0.55);
+    ctx.quadraticCurveTo(px+fw*0.5, top+fh+wv*fh*0.25, px, top+fh);
+    ctx.closePath(); ctx.fill();
+  }
+  // 国王没醒：打呼噜
+  if(asleep){
+    const zz = (t*0.8) % 1;
+    ctx.globalAlpha = 1 - zz; ctx.fillStyle = '#fff'; ctx.font = `900 ${Math.round(R*0.3)}px system-ui`; ctx.textAlign='center';
+    ctx.lineWidth = 3; ctx.strokeStyle = dk;
+    ctx.strokeText('z', bx+br*1.1+zz*R*0.25, byy-br*0.6-zz*R*0.35); ctx.fillText('z', bx+br*1.1+zz*R*0.25, byy-br*0.6-zz*R*0.35);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  // 血条（数字写在条里）
+  let hy = byy - br*1.5 - (isK?R*0.3:R*0.12) - Math.max(9, T*0.5);
+  if(hy < 3) hy = yb + R*0.5;                               // 顶上放不下（对面国王塔贴着边）就放到塔下面
+  hpBar(x, hy, R*1.7, u.hp/u.mhp, col, String(u.hp));
+}
+function roundRect(x,y,w,h,r){ r=Math.min(r,w/2,h/2); ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+// —— 小兵：大号二次元头像徽章，脚下有阵营色光圈 ——
+function drawUnit(u, x, y){
+  const c = G.cards[u.key] || G.extra[u.key] || {emoji:'❔', r:0.45};
+  const r = Math.min(T*1.6, Math.max(15, (c.r||0.45)*T*2.1));   // 比碰撞体积大不少，手机上一眼能认出来
+  const fly = u.fl & 32, dep = u.fl & 1, t = performance.now()/1000;
+  const col = sideCol(u.side);
+  ctx.save();
+  // 脚下：阵营色光圈（真实站位）
+  ctx.fillStyle = '#0000002e'; ctx.beginPath(); ctx.ellipse(x, y+r*0.55, r*0.85, r*0.34, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = col; ctx.globalAlpha = 0.8; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(x, y+r*0.55, r*0.8, r*0.3, 0, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1;
+  if(dep) ctx.globalAlpha = 0.55;
+  if(u.fl & 8) ctx.globalAlpha = 0.35;               // 特斯拉缩地
+  // 一蹦一蹦的待机动作（飞行的飘得更高）
+  const bob = dep ? 0 : Math.abs(Math.sin(t*5 + u.id*1.7)) * r*0.1;
+  const cy = y - r*0.35 - bob - (fly ? r*0.75 : 0);
+  if(fly){ ctx.strokeStyle = '#ffffff70'; ctx.lineWidth = 2;
+    for(const s of [-1,1]){ ctx.beginPath(); ctx.ellipse(x+s*r*1.05, cy+r*0.1, r*0.42, r*0.2, s*(-0.5+Math.sin(t*12)*0.3), 0, Math.PI*2); ctx.stroke(); } }
+  drawBadge(x, cy, r, u.side, c.rarity || '普通', c.emoji, t, {crown: !!c.hero});
+  if(u.fl & 4){                                        // 江主无敌：金色旋转光环
+    ctx.strokeStyle = '#ffd24d'; ctx.lineWidth = 3; ctx.setLineDash([r*0.4, r*0.25]); ctx.lineDashOffset = -t*30;
+    circle(x, cy, r*1.3); ctx.stroke(); ctx.setLineDash([]);
+  }
+  if(dep){ ctx.globalAlpha = 1; ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.lineCap='round'; ctx.beginPath();
+    ctx.arc(x, cy, r*1.22, -Math.PI/2, -Math.PI/2 + Math.PI*2*((performance.now()/1000)%1)); ctx.stroke(); }
+  if(u.fl & 2) emoji('💫', x+r*0.75, cy-r*0.8, r*0.75);
+  ctx.restore();
+  if(!dep && (u.hp < u.mhp || c.type==='building')) hpBar(x, cy-r*1.35-Math.max(5,T*0.26), Math.max(22, r*1.9), u.hp/u.mhp, col);
+}
+
+// —— 特效 ——
+function addFx(e, now){
+  const f = {...e, t0:now};
+  if(e.k==='shot') f.dur = e.t==='zap' ? 140 : 200;
+  else if(e.k==='hit') f.dur = 160;
+  else if(e.k==='spell') f.dur = e.c==='zap' ? 260 : 480;
+  else if(e.k==='die') f.dur = e.big ? 600 : 360;
+  else if(e.k==='boom') f.dur = 500;
+  else if(e.k==='tower'){ f.dur = 900; banner(e.s===G.side ? '我方塔倒了！' : '拆掉一座塔！👑'); }
+  else if(e.k==='rage') f.dur = 500;
+  else if(e.k==='dash') f.dur = 300;
+  else if(e.k==='king'){ f.dur = 700; }
+  else if(e.k==='ot'){ banner('加时赛！先拆一座塔的赢'); return; }
+  else if(e.k==='play'){ if(e.s===G.side) return; f.dur = 900; }
+  else return;
+  G.fx.push(f);
+}
+function drawFx(now){
+  G.fx = G.fx.filter(f => now - f.t0 < f.dur);
+  for(const f of G.fx){
+    const a = (now - f.t0)/f.dur;
+    ctx.save();
+    if(f.k==='shot'){
+      const x = sx(f.a[0]+(f.b[0]-f.a[0])*a), y = sy(f.a[1]+(f.b[1]-f.a[1])*a);
+      if(f.t==='zap'){ ctx.strokeStyle='#8ff4ff'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(sx(f.a[0]),sy(f.a[1]));
+        for(let i=1;i<5;i++){ const t=i/5; ctx.lineTo(sx(f.a[0]+(f.b[0]-f.a[0])*t)+(Math.random()-.5)*T*0.6, sy(f.a[1]+(f.b[1]-f.a[1])*t)+(Math.random()-.5)*T*0.6); }
+        ctx.lineTo(sx(f.b[0]),sy(f.b[1])); ctx.stroke(); }
+      else if(f.t==='arrow'){ const ang = Math.atan2(sy(f.b[1])-sy(f.a[1]), sx(f.b[0])-sx(f.a[0]));
+        ctx.translate(x,y); ctx.rotate(ang); ctx.strokeStyle='#5b3a1a'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(-T*0.4,0); ctx.lineTo(T*0.2,0); ctx.stroke();
+        ctx.fillStyle='#ddd'; ctx.beginPath(); ctx.moveTo(T*0.3,0); ctx.lineTo(T*0.15,-3); ctx.lineTo(T*0.15,3); ctx.fill(); }
+      else { const col = {bullet:'#ffe66b', magic:'#c58bff', fire:'#ff8a2b', tower:'#e8f2ff'}[f.t]||'#fff';
+        ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8; circle(x,y, f.t==='fire'||f.t==='magic' ? T*0.28 : T*0.16); ctx.fill(); }
+    } else if(f.k==='hit'){
+      ctx.globalAlpha = 1-a; ctx.strokeStyle='#fff'; ctx.lineWidth=2; const x=sx(f.x), y=sy(f.y), s=T*0.35*(0.6+a);
+      ctx.beginPath(); ctx.moveTo(x-s,y-s); ctx.lineTo(x+s,y+s); ctx.moveTo(x+s,y-s); ctx.lineTo(x-s,y+s); ctx.stroke();
+    } else if(f.k==='spell'){
+      const x=sx(f.x), y=sy(f.y), R=f.r*T;
+      if(f.c==='zap'){ ctx.globalAlpha=1-a; ctx.fillStyle='#8ff4ff55'; circle(x,y,R); ctx.fill(); ctx.strokeStyle='#bff9ff'; ctx.lineWidth=3; ctx.stroke(); }
+      else if(f.c==='arrows'){ ctx.globalAlpha = 1-a*0.8; ctx.fillStyle='#fff3'; circle(x,y,R); ctx.fill();
+        ctx.strokeStyle='#4a2f14'; ctx.lineWidth=1.6;
+        for(let i=0;i<22;i++){ const ang=i*2.4, rr=R*((i*37)%100)/100, px=x+Math.cos(ang)*rr, py=y+Math.sin(ang)*rr - (1-a)*T*1.5;
+          ctx.beginPath(); ctx.moveTo(px,py-T*0.5); ctx.lineTo(px,py); ctx.stroke(); } }
+      else { ctx.globalAlpha=1-a; const g=ctx.createRadialGradient(x,y,0,x,y,R*(0.6+a*0.5));
+        g.addColorStop(0,'#fff6b0'); g.addColorStop(0.4,'#ff9a2e'); g.addColorStop(1,'#ff3d0000');
+        ctx.fillStyle=g; circle(x,y,R*(0.6+a*0.5)); ctx.fill(); emoji('🔥', x, y-(1-a)*T*2, T*1.2); }
+    } else if(f.k==='die'){
+      ctx.globalAlpha = 1-a; ctx.fillStyle='#dcd6cf'; const x=sx(f.x), y=sy(f.y), s=(f.big?T*1.2:T*0.6)*(0.5+a);
+      for(let i=0;i<5;i++){ circle(x+Math.cos(i*1.3)*s*0.6, y+Math.sin(i*1.3)*s*0.6, s*0.45); ctx.fill(); }
+    } else if(f.k==='boom'){
+      ctx.globalAlpha = 1-a; ctx.strokeStyle='#ffb347'; ctx.lineWidth = 4; circle(sx(f.x), sy(f.y), f.r*T*(0.4+a*0.6)); ctx.stroke();
+    } else if(f.k==='tower'){
+      ctx.globalAlpha = 1-a; const x=sx(f.x), y=sy(f.y);
+      const g=ctx.createRadialGradient(x,y,0,x,y,T*4*(0.4+a)); g.addColorStop(0,'#fff3c0'); g.addColorStop(0.5,'#ff8a2b'); g.addColorStop(1,'#ff3d0000');
+      ctx.fillStyle=g; circle(x,y,T*4*(0.4+a)); ctx.fill(); emoji('👑', x, y - a*T*4, T*1.6);
+    } else if(f.k==='rage'){
+      ctx.globalAlpha = (1-a)*0.7; ctx.fillStyle='#ffd24d'; const x=sx(f.x), y=sy(f.y);
+      const fx = (G.side===0?f.fx:-f.fx), fy = (G.side===0?f.fy:-f.fy), ang = Math.atan2(fy,fx);
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.arc(x,y,3*T*(0.5+a*0.5), ang-0.96, ang+0.96); ctx.closePath(); ctx.fill();
+    } else if(f.k==='dash'){
+      ctx.globalAlpha = 1-a; ctx.strokeStyle='#c58bff'; ctx.lineWidth=3; circle(sx(f.x), sy(f.y), T*(0.4+a)); ctx.stroke();
+    } else if(f.k==='king'){
+      ctx.globalAlpha = 1-a; emoji('💢', sx(f.x||0), sy(f.y||0), T);
+    } else if(f.k==='play'){
+      const c = G.cards[f.c]; if(!c){ ctx.restore(); continue; }
+      ctx.globalAlpha = a<0.8 ? 1 : (1-a)*5; const x=sx(f.x), y=sy(f.y)-T*1.4-a*T*0.5;
+      ctx.font = `bold ${Math.max(11,T*0.55)}px system-ui`; const tw = ctx.measureText(c.name).width + T*1.3;
+      ctx.fillStyle='#000b'; roundRect(x-tw/2, y-T*0.45, tw, T*0.9, T*0.3); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(c.emoji+' '+c.name, x, y);
+    }
+    ctx.restore();
+  }
+}
+function drawGhost(){
+  if(G.sel<0 || !G.ghost) return;
+  const k = G.hand[G.sel], c = G.cards[k], ok = validSpot(k, G.ghost.x, G.ghost.y);
+  const x = sx(G.ghost.x), y = sy(G.ghost.y);
+  ctx.save(); ctx.globalAlpha = 0.75;
+  if(c.type==='spell'){ ctx.fillStyle = ok?'#ffffff33':'#ff000033'; circle(x,y,c.radius*T); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.setLineDash([5,4]); ctx.lineWidth=2; ctx.stroke(); ctx.setLineDash([]); }
+  else if(c.rng && c.rng >= 1.5){ ctx.strokeStyle='#ffffff66'; ctx.setLineDash([4,4]); circle(x,y,c.rng*T); ctx.stroke(); ctx.setLineDash([]); }
+  emoji(c.emoji, x, y, T*1.3);
+  if(!ok) emoji('🚫', x+T*0.6, y-T*0.6, T*0.8);
+  ctx.restore();
+}
+function frame(){
+  requestAnimationFrame(frame);
+  if(!G) return;
+  const now = performance.now();
+  G.alive = null;                                    // 每帧算一次哪些塔还活着（给落点判断用）
+  const al = {};
+  for(const u of G.units.values()){
+    if(u.key==='king') al[u.side+'K']=true;
+    else if(u.key==='princess') al[u.side+(u.x<G.f.w/2?'L':'R')]=true;
+  }
+  G.alive = al;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  drawField(); drawZones();
+  // 从上往下画，前面的挡住后面的
+  const list = [...G.units.values()].map(u=>{ const p = curPos(u, now); return {u, x:sx(p.x), y:sy(p.y)}; });
+  list.sort((a,b)=> (a.u.fl&32)-(b.u.fl&32) || a.y-b.y);
+  for(const o of list){ if(o.u.key==='king'||o.u.key==='princess') drawTower(o.u, o.x, o.y); }
+  for(const o of list){ if(o.u.key!=='king'&&o.u.key!=='princess') drawUnit(o.u, o.x, o.y); }
+  drawFx(now); drawGhost();
+}
+requestAnimationFrame(frame);
+
+function banner(text){
+  const b = document.createElement('div'); b.className='banner'; b.textContent=text;
+  $('stage').appendChild(b); setTimeout(()=>b.remove(), 1900);
+}
+function toast(text){
+  const host = G ? $('stage') : document.body;
+  const b = document.createElement('div'); b.className='toast'; b.textContent=text;
+  if(!G){ b.style.position='fixed'; b.style.bottom='24px'; b.style.zIndex=90; }
+  host.appendChild(b); setTimeout(()=>b.remove(), 1500);
+}
+
+// ================================================================
+// 结算
+// ================================================================
+function onEnd(d){
+  const missed = d.missed || !G;          // 对局是在我离开的时候结束的
+  if(missed){
+    wantQueue = false; showQueue(false);  // 先别自动排队，让我看完上一局的结果
+    $('wait').classList.add('hidden');
+  }
+  if(G){ G.over = true; G.sel = -1; }
+  const T0 = {win:'胜 利', lose:'失 败', draw:'平 局'}[d.result];
+  $('resT').textContent = T0; $('resT').className = 't ' + d.result;
+  $('resCr').textContent = `👑 ${d.cr[0]} : ${d.cr[1]} 👑`;
+  const st = d.settle || {};
+  $('resGain').textContent = st.coins ? `+${st.coins} 金币` : '';
+  const why = {surrender: d.result==='win' ? '对手投降了' : '你投降了', king:'国王塔被拆', time:'时间到，皇冠多的赢',
+               ot:'加时赛分出胜负', kinghp:'加时结束，国王塔血量多的赢', draw:'双方打平', error:'对局出错，按平局处理'}[d.reason] || '';
+  const vs = d.opp ? `对手：${d.opp}` : '';
+  $('resNote').textContent = [missed ? '你离开期间，上一局已经结束了' : '', missed ? vs : '', why, st.note].filter(Boolean).join(' · ');
+  $('resT').dataset.missed = missed ? '1' : '';
+  setTimeout(()=>$('result').classList.remove('hidden'), missed ? 0 : 900);
+}
+
+// 对局在服务器上已经不存在了（服务器重启 / 早就结束且结果过期）
+function onGone(){
+  if(!G) return;
+  G.over = true; G.sel = -1;
+  $('resT').textContent = '对局已结束'; $('resT').className = 't draw';
+  $('resCr').textContent = ''; $('resGain').textContent = '';
+  $('resNote').textContent = '这局在你断线期间已经结束了（洞窟可能刚维护过），结果以金币和战绩为准';
+  $('result').classList.remove('hidden');
+}
+
+// 再来一局：回到等待页，带同一套卡组重新排队
+$('again').onclick = ()=>{
+  $('result').classList.add('hidden'); $('game').classList.add('hidden'); $('wait').classList.remove('hidden');
+  G = null; wantQueue = true;
+  $('wTitle').textContent = '正在洞窟深处寻找对手…'; $('qText').textContent = '';
+  if(sock && sock.connected) sock.emit('js_queue', {});
+};
+
+function renderMyDeck(){
+  const box = $('myDeck'); box.innerHTML = '';
+  const map = {}; L.cards.forEach(c=>map[c.key]=c);
+  L.deck.forEach(k=>{ const c = map[k]; if(!c) return;
+    const d = document.createElement('div'); d.className = 'mc ' + (RARITY[c.rarity]||''); d.title = c.name;
+    d.innerHTML = `<b>${c.cost}</b>${c.emoji}`; box.appendChild(d); });
+}
+async function boot(){
+  try{ L = await (await fetch('/jiangshi/data')).json(); }
+  catch(e){ $('wTitle').textContent = '洞窟连不上'; $('qText').textContent = '刷新一下试试'; $('wSpin').classList.add('stop'); return; }
+  renderMyDeck();
+  if(L.deck.length !== L.deck_size){
+    $('wSpin').classList.add('stop');
+    $('wTitle').textContent = '卡组还没组好';
+    $('qText').textContent = `需要 ${L.deck_size} 张卡才能开战，先去编辑卡组吧`;
+    return;
+  }
+  wantQueue = true;
+  try{ await connect(); }
+  catch(e){ $('wTitle').textContent = '洞窟连不上'; $('qText').textContent = '网络好像有问题，刷新试试'; $('wSpin').classList.add('stop'); }
+}
+boot();
+</script>
+</body>
+</html>

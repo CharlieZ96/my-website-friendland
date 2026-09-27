@@ -17,7 +17,7 @@
                 width:100%; max-width:440px; }
         .tile { display:flex; align-items:center; justify-content:center; text-align:center;
                 min-height:56px; padding:14px 12px; font-size:16px; font-weight:600;
-                border-radius:10px; text-decoration:none; transition:0.2s; }
+                border-radius:10px; text-decoration:none; transition:0.2s; position:relative; }
         .tile:hover { opacity:0.88; transform:translateY(-2px); }
         .span2 { grid-column:1 / -1; }               /* 跨整行 */
 
@@ -34,10 +34,60 @@
                 font-weight:700; padding:9px 26px; border-radius:20px; text-decoration:none; }
         .pill:hover { opacity:0.88; }
 
-        .topnav { position:absolute; top:20px; right:24px; display:flex; gap:16px; }
+        .topnav { position:absolute; top:20px; right:24px; display:flex; gap:16px; align-items:center; }
         .topnav a { color:#888; text-decoration:none; font-size:14px; }
 
-        @media (max-width:440px){ .grid { grid-template-columns:1fr; } }
+        /* —— 系统消息：右上角小铃铛 —— */
+        .bell { position:relative; width:36px; height:36px; border:none; border-radius:50%;
+                background:#fff; box-shadow:0 1px 6px rgba(0,0,0,.08); cursor:pointer;
+                display:flex; align-items:center; justify-content:center; padding:0; color:#666; }
+        .bell:hover { color:#4a90e2; }
+        .bell svg { width:20px; height:20px; }
+        .bell.ring svg { animation:ring 1.6s ease-in-out 2; transform-origin:50% 10%; }
+        @keyframes ring { 0%,100%{transform:rotate(0)} 10%{transform:rotate(14deg)} 20%{transform:rotate(-12deg)}
+                          30%{transform:rotate(9deg)} 40%{transform:rotate(-6deg)} 50%{transform:rotate(0)} }
+        .dot { position:absolute; top:-3px; right:-4px; min-width:18px; height:18px; padding:0 5px;
+               border-radius:9px; background:#e74c3c; color:#fff; font-size:11px; font-weight:700;
+               line-height:18px; text-align:center; border:2px solid #f4f6f8; }
+        .tile .dot { top:-7px; right:-7px; }
+        .hidden { display:none !important; }
+
+        /* 消息面板 */
+        .nbg { position:fixed; inset:0; background:rgba(20,24,32,.35); z-index:50; }
+        .npanel { position:fixed; top:64px; right:16px; width:min(400px, calc(100vw - 32px));
+                  max-height:calc(100vh - 88px); background:#fff; border-radius:14px; z-index:51;
+                  box-shadow:0 12px 40px rgba(0,0,0,.18); display:flex; flex-direction:column; overflow:hidden; }
+        .nhead { display:flex; align-items:center; justify-content:space-between; padding:14px 16px;
+                 border-bottom:1px solid #eef0f3; }
+        .nhead b { font-size:16px; color:#333; }
+        .nhead button { border:none; background:none; color:#4a90e2; font-size:13px; cursor:pointer; padding:4px 6px; }
+        .nhead button:disabled { color:#bbb; cursor:default; }
+        .nlist { overflow-y:auto; -webkit-overflow-scrolling:touch; }
+        .nitem { padding:12px 16px; border-bottom:1px solid #f2f3f5; cursor:pointer; }
+        .nitem:hover { background:#fafbfc; }
+        .nitem .t { display:flex; align-items:center; gap:6px; font-weight:600; color:#333; font-size:15px; }
+        .nitem .t .u { width:8px; height:8px; border-radius:50%; background:#e74c3c; flex:none; }
+        .nitem .tag { font-size:11px; color:#e67e22; border:1px solid #f3c79c; border-radius:4px; padding:0 4px; font-weight:500; }
+        .nitem .time { color:#aaa; font-size:12px; margin-top:3px; }
+        .nitem .pv { color:#888; font-size:13px; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .nitem.read .t { color:#777; font-weight:500; }
+        .nitem .full { display:none; margin-top:8px; }
+        .nitem.open .full { display:block; }
+        .nitem.open .pv { display:none; }
+        .nitem .body { color:#444; font-size:14px; line-height:1.65; white-space:pre-wrap; word-break:break-word; }
+        .nitem .img { display:block; width:100%; margin-top:10px; border-radius:8px; border:1px solid #eee;
+                      max-height:420px; object-fit:cover; object-position:top; cursor:zoom-in; background:#f4f6f8; }
+        .nitem .imgtip { text-align:center; color:#aaa; font-size:12px; margin-top:4px; }
+        .nempty { padding:36px 16px; text-align:center; color:#aaa; font-size:14px; }
+
+        /* 看长图：全屏、按宽度铺满、上下滑动 */
+        .viewer { position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.92); overflow-y:auto;
+                  -webkit-overflow-scrolling:touch; }
+        .viewer img { display:block; width:100%; max-width:760px; margin:0 auto; }
+        .viewer .x { position:fixed; top:12px; right:14px; width:38px; height:38px; border-radius:50%;
+                     border:none; background:rgba(255,255,255,.18); color:#fff; font-size:20px; cursor:pointer; }
+
+        @media (max-width:440px){ .grid { grid-template-columns:1fr; } .topnav { right:14px; gap:12px; } }
     </style>
 </head>
 <body>
@@ -45,6 +95,12 @@
       {% for m in messages %}<p style="color:#e74c3c; text-align:center;">{{ m }}</p>{% endfor %}
     {% endwith %}
     <div class="topnav">
+        <button class="bell" id="bell" title="系统消息" aria-label="系统消息">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>
+            </svg>
+            <span class="dot hidden" id="bellDot"></span>
+        </button>
         <a href="/change_password">修改密码</a>
         <a href="/logout">退出登录</a>
     </div>
@@ -62,6 +118,8 @@
         {% if is_admin %}
         <a href="/admin/cards" class="tile c-admin">卡牌管理</a>
         <a href="/admin/settings" class="tile c-admin">后台设置</a>
+        <a href="/admin/notices" class="tile c-admin">📢 发布公告</a>
+        <a href="/admin/registrations" class="tile c-admin">注册审批<span class="dot hidden" id="pendDot"></span></a>
         {% endif %}
 
         {% if username in ['joejoe', 'admin'] %}
@@ -70,5 +128,83 @@
     </div>
 
     <a href="/leaderboard" class="pill">🏆排行榜</a>
+
+    <!-- 系统消息面板 -->
+    <div class="nbg hidden" id="nbg"></div>
+    <div class="npanel hidden" id="npanel">
+        <div class="nhead"><b>系统消息</b><button id="readAll">全部已读</button></div>
+        <div class="nlist" id="nlist"></div>
+    </div>
+    <div class="viewer hidden" id="viewer"><button class="x" id="vx">✕</button><img id="vimg" alt=""></div>
+
+<script>
+(function(){
+    const $ = id => document.getElementById(id);
+    let data = {notices:[], unread:0};
+
+    function badge(){
+        const n = data.notices.filter(x => x.unread).length;
+        $('bellDot').textContent = n > 99 ? '99+' : n;
+        $('bellDot').classList.toggle('hidden', n === 0);
+        $('readAll').disabled = n === 0;
+        const pd = $('pendDot');
+        if(pd){ pd.textContent = data.pending || 0; pd.classList.toggle('hidden', !data.pending); }
+        return n;
+    }
+    function el(tag, cls, text){ const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
+
+    function render(){
+        const box = $('nlist'); box.innerHTML = '';
+        if(!data.notices.length){ box.appendChild(el('div', 'nempty', '还没有系统消息')); return; }
+        for(const n of data.notices){
+            const it = el('div', 'nitem' + (n.unread ? '' : ' read'));
+            const t = el('div', 't');
+            if(n.unread) t.appendChild(el('span', 'u'));
+            if(n.pinned) t.appendChild(el('span', 'tag', '置顶'));
+            t.appendChild(el('span', '', n.title));
+            it.appendChild(t);
+            it.appendChild(el('div', 'time', n.time + (n.image ? ' · 🖼️ 含图片' : '')));
+            it.appendChild(el('div', 'pv', n.body || ''));
+            const full = el('div', 'full');
+            if(n.body) full.appendChild(el('div', 'body', n.body));
+            if(n.image){
+                const img = el('img', 'img'); img.loading = 'lazy'; img.src = n.image; img.alt = n.title;
+                img.addEventListener('click', e => { e.stopPropagation(); openViewer(n.image); });
+                full.appendChild(img);
+                full.appendChild(el('div', 'imgtip', '点图片看完整长图'));
+            }
+            it.appendChild(full);
+            it.addEventListener('click', () => {
+                it.classList.toggle('open');
+                if(n.unread){
+                    n.unread = false; it.classList.add('read'); const u = t.querySelector('.u'); if(u) u.remove();
+                    badge();
+                    fetch('/notice/read', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:n.id})});
+                }
+            });
+            box.appendChild(it);
+        }
+    }
+    function openPanel(){ render(); $('nbg').classList.remove('hidden'); $('npanel').classList.remove('hidden'); }
+    function closePanel(){ $('nbg').classList.add('hidden'); $('npanel').classList.add('hidden'); }
+    function openViewer(src){ $('vimg').src = src; $('viewer').scrollTop = 0; $('viewer').classList.remove('hidden'); }
+
+    $('bell').addEventListener('click', () => $('npanel').classList.contains('hidden') ? openPanel() : closePanel());
+    $('nbg').addEventListener('click', closePanel);
+    $('vx').addEventListener('click', e => { e.stopPropagation(); $('viewer').classList.add('hidden'); });
+    $('viewer').addEventListener('click', e => { if(e.target.id === 'viewer') $('viewer').classList.add('hidden'); });
+    $('readAll').addEventListener('click', () => {
+        data.notices.forEach(n => n.unread = false); badge(); render();
+        fetch('/notice/read', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({all:true})});
+    });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape'){ $('viewer').classList.add('hidden'); closePanel(); } });
+
+    fetch('/notice/list').then(r => r.json()).then(d => {
+        if(!d.ok) return;
+        data = d;
+        if(badge() > 0) $('bell').classList.add('ring');     // 有新消息，铃铛晃两下
+    }).catch(() => {});
+})();
+</script>
 </body>
 </html>

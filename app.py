@@ -7,11 +7,13 @@ from functools import wraps
 from datetime import datetime
 import os
 import uuid
+import siteadmin
 from PIL import Image, ImageOps
 from flask import send_from_directory
 import random
 from datetime import datetime, timedelta
 import json
+import jiangshi
 from bot_actions import (ensure_bot, on_new_post, on_new_comment,
                          chat as bot_chat, maybe_bot_join, bot_fill_deck_if_needed)
 import pet
@@ -275,6 +277,8 @@ ensure_bot()                # 程序一启动就执行一次
 pet.ensure_pet_tables()      # ← 加这行
 casino.ensure_casino_tables()
 highway.ensure_highway_tables()   # JZH高速：里程排行榜表
+jiangshi.init(socketio)           # 江世战争：建表 + 注册 websocket 事件（命名空间 /jiangshi）
+siteadmin.init(app, admin_username=ADMIN_USERNAME, upload_folder=UPLOAD_FOLDER) #后台初始化
 
 # 守卫：贴在哪个页面上，哪个页面就必须登录才能进
 def login_required(f):
@@ -308,19 +312,9 @@ def register():
         username = username.strip()      # 通过后用清理过的值
         # ↑↑↑ 校验通过才往下走 ↑↑↑
         hashed = generate_password_hash(password)
-        conn = sqlite3.connect("users.db")
-        try:
-            conn.execute(
-                "INSERT INTO users (username, password) VALUES (?, ?)",
-                (username, hashed)
-            )
-            conn.commit()
-            conn.close()
-        except sqlite3.IntegrityError:                # 用户名重复会触发
-            flash("这个用户名已经被注册了")
-            return redirect(url_for("register"))
-        flash("注册成功，请登录")
-        return redirect(url_for("login"))
+        ok, msg, go = siteadmin.handle_register(username, hashed)   # 先进待审批名单
+        flash(msg)
+        return redirect(url_for(go))
     # GET：生成一道新的算术题
     a = random.randint(1, 9)
     b = random.randint(1, 9)
@@ -340,7 +334,7 @@ def login():
             session["username"] = username             # 记住登录状态
             return redirect(url_for("hub"))           # 跳去第4页
         else:
-            flash("用户名或密码错误")
+            flash(siteadmin.pending_message(username) or "用户名或密码错误")
             return redirect(url_for("login"))
     return render_template("login.html")
 
@@ -1228,6 +1222,36 @@ def ws_on_ping(data):
     text = (data or {}).get("text", "")
     print("收到:", text)
     emit("pong_msg", {"reply": "服务器收到了：" + str(text)})
+
+# —— 江世战争（江之岛神秘洞窟里的实时对战推塔）——
+@app.route("/jiangshi")
+@login_required
+def jiangshi_page():
+    return render_template("jiangshi.html", me=session["username"])
+
+@app.route("/jiangshi/data")
+@login_required
+def jiangshi_data():
+    return jiangshi.lobby_data(session["username"])
+
+@app.route("/jiangshi/deck", methods=["POST"])
+@login_required
+def jiangshi_deck():
+    d = request.get_json(silent=True) or {}
+    return jiangshi.save_deck(session["username"], d.get("deck", []))
+
+@app.route("/jiangshi/unlock", methods=["POST"])
+@login_required
+def jiangshi_unlock():
+    d = request.get_json(silent=True) or {}
+    return jiangshi.unlock_card(session["username"], d.get("card", ""))
+
+# app.py 只需再加 1 个路由（放在之前那几个 /jiangshi 路由旁边）
+ 
+@app.route("/jiangshi/cards")
+@login_required
+def jiangshi_cards_page():
+    return render_template("jiangshi_cards.html", me=session["username"])
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=False, allow_unsafe_werkzeug=True)

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>发布公告</title>
+    <style>
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#f4f6f8; color:#333; }
+        .container { max-width:560px; margin:0 auto; padding:20px 16px 40px; }
+        h2 a { font-size:14px; color:#888; text-decoration:none; font-weight:normal; margin-left:6px; }
+        .box { background:white; padding:20px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.06); margin-bottom:18px; }
+        .box h3 { margin:0 0 14px; font-size:16px; }
+        label.f { display:block; font-size:13px; color:#666; margin:12px 0 6px; }
+        input[type=text], textarea { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font:inherit; font-size:14px; }
+        textarea { min-height:140px; resize:vertical; line-height:1.6; }
+        .file { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .file input { font-size:13px; }
+        #preview { display:none; margin-top:10px; max-height:260px; overflow-y:auto; border:1px solid #eee; border-radius:8px; }
+        #preview img { display:block; width:100%; }
+        .row { margin:14px 0 4px; font-size:14px; }
+        button { padding:10px 24px; background:#4a90e2; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; }
+        button.sm { padding:5px 12px; font-size:12px; }
+        button.del { background:#fff; color:#e74c3c; border:1px solid #f1b7b0; }
+        button.pin { background:#fff; color:#e67e22; border:1px solid #f3c79c; }
+        .msg { color:#4a90e2; margin:6px 0; }
+        .hint { color:#999; font-size:12px; margin-top:6px; }
+        .n { border-top:1px solid #f0f1f3; padding:12px 0; }
+        .n:first-of-type { border-top:none; padding-top:0; }
+        .n .t { font-weight:600; display:flex; gap:6px; align-items:center; }
+        .n .tag { font-size:11px; color:#e67e22; border:1px solid #f3c79c; border-radius:4px; padding:0 4px; font-weight:500; }
+        .n .meta { color:#aaa; font-size:12px; margin:3px 0 6px; }
+        .n .body { font-size:13px; color:#666; white-space:pre-wrap; max-height:60px; overflow:hidden; }
+        .n img { display:block; width:120px; max-height:90px; object-fit:cover; object-position:top; border-radius:6px; margin-top:6px; border:1px solid #eee; }
+        .n .ops { display:flex; gap:8px; margin-top:8px; }
+        .n form { margin:0; }
+        .empty { color:#aaa; font-size:14px; text-align:center; padding:12px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>📢 发布公告 <a href="/hub">← 返回</a> <a href="/admin/registrations">注册审批</a> <a href="/admin/settings">后台设置</a></h2>
+    {% with messages = get_flashed_messages() %}
+      {% for m in messages %}<p class="msg">{{ m }}</p>{% endfor %}
+    {% endwith %}
+
+    <div class="box">
+        <h3>写一条新公告</h3>
+        <form method="POST" enctype="multipart/form-data" id="newForm">
+            <input type="hidden" name="act" value="create">
+            <label class="f">标题（必填，60 字以内）</label>
+            <input type="text" name="title" maxlength="60" required placeholder="比如：江世战争上线啦！">
+            <label class="f">正文（可选，换行会保留）</label>
+            <textarea name="body" maxlength="5000" placeholder="公告内容……"></textarea>
+            <label class="f">附图（可选，长图也可以）</label>
+            <div class="file"><input type="file" name="image" id="imgIn" accept="image/png,image/jpeg,image/gif,image/webp"></div>
+            <div class="hint">图片会直接显示在公告里，玩家点一下能全屏上下滑着看。最大 8MB；宽度超过 1080 会自动等比缩小。</div>
+            <div id="preview"><img id="pimg" alt=""></div>
+            <div class="row"><label><input type="checkbox" name="pinned"> 置顶（一直排在最上面）</label></div>
+            <button type="submit" id="sendBtn">发布给所有玩家</button>
+        </form>
+    </div>
+
+    <div class="box">
+        <h3>已发布的公告</h3>
+        {% for n in notices %}
+        <div class="n">
+            <div class="t">{% if n[4] %}<span class="tag">置顶</span>{% endif %}{{ n[1] }}</div>
+            <div class="meta">{{ n[5] }}</div>
+            {% if n[2] %}<div class="body">{{ n[2] }}</div>{% endif %}
+            {% if n[3] %}<a href="/uploads/{{ n[3] }}" target="_blank"><img src="/uploads/{{ n[3] }}" alt=""></a>{% endif %}
+            <div class="ops">
+                <form method="POST"><input type="hidden" name="act" value="pin"><input type="hidden" name="nid" value="{{ n[0] }}">
+                    <button class="sm pin">{{ '取消置顶' if n[4] else '置顶' }}</button></form>
+                <form method="POST" onsubmit="return confirm('确定删除这条公告吗？所有玩家都将看不到它。')">
+                    <input type="hidden" name="act" value="delete"><input type="hidden" name="nid" value="{{ n[0] }}">
+                    <button class="sm del">删除</button></form>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty">还没有发过公告</div>
+        {% endfor %}
+    </div>
+</div>
+<script>
+    const inp = document.getElementById('imgIn');
+    inp.addEventListener('change', () => {
+        const f = inp.files[0], box = document.getElementById('preview');
+        if(!f){ box.style.display = 'none'; return; }
+        if(f.size > 8 * 1024 * 1024){ alert('图片超过 8MB 了，请先压缩一下'); inp.value = ''; box.style.display = 'none'; return; }
+        document.getElementById('pimg').src = URL.createObjectURL(f); box.style.display = 'block';
+    });
+    document.getElementById('newForm').addEventListener('submit', () => {
+        const b = document.getElementById('sendBtn'); b.disabled = true; b.textContent = '发布中…';
+    });
+</script>
+</body>
+</html>

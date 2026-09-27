@@ -27,6 +27,13 @@
   @keyframes halo{0%,100%{opacity:.0}50%{opacity:.55}}
   .sign{font-weight:800;fill:#fff}
   .signd{font-weight:800;fill:#3a2b18}
+  /* —— 神秘洞窟：洞里的紫光缓慢呼吸、偶尔眨眼、飘出小光点 —— */
+  .cave-pulse{transform-box:fill-box;transform-origin:center;animation:cavePulse 3.2s ease-in-out infinite}
+  @keyframes cavePulse{0%,100%{opacity:.25;transform:scale(.85)}50%{opacity:.75;transform:scale(1.1)}}
+  .cave-eyes{animation:caveEyes 7s steps(1) infinite}
+  @keyframes caveEyes{0%,62%{opacity:0}63%,70%{opacity:1}71%,73%{opacity:0}74%,80%{opacity:1}81%,100%{opacity:0}}
+  .cave-mote{animation:caveMote 4s ease-in infinite;opacity:0}
+  @keyframes caveMote{0%{opacity:0;transform:translate(0,0)}20%{opacity:.9}100%{opacity:0;transform:translate(3px,-26px)}}
   .modal-bg{position:fixed;inset:0;background:rgba(38,43,51,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
   .modal-bg[hidden]{display:none}
   .modal{background:#fff;border-radius:18px;padding:22px 20px;max-width:300px;width:100%;box-shadow:0 16px 40px rgba(0,0,0,.25);text-align:center}
@@ -35,6 +42,14 @@
   .modal p{margin:0 0 16px;color:var(--muted);font-size:14px}
   .modal .btn{font-weight:700;font-size:14px;cursor:pointer;border:2px solid var(--ink);border-radius:12px;padding:10px 22px;background:var(--marigold);color:var(--ink);box-shadow:3px 3px 0 var(--ink)}
   .modal .btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+  /* 洞窟弹窗：两个入口竖着排 */
+  .cave-modal{background:linear-gradient(170deg,#2f2150,#171027);color:#f1ecff}
+  .cave-modal p{color:#b9aed6}
+  .cave-modal .opts{display:flex;flex-direction:column;gap:10px}
+  .cave-modal .btn{display:block;width:100%;text-decoration:none;font-size:15px;padding:12px 16px}
+  .cave-modal .btn.play{background:#ffd24d}
+  .cave-modal .btn.deck{background:#b9a3ff}
+  .cave-modal .btn.leave{background:transparent;color:#b9aed6;border-color:#5b4b85;box-shadow:none}
 </style>
 </head>
 <body>
@@ -53,6 +68,9 @@
         <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfeaf8"/><stop offset="55%" stop-color="#9fd0ec"/><stop offset="60%" stop-color="#bfe3f5"/><stop offset="100%" stop-color="#8ec6e6"/></linearGradient>
         <linearGradient id="wall1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff9ef"/><stop offset="1" stop-color="#f2e6d2"/></linearGradient>
         <linearGradient id="pool" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6fd0e8"/><stop offset="1" stop-color="#3aa9d6"/></linearGradient>
+        <!-- 神秘洞窟：礁石与洞内的黑紫渐变 -->
+        <linearGradient id="caveRock" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8d7f73"/><stop offset="1" stop-color="#655a50"/></linearGradient>
+        <radialGradient id="caveIn" cx="50%" cy="85%" r="75%"><stop offset="0" stop-color="#3b2260"/><stop offset="45%" stop-color="#1c1230"/><stop offset="100%" stop-color="#0b0812"/></radialGradient>
       </defs>
 
       <!-- ===== 天空 / 海 / 沙滩 / 草地 ===== -->
@@ -124,6 +142,45 @@
         <!-- 招牌 -->
         <rect x="330" y="214" width="60" height="16" rx="4" fill="#6D4FA3"/>
         <text class="sign" x="360" y="225" font-size="11" text-anchor="middle">江之岛</text>
+      </g>
+
+      <!-- ================= 神秘洞窟（海岸礁石上的门洞，不挂招牌） ================= -->
+      <g class="spot" data-spot="cave" data-emo="🕳️">
+       <g transform="translate(18,0)"><!-- 整体右移，左边不再出画框 -->
+        <ellipse class="glow" cx="28" cy="212" rx="42" ry="46" fill="#e6d8ff"/>
+        <!-- 礁石本体 -->
+        <path d="M1 256 Q-5 224 2 196 Q8 170 22 164 Q40 158 52 172 Q62 186 60 214 Q58 238 54 256 Z" fill="url(#caveRock)"/>
+        <!-- 顶面受光 -->
+        <path d="M4 186 Q14 170 30 167 Q44 165 51 176 Q40 172 28 176 Q14 181 4 194 Z" fill="#a39488" opacity=".8"/>
+        <!-- 右侧背光 -->
+        <path d="M50 176 Q60 190 58 214 Q57 236 53 256 L46 256 Q51 232 50 212 Q50 192 44 181 Z" fill="#564b42"/>
+        <!-- 岩石裂纹 -->
+        <g stroke="#5a4f46" stroke-width="1.2" fill="none" opacity=".8">
+          <path d="M8 204 l6 5 l-2 7"/><path d="M44 196 l-5 6 l3 6"/><path d="M6 232 l5 -3"/>
+        </g>
+        <!-- 顶上的苔藓 -->
+        <g fill="#6fae63"><ellipse cx="16" cy="170" rx="8" ry="3.5"/><ellipse cx="30" cy="165" rx="9" ry="3.5"/><ellipse cx="43" cy="168" rx="6" ry="3"/></g>
+        <!-- 洞口：黑紫色的深处 -->
+        <path d="M13 256 Q11 222 31 214 Q51 220 50 256 Z" fill="url(#caveIn)"/>
+        <path d="M13 256 Q11 222 31 214 Q51 220 50 256" fill="none" stroke="#3f352e" stroke-width="2.4"/>
+        <!-- 洞里呼吸的紫光 -->
+        <ellipse class="cave-pulse" cx="31" cy="246" rx="11" ry="7" fill="#a47bff"/>
+        <!-- 深处偶尔亮起的一双眼睛 -->
+        <g class="cave-eyes" fill="#ffe27a">
+          <ellipse cx="27" cy="234" rx="1.6" ry="1.2"/><ellipse cx="35" cy="234" rx="1.6" ry="1.2"/>
+        </g>
+        <!-- 从洞里飘出来的小光点 -->
+        <circle class="cave-mote" cx="24" cy="244" r="1.2" fill="#d9c6ff"/>
+        <circle class="cave-mote" cx="36" cy="246" r="1" fill="#d9c6ff" style="animation-delay:1.4s"/>
+        <circle class="cave-mote" cx="30" cy="240" r="1.1" fill="#f0e6ff" style="animation-delay:2.7s"/>
+        <!-- 洞口垂下的藤蔓 -->
+        <g stroke="#5f9e58" stroke-width="1.6" stroke-linecap="round" fill="none">
+          <path d="M20 219 q-2 6 1 12"/><path d="M39 218 q2 7 -1 13 q-1 4 1 7"/><path d="M30 214 q1 4 -1 7"/>
+        </g>
+        <g fill="#7cc47f"><circle cx="21" cy="231" r="1.8"/><circle cx="39" cy="238" r="1.8"/></g>
+        <!-- 脚下的碎石 -->
+        <g fill="#8a7d72"><ellipse cx="6" cy="254" rx="5" ry="2.6"/><ellipse cx="56" cy="255" rx="4" ry="2.2"/><ellipse cx="62" cy="252" rx="2.5" ry="1.6"/></g>
+       </g>
       </g>
 
       <!-- ================= 上岛屋（海边木造钓具店，架在栈桥上） ================= -->
@@ -238,18 +295,38 @@
   </div>
 </div>
 
+<!-- 神秘洞窟：选择编辑卡组 / 进去打 -->
+<div id="caveModal" class="modal-bg" hidden>
+  <div class="modal cave-modal">
+    <div class="emo">🕳️</div>
+    <h3>神秘的洞窟</h3>
+    <p>洞里传来打斗声，还飘出一股瓜拉娜的味道……</p>
+    <div class="opts">
+      <a class="btn play" href="/jiangshi">⚔️ 进洞开战</a>
+      <a class="btn deck" href="/jiangshi/cards">🃏 编辑卡组 · 看规则</a>
+      <button class="btn leave" id="caveLeave">先不进去</button>
+    </div>
+  </div>
+</div>
+
 <script>
+  // 神秘洞窟：弹窗里二选一（进洞开战 / 编辑卡组）
+  const caveModal=document.getElementById('caveModal');
+  document.getElementById('caveLeave').addEventListener('click',()=>caveModal.hidden=true);
+  caveModal.addEventListener('click',e=>{ if(e.target.id==='caveModal') caveModal.hidden=true; });
+
   const soon=document.getElementById('soon');
-  function openSoon(name, emo){
+  function openSoon(name, emo, desc){
     document.getElementById('soonEmo').textContent=emo||'🚧';
     document.getElementById('soonTitle').textContent=name;
-    document.getElementById('soonDesc').textContent='「'+name+'」的玩法还在施工，很快就能进来逛啦～';
+    document.getElementById('soonDesc').textContent=desc||('「'+name+'」的玩法还在施工，很快就能进来逛啦～');
     soon.hidden=false;
   }
   document.querySelectorAll('.spot').forEach(g=>{
     g.addEventListener('click',()=>{
       const spot=g.dataset.spot;
       if(spot==='TOYOBA'){ location.href='/toyoba'; return; }   // 车行：买车 + 上JZH高速
+      if(spot==='cave'){ caveModal.hidden=false; return; }
       openSoon(spot, g.dataset.emo);
     });
   });

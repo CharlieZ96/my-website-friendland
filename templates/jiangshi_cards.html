@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>江世战争 · 编辑卡组</title>
+<style>
+  :root{
+    --bg:#15101f; --bg2:#1f1830; --card:#271f3b; --line:#3a2f55; --ink:#f1ecff; --muted:#a79cc4;
+    --blue:#3f8cff; --blue2:#1f5fd1; --red:#ff5a55; --red2:#c8302f;
+    --gua:#ff4b3a; --gua2:#b3172f; --gold:#ffd24d;
+    --r-com:#9aa6b4; --r-rare:#f0a83a; --r-epic:#b46ae6; --r-leg:#ffd24d;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;touch-action:manipulation;
+    -webkit-user-select:none;user-select:none}
+  button{font-family:inherit}
+  .hidden{display:none!important}
+
+  /* ================= 大厅 ================= */
+  #lobby{max-width:540px;margin:0 auto;padding:14px 12px 60px;
+    background:radial-gradient(120% 50% at 50% 0%,#3b2466 0%,rgba(21,16,31,0) 70%)}
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .top a{color:var(--muted);text-decoration:none;font-size:13px}
+  .coins{font-weight:800;color:var(--gold);font-size:14px;background:#2a2140;border:1px solid var(--line);
+    border-radius:999px;padding:4px 12px}
+  .hero{position:relative;border-radius:20px;padding:22px 18px 18px;overflow:hidden;
+    background:linear-gradient(160deg,#2f2150,#1b1330);border:1px solid var(--line);
+    box-shadow:0 12px 32px rgba(0,0,0,.35)}
+  .hero::after{content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;border-radius:50%;
+    background:radial-gradient(circle,#a47bff55,transparent 70%)}
+  .hero h1{margin:0;font-size:30px;letter-spacing:2px}
+  .hero h1 small{display:block;font-size:12px;color:var(--muted);letter-spacing:1px;font-weight:600;margin-top:4px}
+  .stats{display:flex;gap:8px;margin:14px 0 14px;flex-wrap:wrap}
+  .stat{background:#ffffff10;border-radius:10px;padding:6px 10px;font-size:12px;color:var(--muted)}
+  .stat b{color:var(--ink);font-size:15px;margin-right:2px}
+  .fight{width:100%;border:none;border-radius:14px;padding:15px;font-size:19px;font-weight:900;letter-spacing:4px;
+    color:#2a0d10;background:linear-gradient(180deg,#ffd24d,#ff9f2e);box-shadow:0 5px 0 #9c4c10;cursor:pointer}
+  .fight:active{transform:translateY(3px);box-shadow:0 2px 0 #9c4c10}
+  .fight:disabled{filter:grayscale(.8);opacity:.6}
+  .today{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.6}
+  h2{font-size:15px;margin:22px 2px 10px;display:flex;align-items:center;justify-content:space-between}
+  h2 span{font-size:12px;color:var(--muted);font-weight:600}
+  .deck{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .card{position:relative;aspect-ratio:3/4;border-radius:12px;background:var(--card);border:2px solid var(--r-com);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
+  .card .em{font-size:30px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+  .card .nm{font-size:11px;font-weight:700;margin-top:6px;padding:0 3px;text-align:center;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .card .cost{position:absolute;left:4px;top:4px}
+  .card.rare{border-color:var(--r-rare)} .card.epic{border-color:var(--r-epic)}
+  .card.leg{border-color:var(--r-leg);box-shadow:0 0 12px #ffd24d44}
+  .card.in{outline:3px solid #7cf0a0;outline-offset:-5px}
+  .card.locked{filter:grayscale(.85) brightness(.7)}
+  .card .lock{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:10px;font-weight:800;color:var(--gold)}
+  .card.empty{border:2px dashed var(--line);background:transparent;cursor:default;color:var(--muted);font-size:22px}
+  .gua{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;
+    font-size:12px;font-weight:900;color:#fff;background:radial-gradient(circle at 35% 35%,#ff7a5c,var(--gua) 55%,var(--gua2));
+    box-shadow:inset 0 -2px 0 #0003,0 1px 2px #0006;position:relative}
+  .avg{font-size:12px;color:var(--muted)}
+  .panel{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px}
+  .board li{display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid #ffffff0d;font-size:13px}
+  .board ol{margin:0;padding:0;list-style:none}
+  .board li.me{color:var(--gold);font-weight:800}
+  .rules{font-size:12.5px;color:var(--muted);line-height:1.8}
+  .rules b{color:var(--ink)}
+
+  /* 卡牌详情弹层 */
+  .sheet-bg{position:fixed;inset:0;background:#0008;z-index:60;display:flex;align-items:flex-end;justify-content:center}
+  .sheet{width:100%;max-width:540px;background:var(--bg2);border-radius:20px 20px 0 0;padding:18px 16px 26px;
+    border-top:1px solid var(--line);animation:up .18s ease-out}
+  @keyframes up{from{transform:translateY(40px);opacity:0}}
+  .sheet .row{display:flex;gap:14px;align-items:center}
+  .sheet .big{font-size:52px}
+  .sheet h3{margin:0;font-size:19px}
+  .sheet .tag{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#ffffff14;margin-left:4px}
+  .sheet p{color:var(--muted);font-size:13px;line-height:1.6;margin:10px 0}
+  .kv{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0 14px}
+  .kv div{background:#ffffff0b;border-radius:8px;padding:6px 8px;font-size:11px;color:var(--muted)}
+  .kv b{display:block;color:var(--ink);font-size:13px}
+  .btn{width:100%;border:none;border-radius:12px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;
+    background:#ffffff14;color:var(--ink)}
+  .btn.primary{background:linear-gradient(180deg,#7cf0a0,#2fbf6a);color:#063d1c}
+  .btn.gold{background:linear-gradient(180deg,#ffd24d,#ff9f2e);color:#3a1b00}
+
+  /* 排队 */
+  .overlay{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 45%,#2e1f52ee,#0d0916f5);padding:24px}
+  .qbox{text-align:center;max-width:320px}
+  .spin{width:78px;height:78px;border-radius:50%;margin:0 auto 18px;border:5px solid #ffffff18;border-top-color:#a47bff;
+    animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .qbox h3{margin:0 0 6px;font-size:19px}
+  .qbox p{color:var(--muted);font-size:13px;margin:0 0 20px;line-height:1.6}
+
+  /* ================= 对战 ================= */
+  #game{position:fixed;inset:0;background:#0e0b16;display:flex;flex-direction:column;align-items:center;z-index:40}
+  .hud{width:100%;max-width:560px;display:flex;align-items:center;justify-content:space-between;padding:6px 10px;
+    height:46px;flex:none}
+  .who{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;min-width:0;flex:1}
+  .who.r{justify-content:flex-end}
+  .who .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px}
+  .crowns{font-size:14px;letter-spacing:-2px}
+  .clock{font-variant-numeric:tabular-nums;font-weight:900;font-size:18px;padding:3px 12px;border-radius:10px;
+    background:#ffffff12;min-width:74px;text-align:center}
+  .clock.ot{background:#b3172f;color:#fff}
+  .flag{border:none;background:#ffffff12;color:var(--muted);border-radius:8px;padding:5px 7px;font-size:13px;cursor:pointer}
+  #stage{flex:1;width:100%;display:flex;align-items:center;justify-content:center;min-height:0;position:relative;overflow:hidden}
+  .hud,.dock{position:relative;z-index:2}
+  canvas{display:block;touch-action:none;border-radius:10px}
+  .banner{position:absolute;left:50%;top:18%;transform:translateX(-50%);font-weight:900;font-size:22px;
+    padding:8px 18px;border-radius:12px;background:#000a;color:var(--gold);pointer-events:none;white-space:nowrap;
+    animation:pop 1.8s ease forwards}
+  @keyframes pop{0%{opacity:0;transform:translate(-50%,10px) scale(.8)}12%{opacity:1;transform:translate(-50%,0) scale(1.05)}
+    80%{opacity:1}100%{opacity:0}}
+  .toast{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:#000c;color:#fff;font-size:13px;
+    padding:6px 14px;border-radius:999px;pointer-events:none;animation:pop 1.4s ease forwards;white-space:nowrap}
+  .dock{width:100%;max-width:560px;flex:none;padding:6px 8px 10px}
+  .hand{display:grid;grid-template-columns:52px repeat(4,1fr);gap:6px;align-items:end}
+  .hcard{position:relative;aspect-ratio:3/4;border-radius:10px;background:var(--card);border:2px solid var(--r-com);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s;
+    touch-action:none}
+  .hcard .em{font-size:28px;line-height:1}
+  .hcard .nm{font-size:10px;margin-top:4px;font-weight:700;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 2px}
+  .hcard .cost{position:absolute;left:-4px;top:-6px}
+  .hcard.rare{border-color:var(--r-rare)} .hcard.epic{border-color:var(--r-epic)} .hcard.leg{border-color:var(--r-leg)}
+  .hcard.sel{transform:translateY(-8px);box-shadow:0 0 0 3px #fff,0 8px 18px #000a}
+  .hcard.poor{filter:grayscale(.9) brightness(.6)}
+  .next{aspect-ratio:3/4;border-radius:8px;background:#ffffff0c;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;font-size:20px;opacity:.85}
+  .next small{font-size:9px;color:var(--muted);margin-top:3px}
+  .guabar{margin-top:8px;display:flex;align-items:center;gap:8px}
+  .guabar .lbl{font-size:11px;font-weight:800;color:#ffb3a3;white-space:nowrap}
+  .segs{flex:1;height:18px;border-radius:9px;background:#2a1520;position:relative;overflow:hidden;border:1px solid #4a1f2c}
+  .segs .fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(180deg,#ff8466,var(--gua) 50%,var(--gua2));
+    transition:width .1s linear}
+  .segs .ticks{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),#0006 calc(10% - 1px) 10%)}
+  .gnum{font-weight:900;font-size:18px;min-width:26px;text-align:center}
+  .gx2{font-size:10px;font-weight:900;color:#fff;background:var(--gua2);border-radius:6px;padding:1px 5px}
+
+  /* 结算 */
+  .res{text-align:center;max-width:320px;width:100%}
+  .res .t{font-size:44px;font-weight:900;letter-spacing:6px;margin-bottom:6px}
+  .res .t.win{color:var(--gold);text-shadow:0 0 24px #ffb70088}
+  .res .t.lose{color:#9aa3b5}
+  .res .cr{font-size:26px;margin:4px 0 14px}
+  .res .gain{font-size:18px;font-weight:800;color:var(--gold);margin-bottom:6px}
+  .res .note{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:18px}
+  .res .btn{margin-top:8px}
+  a.fight{display:block;text-align:center;text-decoration:none}
+  .fight.off{pointer-events:none;filter:grayscale(.8);opacity:.55}
+</style>
+</head>
+<body>
+<!-- ======================= 编辑卡组 ======================= -->
+<div id="lobby">
+  <div class="top">
+    <a href="/enoshima">← 回江之岛</a>
+    <span class="coins">🪙 <span id="coins">-</span></span>
+  </div>
+  <div class="hero">
+    <h1>江世战争<small>卡组 · 图鉴 · 规则 &nbsp;|&nbsp; JZH ROYALE</small></h1>
+    <div class="stats">
+      <div class="stat"><b id="sWin">0</b>真人胜</div>
+      <div class="stat"><b id="sLose">0</b>真人负</div>
+      <div class="stat"><b id="sAi">0</b>打AI胜</div>
+    </div>
+    <a class="fight" id="fightBtn" href="/jiangshi">带这套卡组去开战 ⚔️</a>
+    <div class="today" id="today"></div>
+  </div>
+
+  <h2>我的卡组 <span id="deckInfo"></span></h2>
+  <div class="deck" id="deck"></div>
+
+  <h2>全部卡牌 <span>点卡牌看详情 · 加入/移出卡组</span></h2>
+  <div class="grid" id="grid"></div>
+
+  <h2>江世排行榜 <span>只算有效的真人胜场</span></h2>
+  <div class="panel board"><ol id="board"></ol></div>
+
+  <h2>怎么玩</h2>
+  <div class="panel rules">
+    · 两边各有 <b>2 座公主塔 + 1 座国王塔</b>，拆掉对方的塔拿皇冠，<b>拆掉国王塔直接赢</b>。<br>
+    · 出牌要花 <b>瓜拉娜</b>，每 2.8 秒回 1 点、最多 10 点；最后 1 分钟瓜拉娜 <b>双倍</b>。<br>
+    · 兵只能下在自己半场；拆掉对面某一路的公主塔后，那一路对面也能下。法术哪里都能丢。<br>
+    · 3:00 结束时皇冠多的赢；一样多就进 <b>加时</b>，先拆一座塔的赢。<br>
+    · 进洞后 15 秒没等到真人，<b>洞窟守卫</b>（AI）会来陪你打。
+  </div>
+</div>
+
+<!-- 卡牌详情 -->
+<div class="sheet-bg hidden" id="sheetBg">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script>
+// ================================================================
+// 大厅：卡组 / 解锁 / 排行
+// ================================================================
+const ME = {{ me|tojson }};
+const RARITY = {"普通":"com","稀有":"rare","史诗":"epic","传奇":"leg"};
+let L = null;            // 大厅数据
+let deck = [];
+const $ = id => document.getElementById(id);
+
+function cardEl(c, cls){
+  const d = document.createElement('div');
+  d.className = (cls||'card') + ' ' + (RARITY[c.rarity]||'');
+  d.innerHTML = `<span class="gua cost">${c.cost}</span><div class="em">${c.emoji}</div><div class="nm">${c.name}</div>`;
+  return d;
+}
+function cardByKey(k){ return L.cards.find(c=>c.key===k); }
+
+async function loadLobby(){
+  const r = await fetch('/jiangshi/data'); L = await r.json();
+  deck = L.deck.slice();
+  renderLobby();
+}
+function renderLobby(){
+  $('coins').textContent = L.coins;
+  $('sWin').textContent = L.stats.wins; $('sLose').textContent = L.stats.losses; $('sAi').textContent = L.stats.ai_wins;
+  $('today').innerHTML = `今天还能领：真人胜利奖励 <b>${L.today.pvp_rewards_left}</b> 次（每胜 ${L.rewards.pvp_win} 金币）· 打 AI 金币 <b>${L.today.ai_coins_left}</b>`;
+  // 卡组
+  const dk = $('deck'); dk.innerHTML = '';
+  for(let i=0;i<L.deck_size;i++){
+    if(deck[i]){ const c = cardByKey(deck[i]); const el = cardEl(c); el.onclick=()=>openSheet(c); dk.appendChild(el); }
+    else { const e = document.createElement('div'); e.className='card empty'; e.textContent='+'; dk.appendChild(e); }
+  }
+  const avg = deck.length ? (deck.reduce((s,k)=>s+cardByKey(k).cost,0)/deck.length).toFixed(1) : '-';
+  $('deckInfo').innerHTML = `${deck.length}/${L.deck_size} · 平均 <span class="gua" style="width:18px;height:18px;font-size:10px">${avg}</span>`;
+  const full = deck.length === L.deck_size;
+  $('fightBtn').classList.toggle('off', !full);
+  $('fightBtn').textContent = full ? '带这套卡组去开战 ⚔️' : `卡组还差 ${L.deck_size-deck.length} 张`;
+  // 全部卡
+  const g = $('grid'); g.innerHTML = '';
+  const cards = L.cards.slice().sort((a,b)=>a.cost-b.cost);
+  for(const c of cards){
+    const owned = L.owned.includes(c.key);
+    const el = cardEl(c);
+    if(!owned){ el.classList.add('locked'); el.insertAdjacentHTML('beforeend', `<div class="lock">🔒 ${c.price}</div>`); }
+    if(deck.includes(c.key)) el.classList.add('in');
+    el.onclick = ()=>openSheet(c);
+    g.appendChild(el);
+  }
+  // 排行
+  const b = $('board'); b.innerHTML = '';
+  if(!L.board.length) b.innerHTML = '<li><span>还没有人上榜，第一个就是你</span></li>';
+  L.board.forEach((r,i)=>{
+    const li = document.createElement('li'); if(r.name===ME) li.className='me';
+    li.innerHTML = `<span>${['🥇','🥈','🥉'][i]||(i+1)+'.'} ${esc(r.name)}</span><span>${r.wins} 胜 / ${r.losses} 负</span>`;
+    b.appendChild(li);
+  });
+}
+function esc(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+const TGT = {ground:'地面', both:'对空对地', buildings:'只打建筑', none:'不攻击'};
+function openSheet(c){
+  const owned = L.owned.includes(c.key), inDeck = deck.includes(c.key);
+  const s = $('sheet');
+  let stats = '';
+  if(c.type==='spell') stats = `<div>伤害<b>${c.dmg}</b></div><div>范围<b>半径 ${c.radius} 格</b></div><div>类型<b>法术</b></div>`;
+  else stats = `<div>生命<b>${c.hp}</b></div><div>伤害<b>${c.dmg||'-'}</b></div><div>攻速<b>${c.hs?c.hs+' 秒':'-'}</b></div>
+    <div>射程<b>${c.rng>=1?c.rng+' 格':(c.rng?'近战':'-')}</b></div><div>移速<b>${c.spd||'不动'}</b></div>
+    <div>目标<b>${TGT[c.tgt]||'-'}</b></div>${c.count>1?`<div>数量<b>×${c.count}</b></div>`:''}`;
+  let action;
+  if(!owned) action = `<button class="btn gold" id="shAct">🪙 ${c.price} 解锁</button>`;
+  else if(inDeck) action = `<button class="btn" id="shAct">移出卡组</button>`;
+  else action = `<button class="btn primary" id="shAct" ${deck.length>=L.deck_size?'disabled style="opacity:.5"':''}>
+      ${deck.length>=L.deck_size?'卡组满了（先移出一张）':'加入卡组'}</button>`;
+  s.innerHTML = `<div class="row"><div class="big">${c.emoji}</div><div>
+      <h3>${c.name}<span class="tag" style="color:var(--r-${RARITY[c.rarity]})">${c.rarity}</span></h3>
+      <div style="margin-top:6px"><span class="gua">${c.cost}</span> <span style="font-size:12px;color:var(--muted)">瓜拉娜</span></div>
+    </div></div><p>${c.desc}</p><div class="kv">${stats}</div>${action}`;
+  $('sheetBg').classList.remove('hidden');
+  $('shAct').onclick = async ()=>{
+    if(!owned){
+      if(!confirm(`花 ${c.price} 金币解锁「${c.name}」？`)) return;
+      const r = await (await fetch('/jiangshi/unlock',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({card:c.key})})).json();
+      if(!r.ok){ alert(r.msg); return; }
+      L.coins = r.coins; L.owned.push(c.key); closeSheet(); renderLobby(); return;
+    }
+    if(inDeck) deck = deck.filter(k=>k!==c.key);
+    else if(deck.length < L.deck_size) deck.push(c.key);
+    else return;
+    closeSheet(); renderLobby(); saveDeck();
+  };
+}
+function closeSheet(){ $('sheetBg').classList.add('hidden'); }
+$('sheetBg').onclick = e=>{ if(e.target.id==='sheetBg') closeSheet(); };
+async function saveDeck(){
+  if(deck.length !== L.deck_size) return;
+  const r = await (await fetch('/jiangshi/deck',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({deck})})).json();
+  if(!r.ok) alert(r.msg); else toast('卡组已保存 ✓');
+}
+
+
+function toast(text){
+  const b = document.createElement('div'); b.className='toast'; b.textContent=text;
+  b.style.position='fixed'; b.style.bottom='24px'; b.style.zIndex=90; document.body.appendChild(b);
+  setTimeout(()=>b.remove(), 1500);
+}
+// 去开战前确保卡组已存好（防止刚改完卡组就点，还没来得及保存）
+$('fightBtn').onclick = async e=>{ e.preventDefault(); if(deck.length!==L.deck_size) return; await saveDeck(); location.href='/jiangshi'; };
+loadLobby().catch(()=>toast('加载失败，刷新试试'));
+</script>
+</body>
+</html>

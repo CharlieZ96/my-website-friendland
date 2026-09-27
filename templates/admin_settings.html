@@ -12,6 +12,9 @@
         input[type=number] { width:80px; padding:8px; border:1px solid #ddd; border-radius:6px; }
         button { padding:10px 24px; background:#4a90e2; color:white; border:none; border-radius:6px; cursor:pointer; }
         .msg { color:#4a90e2; }
+        .links { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
+        .links a { display:block; text-align:center; padding:12px; border-radius:10px; background:#e67e22; color:#fff;
+                   text-decoration:none; font-weight:600; font-size:14px; }
     </style>
 </head>
 <body>
@@ -34,6 +37,10 @@
                 </div>
                 <button type="submit">保存设置</button>
             </form>
+        </div>
+        <div class="links">
+            <a href="/admin/notices">📢 发布公告</a>
+            <a href="/admin/registrations">📝 注册审批</a>
         </div>
     </div>
 </body>
