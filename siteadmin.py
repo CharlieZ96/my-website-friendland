@@ -239,6 +239,18 @@ def _remove_image(name):
             pass
 
 
+@bp.route("/admin/registrations/count")
+@_admin_required
+def admin_registrations_count():
+    """只给管理员后台设置页用：显示有几个人在等审批"""
+    conn = _connect()
+    try:
+        n = conn.execute("SELECT COUNT(*) FROM pending_users").fetchone()[0]
+    finally:
+        conn.close()
+    return jsonify(ok=True, pending=n)
+
+
 @bp.route("/admin/notices", methods=["GET", "POST"])
 @_admin_required
 def admin_notices():
@@ -302,8 +314,6 @@ def notice_list():
                "notices": [{"id": i, "title": t, "body": b, "pinned": bool(p), "time": c,
                             "image": ("/uploads/" + img) if img else None, "unread": i not in read}
                            for i, t, b, img, p, c in rows]}
-        if me == ADMIN_USERNAME:
-            out["pending"] = conn.execute("SELECT COUNT(*) FROM pending_users").fetchone()[0]
     finally:
         conn.close()
     out["unread"] = sum(1 for n in out["notices"] if n["unread"])

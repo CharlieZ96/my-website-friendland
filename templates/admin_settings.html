@@ -15,6 +15,8 @@
         .links { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
         .links a { display:block; text-align:center; padding:12px; border-radius:10px; background:#e67e22; color:#fff;
                    text-decoration:none; font-weight:600; font-size:14px; }
+        .pend { display:inline-block; margin-left:6px; min-width:18px; padding:0 5px; border-radius:9px;
+                background:#e74c3c; color:#fff; font-size:11px; line-height:18px; }
     </style>
 </head>
 <body>
@@ -40,8 +42,15 @@
         </div>
         <div class="links">
             <a href="/admin/notices">📢 发布公告</a>
-            <a href="/admin/registrations">📝 注册审批</a>
+            <a href="/admin/registrations">📝 注册审批<span id="pend" class="pend" hidden></span></a>
         </div>
     </div>
+    <script>
+        // 待审批人数（这个接口只有管理员能访问）
+        fetch('/admin/registrations/count').then(r => r.json()).then(d => {
+            const el = document.getElementById('pend');
+            if(d.pending > 0){ el.textContent = d.pending; el.hidden = false; }
+        }).catch(() => {});
+    </script>
 </body>
 </html>
