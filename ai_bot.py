@@ -25,7 +25,7 @@ def _clean(text):
 # ====== DeepSeek 备用接口 ======
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
-DEEPSEEK_MODEL = "deepseek-v4-flash"
+DEEPSEEK_MODEL = "deepseek-flash"
 
 # 熔断：Gemini 连续报错超过几次，就暂时改用 DeepSeek
 GEM_FAIL_THRESHOLD = 3      # 连续错几次触发切换
@@ -128,7 +128,8 @@ def _ask_deepseek(user_message, system_prompt, history, max_tokens=150):
             messages.append({"role": role, "content": h.get("text", "")})
     messages.append({"role": "user", "content": user_message})
     body = {"model": DEEPSEEK_MODEL, "messages": messages,
-            "max_tokens": max_tokens, "temperature": 0.9}
+            "max_tokens": max_tokens, "temperature": 0.9,
+            "thinking": {"type": "disabled"}}
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}",
                "Content-Type": "application/json"}
     r = requests.post(DEEPSEEK_URL, headers=headers, json=body, timeout=30)
