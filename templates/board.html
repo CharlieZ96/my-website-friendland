@@ -90,6 +90,87 @@
         @media (max-width:480px) {
             #chat { right:12px; left:12px; width:auto; max-width:none; bottom:86px; }
         }
+
+        /* —— 头像放大 —— */
+        #chatBtn { width:76px; height:76px; }
+        #chatBtn img { width:76px; height:76px; }
+        #chat { bottom:106px; height:min(540px, calc(100vh - 130px)); }
+        .chat-head { gap:12px; padding:12px 14px; background:linear-gradient(135deg,#8c2236,#d0566c); }
+        .chat-head img#chatFace { width:84px; height:84px; box-shadow:0 0 0 3px #fff, 0 4px 14px rgba(0,0,0,.25); flex:none; cursor:zoom-in; }
+        .chat-head img#chatFace.pop { animation:pop .35s ease; }
+        .chat-head .t { font-size:18px; }
+        .bub img { width:46px; height:46px; }
+        .chat-tabs { display:flex; border-bottom:1px solid #eee; background:#fff; }
+        .chat-tabs button { flex:1; border:0; background:none; padding:8px 0; font-size:13px; color:#888; cursor:pointer;
+                            border-bottom:2px solid transparent; font-family:inherit; }
+        .chat-tabs button[aria-selected="true"] { color:#8c2236; border-bottom-color:#8c2236; font-weight:bold; }
+        .kb-tab { flex:1; overflow-y:auto; padding:12px; background:#fbf7f8; }
+        .kb-tab[hidden], .chat-in[hidden] { display:none; }
+        .kb-skins { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
+        .kb-skin { min-width:0; border:2px solid #eee; border-radius:12px; background:#fff; padding:8px; text-align:center;
+                   font-size:12px; color:#555; cursor:pointer; font-family:inherit; }
+        .kb-skin img { width:100%; aspect-ratio:1; border-radius:50%; display:block; margin-bottom:6px; }
+        .kb-skin b { display:block; font-size:13px; color:#333; }
+        .kb-skin[aria-pressed="true"] { border-color:#8c2236; background:#fbeff1; }
+        .kb-skin.locked { cursor:default; color:#aaa; }
+        .kb-skin.locked span.lock { display:flex; align-items:center; justify-content:center; height:64px; border-radius:10px;
+                   margin-bottom:6px; background:repeating-linear-gradient(135deg,#f2eef0 0 10px,#ebe5e8 10px 20px); font-size:26px; }
+        .kb-opt { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:11px 2px; border-bottom:1px solid #eee; font-size:14px; }
+        .kb-opt small { display:block; color:#999; font-size:12px; }
+        .kb-sw { width:42px; height:24px; border-radius:999px; border:0; background:#d7d9e0; position:relative; cursor:pointer; flex:none; }
+        .kb-sw::after { content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left .2s; }
+        .kb-sw[aria-checked="true"] { background:#8c2236; }
+        .kb-sw[aria-checked="true"]::after { left:21px; }
+        .kb-opt input[type=range] { width:120px; accent-color:#8c2236; }
+
+        /* —— 全身立绘（看板娘）—— */
+        .kb { position:fixed; z-index:40; --kb-scale:1; }
+        .kb[hidden] { display:none; }
+        .kb-fig { cursor:pointer; transform-origin:50% 100%; }
+        .kb-fig:focus-visible { outline:2px solid #8c2236; outline-offset:4px; border-radius:8px; }
+        .kb-in { position:relative; aspect-ratio:832/1216; transform-origin:50% 100%; }
+        .kb-in img { position:absolute; display:block; -webkit-user-drag:none; user-select:none; pointer-events:none; }
+        .kb-full { left:0; top:0; width:100%; height:100%; }
+        .kb-face[hidden] { display:none; }
+        .kb.anim .kb-in { animation:kbBreathe 3.8s ease-in-out infinite, kbSway 7s ease-in-out infinite; }
+        @keyframes kbBreathe { 0%,100% { translate:0 0; scale:1 1; } 50% { translate:0 -4px; scale:1 1.008; } }
+        @keyframes kbSway { 0%,100% { rotate:-.6deg; } 50% { rotate:.6deg; } }
+        .kb-fig.boing { animation:kbBoing .55s cubic-bezier(.3,1.6,.5,1); }
+        @keyframes kbBoing { 0% { scale:1 1; } 30% { scale:1.04 .95; } 60% { scale:.98 1.03; } 100% { scale:1 1; } }
+        .kb-say { position:absolute; z-index:2; background:#fff; color:#333; font-size:14px; line-height:1.45; padding:8px 12px;
+                  border-radius:14px; box-shadow:0 6px 18px rgba(30,20,40,.18); width:max-content; max-width:200px;
+                  opacity:0; translate:0 6px; transition:opacity .25s, translate .25s; pointer-events:none; }
+        .kb-say.on { opacity:1; translate:0 0; }
+        .kb-say::after { content:""; position:absolute; left:20px; bottom:-7px; border:7px solid transparent; border-bottom:0; border-top-color:#fff; }
+        .kb-skinbar { display:none; }
+        /* 电脑：留言板左边的空白处放全身 */
+        @media (min-width:1100px) {
+            .kb { bottom:0; right:calc(50% + 316px); }
+            .kb-in { height:calc(min(86vh, (100vw - 640px) * .714) * var(--kb-scale)); }
+            .kb-say { top:5%; left:52%; }
+        }
+        /* 手机 / 平板：左下角探出半身，点开看全身 */
+        @media (max-width:1099px) {
+            .container { padding-bottom:170px; }
+            .kb { left:2px; bottom:0; }
+            .kb-fig { width:calc(128px * var(--kb-scale)); height:calc(120px * var(--kb-scale)); overflow:hidden; }
+            .kb-in { width:100%; }
+            .kb-say { bottom:calc(124px * var(--kb-scale)); left:40px; }
+            .kb.big { inset:0; background:rgba(28,16,24,.6); z-index:90; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; }
+            .kb.big .kb-fig { width:auto; height:auto; overflow:visible; }
+            .kb.big .kb-in { width:auto; height:min(80vh, 150vw); }
+            .kb.big .kb-say { bottom:auto; top:8vh; left:50%; translate:-50% 0; }
+            .kb.big .kb-say.on { translate:-50% 0; }
+            .kb.big .kb-skinbar { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; padding:12px 12px calc(16px + env(safe-area-inset-bottom, 0px)); }
+            .kb-skinbar button { border:0; border-radius:999px; padding:7px 14px; font-size:13px; background:#fff; color:#333; cursor:pointer; font-family:inherit; }
+            .kb-skinbar button[aria-pressed="true"] { background:#8c2236; color:#fff; }
+            #chatBtn { width:64px; height:64px; }
+            #chatBtn img { width:64px; height:64px; }
+            #chat { bottom:92px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .kb.anim .kb-in, .kb-fig.boing, .chat-head img#chatFace.pop { animation:none; }
+        }
     </style>
 </head>
 
@@ -127,7 +208,7 @@
             <div class="card" data-post="{{ p[5] }}" data-mine="{{ 1 if p[0] == username else 0 }}">
                 <div class="head">
                     <span class="author{% if is_jzh %} jzh{% endif %}">
-                        {% if is_jzh %}<img class="jzh-ava" alt="JZH" src="{{ url_for('static', filename='jzh/jzh_pout.png') }}" data-say="{{ p[1] }}">{% endif %}{% if p[3] %}匿名{% else %}{{ p[0] }}{% endif %}
+                        {% if is_jzh %}<img class="jzh-ava" alt="JZH" src="{{ url_for('static', filename='jzh/skins/red/av_pout.webp') }}" data-say="{{ p[1] }}">{% endif %}{% if p[3] %}匿名{% else %}{{ p[0] }}{% endif %}
                     </span>
                     <span>{{ p[2] }}</span>
                 </div>
@@ -149,7 +230,7 @@
                     <div class="comment{% if c[1] == JZH %} jzh{% endif %}" data-cid="{{ c[4] }}">
                         <div class="c-row">
                             <span class="c-body">
-                                {% if c[1] == JZH %}<img class="jzh-ava" alt="JZH" src="{{ url_for('static', filename='jzh/jzh_pout.png') }}" data-say="{{ c[2] }}">{% endif %}<span class="c-author{% if c[1] == JZH %} jzh{% endif %}">{{ c[1] }}</span>:{{ c[2] }}
+                                {% if c[1] == JZH %}<img class="jzh-ava" alt="JZH" src="{{ url_for('static', filename='jzh/skins/red/av_pout.webp') }}" data-say="{{ c[2] }}">{% endif %}<span class="c-author{% if c[1] == JZH %} jzh{% endif %}">{{ c[1] }}</span>:{{ c[2] }}
                                 {% if c[1] == username %}
                                 <form method="POST" action="/delete_comment/{{ c[4] }}" style="display:inline;">
                                     <button type="submit" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:11px;">删</button>
@@ -188,46 +269,234 @@
     </div>
 
     <!-- 右下角：找 JZH 聊天 -->
-    <button id="chatBtn" type="button" title="找 JZH 聊天"><img alt="JZH" src="{{ url_for('static', filename='jzh/jzh_pout.png') }}"><b>聊</b></button>
+    <button id="chatBtn" type="button" title="找 JZH 聊天"><img alt="JZH" src="{{ url_for('static', filename='jzh/skins/red/av_pout.webp') }}"><b>聊</b></button>
     <div id="chat" hidden>
         <div class="chat-head">
-            <img alt="JZH" src="{{ url_for('static', filename='jzh/jzh_pout.png') }}">
+            <img alt="JZH" id="chatFace" src="{{ url_for('static', filename='jzh/skins/red/av_pout.webp') }}">
             <div><div class="t">JZH</div><div class="s" id="chatLeft">有话快说</div></div>
             <button type="button" id="chatClose" title="关闭">×</button>
         </div>
+        <div class="chat-tabs" role="tablist">
+            <button type="button" role="tab" aria-selected="true" data-tab="chat">聊天</button>
+            <button type="button" role="tab" aria-selected="false" data-tab="dress">换装</button>
+            <button type="button" role="tab" aria-selected="false" data-tab="look">立绘</button>
+        </div>
         <div id="chatLog"></div>
+        <div class="kb-tab" id="kbDress" hidden><div class="kb-skins" id="kbSkins"></div></div>
+        <div class="kb-tab" id="kbLook" hidden>
+            <div class="kb-opt"><div>留言板显示全身立绘<small>电脑上在左边，手机上从左下角探出半身</small></div>
+                <button type="button" class="kb-sw" id="kbOptShow" role="switch" aria-checked="true" aria-label="显示全身立绘"></button></div>
+            <div class="kb-opt"><div>动态效果<small>呼吸、摇晃、眨眼；系统开了"减少动态效果"会自动停</small></div>
+                <button type="button" class="kb-sw" id="kbOptAnim" role="switch" aria-checked="true" aria-label="动态效果"></button></div>
+            <div class="kb-opt"><div>立绘大小</div><input type="range" id="kbOptSize" min="70" max="115" value="100" aria-label="立绘大小"></div>
+        </div>
         <form class="chat-in" id="chatForm">
             <input id="chatInput" maxlength="200" placeholder="跟 JZH 说点什么…" autocomplete="off">
             <button type="submit" id="chatSend">发送</button>
         </form>
     </div>
 
+    <!-- 全身立绘（看板娘）：电脑在左边，手机在左下角 -->
+    <div class="kb" id="kb" hidden>
+        <div class="kb-say" id="kbSay"></div>
+        <div class="kb-fig" id="kbFig" role="button" tabindex="0" aria-label="戳一下 JZH">
+            <div class="kb-in">
+                <img class="kb-full" id="kbFull" alt="JZH 全身立绘">
+                <img class="kb-face" id="kbFace" alt="" hidden>
+                <img class="kb-face" id="kbBlink" alt="" hidden>
+            </div>
+        </div>
+        <div class="kb-skinbar" id="kbSkinbar"></div>
+    </div>
+
 <script>
 (function () {
     var IMG = "{{ url_for('static', filename='jzh/') }}";
     var SUMMON = /[@＠]\s*jzh/i;                 // @JZH、@jzh、＠JZH 都算
+
+    // —— 皮肤（衣服）：每套一个文件夹 static/jzh/skins/<id>/ ——
+    // box = 脸部那块小图贴在全身图上的位置（x, y, 宽），全身图都是 832×1216
+    var SKINS = [
+        { id: 'red',  name: '常服 · 深红女仆', box: [150, 8, 320] },
+        { id: 'blue', name: '初版 · 蓝鲸女仆', box: [292, 95, 240] }
+    ];
+    var FW = 832, FH = 1216;
+    var KB = { skin: 'red', show: true, anim: true, size: 100 };   // 每个人的选择存在自己浏览器里
+    try { var saved = JSON.parse(localStorage.getItem('jzhKanban') || '{}'); for (var k in saved) if (k in KB) KB[k] = saved[k]; } catch (err) {}
+    function saveKB() { try { localStorage.setItem('jzhKanban', JSON.stringify(KB)); } catch (err) {} }
+    function skinOf(id) { for (var i = 0; i < SKINS.length; i++) if (SKINS[i].id === id) return SKINS[i]; return SKINS[0]; }
+    KB.skin = skinOf(KB.skin).id;
+    function sdir() { return IMG + 'skins/' + KB.skin + '/'; }
+
     // 按 JZH 说的话挑表情：急了 → 炸毛，得意 → 坏笑，其他 → 哼
-    function face(text) {
+    function moodOf(text) {
         text = text || '';
-        if (/急|滚|草|死|卧槽|懒得|烦|傻|该死|打一架|气|别搞|闭嘴|妈/.test(text)) return IMG + 'jzh_angry.png';
-        if (/神|确实|超模|哈哈|嘿|呵|就这|看看|赢|懂|我觉得我是|1\+1/.test(text)) return IMG + 'jzh_smug.png';
-        return IMG + 'jzh_pout.png';
+        if (/急|滚|草|死|卧槽|懒得|烦|傻|该死|打一架|气|别搞|闭嘴|妈/.test(text)) return 'angry';
+        if (/神|确实|超模|哈哈|嘿|呵|就这|看看|赢|懂|我觉得我是|1\+1/.test(text)) return 'smug';
+        return 'pout';
     }
+    function face(text) { return sdir() + 'av_' + moodOf(text) + '.webp'; }
     function setFaces(root) {
         root.querySelectorAll('img.jzh-ava[data-say]').forEach(function (img) { img.src = face(img.dataset.say); });
     }
     setFaces(document);
 
     // 点头像看大图
-    document.addEventListener('click', function (e) {
-        var a = e.target.closest('.jzh-ava');
-        if (!a) return;
+    function showCard() {
         var pop = document.createElement('div');
         pop.className = 'jzh-pop';
-        pop.innerHTML = '<img alt="JZH" src="' + IMG + 'jzh_card.png">';
+        pop.innerHTML = '<img alt="JZH" src="' + sdir() + 'card.webp">';
         pop.onclick = function () { pop.remove(); };
         document.body.appendChild(pop);
+    }
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('.jzh-ava')) showCard();
     });
+
+    // ===================== 看板娘（全身立绘）=====================
+    var kb = document.getElementById('kb'), kbFig = document.getElementById('kbFig');
+    var kbFull = document.getElementById('kbFull'), kbFace = document.getElementById('kbFace'), kbBlink = document.getElementById('kbBlink');
+    var kbSayEl = document.getElementById('kbSay'), chatFace = document.getElementById('chatFace');
+    var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var narrow = window.matchMedia ? matchMedia('(max-width:1099px)') : { matches: false };
+    var mood = 'grin', moodTimer = null, sayTimer = null;
+    chatFace.onclick = showCard;
+
+    function placeFace(img) {            // 脸部小图按百分比贴到全身图上，立绘缩放时也对得上
+        var b = skinOf(KB.skin).box;
+        img.style.left = (b[0] / FW * 100) + '%';
+        img.style.top = (b[1] / FH * 100) + '%';
+        img.style.width = (b[2] / FW * 100) + '%';
+    }
+    function setMood(m, hold) {          // grin = 全身图本来的表情；其余贴一块脸
+        mood = m;
+        if (m === 'grin') kbFace.hidden = true;
+        else { kbFace.src = sdir() + 'face_' + m + '.webp'; kbFace.hidden = false; }
+        chatFace.src = sdir() + 'av_' + m + '.webp';
+        chatFace.classList.remove('pop'); void chatFace.offsetWidth; chatFace.classList.add('pop');
+        clearTimeout(moodTimer);
+        if (m !== 'grin') moodTimer = setTimeout(function () { setMood('grin'); }, hold || 8000);
+    }
+    function kbSay(text, m) {
+        if (m) setMood(m);
+        text = String(text || '');
+        kbSayEl.textContent = text.length > 60 ? text.slice(0, 58) + '…' : text;
+        kbSayEl.classList.add('on');
+        clearTimeout(sayTimer);
+        sayTimer = setTimeout(function () { kbSayEl.classList.remove('on'); }, Math.min(9000, 2600 + text.length * 120));
+    }
+    function kbReact(text) { kbSay(text, moodOf(text)); }
+
+    // 戳她的台词（本地的，不花 AI 额度）
+    var LINES = [
+        ['smug', '看什么看？'],
+        ['pout', '今天吃咖喱猪排饭。'],
+        ['smug', '又输了？我就知道。'],
+        ['angry', '再戳！'],
+        ['pout', '有事就 @JZH，别光戳。'],
+        ['pout', '我急眼了。'],
+        ['grin', '……干嘛？'],
+        ['smug', '想看换装？右下角找我。']
+    ];
+    var lineIdx = Math.floor(Math.random() * LINES.length);
+    function poke() {
+        var l = LINES[lineIdx++ % LINES.length];
+        kbSay(l[1], l[0]);
+        kbFig.classList.remove('boing'); void kbFig.offsetWidth; kbFig.classList.add('boing');
+    }
+    function greet() {
+        var h = new Date().getHours();
+        var t = h < 5 ? ['pout', '这么晚还不睡？……我才不是在陪你。'] : h < 11 ? ['grin', '早。……别误会，只是顺口。']
+              : h < 14 ? ['pout', '吃饭了没？咖喱猪排饭不许抢。'] : h < 18 ? ['smug', '下午还来摸鱼？我就知道。']
+              : ['grin', '晚上好。今天也辛苦了……哼。'];
+        kbSay(t[1], t[0]);
+    }
+    // 眨眼：每隔几秒闭一下眼（炸毛、得意的时候不眨）
+    function blinkLoop() {
+        setTimeout(function () {
+            if (KB.anim && !reduceMotion && !kb.hidden && !document.hidden && (mood === 'grin' || mood === 'pout')) {
+                kbBlink.hidden = false;
+                setTimeout(function () {
+                    kbBlink.hidden = true;
+                    if (Math.random() < 0.2) setTimeout(function () { kbBlink.hidden = false; setTimeout(function () { kbBlink.hidden = true; }, 120); }, 180);
+                }, 130);
+            }
+            blinkLoop();
+        }, 2600 + Math.random() * 3200);
+    }
+    // 手机上点半身 → 全屏看全身；全屏时点人 = 戳，点空白 = 收起
+    function openBig() { kb.classList.add('big'); renderSkinbar(); kbSay('看够了没有？', 'smug'); }
+    function closeBig() { kb.classList.remove('big'); }
+    kbFig.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (narrow.matches && !kb.classList.contains('big')) { openBig(); return; }
+        poke();
+    });
+    kbFig.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); kbFig.click(); } });
+    kb.addEventListener('click', function (e) { if (kb.classList.contains('big') && e.target === kb) closeBig(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeBig(); });
+    if (narrow.addEventListener) narrow.addEventListener('change', closeBig);
+
+    function preload(id) {
+        ['face_pout', 'face_angry', 'face_smug', 'face_blink'].forEach(function (n) { var im = new Image(); im.src = IMG + 'skins/' + id + '/' + n + '.webp'; });
+    }
+    function setSkin(id, quiet) {
+        KB.skin = skinOf(id).id; saveKB();
+        kbFull.src = sdir() + 'full.webp';
+        kbBlink.src = sdir() + 'face_blink.webp';
+        placeFace(kbFace); placeFace(kbBlink);
+        preload(KB.skin);
+        setFaces(document);                                    // 留言板和聊天里的小头像跟着换
+        document.querySelector('#chatBtn img').src = sdir() + 'av_pout.webp';
+        setMood(mood);
+        renderSkins(); renderSkinbar();
+        if (!quiet) kbSay(KB.skin === 'red' ? '还是这身最顺眼。' : '这身是初版……有点怀念吧？', 'smug');
+    }
+    function renderSkins() {                                   // 聊天框「换装」页
+        var box = document.getElementById('kbSkins'); box.innerHTML = '';
+        SKINS.forEach(function (s) {
+            var b = document.createElement('button'); b.type = 'button'; b.className = 'kb-skin';
+            b.setAttribute('aria-pressed', s.id === KB.skin ? 'true' : 'false');
+            b.innerHTML = '<img alt="" loading="lazy" src="' + IMG + 'skins/' + s.id + '/card.webp"><b></b><span></span>';
+            b.querySelector('b').textContent = s.name;
+            b.querySelector('span').textContent = s.id === KB.skin ? '穿着中' : '点击换上';
+            b.onclick = function () { setSkin(s.id); };
+            box.appendChild(b);
+        });
+        var d = document.createElement('div'); d.className = 'kb-skin locked';
+        d.innerHTML = '<span class="lock">🔒</span><b>新衣服</b>制作中，敬请期待';
+        box.appendChild(d);
+    }
+    function renderSkinbar() {                                 // 手机全屏时底下的换装按钮
+        var bar = document.getElementById('kbSkinbar'); bar.innerHTML = '';
+        SKINS.forEach(function (s) {
+            var b = document.createElement('button'); b.type = 'button'; b.textContent = s.name;
+            b.setAttribute('aria-pressed', s.id === KB.skin ? 'true' : 'false');
+            b.onclick = function (e) { e.stopPropagation(); setSkin(s.id); };
+            bar.appendChild(b);
+        });
+        var c = document.createElement('button'); c.type = 'button'; c.textContent = '收起';
+        c.onclick = function (e) { e.stopPropagation(); closeBig(); };
+        bar.appendChild(c);
+    }
+    function applyKB() {                                       // 聊天框「立绘」页的三个设置
+        kb.hidden = !KB.show;
+        kb.classList.toggle('anim', !!KB.anim);
+        kb.style.setProperty('--kb-scale', KB.size / 100);
+        document.getElementById('kbOptShow').setAttribute('aria-checked', KB.show ? 'true' : 'false');
+        document.getElementById('kbOptAnim').setAttribute('aria-checked', KB.anim ? 'true' : 'false');
+        document.getElementById('kbOptSize').value = KB.size;
+    }
+    document.getElementById('kbOptShow').onclick = function () { KB.show = !KB.show; saveKB(); applyKB(); };
+    document.getElementById('kbOptAnim').onclick = function () { KB.anim = !KB.anim; saveKB(); applyKB(); };
+    document.getElementById('kbOptSize').oninput = function () { KB.size = +this.value; saveKB(); applyKB(); };
+
+    setSkin(KB.skin, true);
+    applyKB();
+    setMood('grin');
+    if (KB.show) setTimeout(greet, 900);
+    blinkLoop();
+    // ===================== 看板娘 结束 =====================
     // 「@JZH」小按钮：把 @JZH 填进输入框
     document.addEventListener('click', function (e) {
         var b = e.target.closest('.at-jzh');
@@ -266,10 +535,11 @@
         var old = c.querySelector('.typing'); if (old) old.remove();
         var d = document.createElement('div');
         d.className = 'typing' + (failed ? ' fail' : '');
-        d.innerHTML = '<img class="jzh-ava" alt="JZH" src="' + IMG + (failed ? 'jzh_pout.png' : 'jzh_smug.png') + '">' +
+        d.innerHTML = '<img class="jzh-ava" alt="JZH" src="' + sdir() + (failed ? 'av_pout.webp' : 'av_smug.webp') + '">' +
             (failed ? '<span>JZH 没理你……可能去吃白饭了，等会儿再 @ 她试试</span>' : '<span>JZH 正在输入</span><i></i><i></i><i></i>');
         c.querySelector('.comments').appendChild(d);
-        if (failed) setTimeout(function () { d.remove(); }, 6000);
+        if (failed) { setTimeout(function () { d.remove(); }, 6000); kbSay('……刚才走神了，再 @ 我一次。', 'pout'); }
+        else kbSay('在写了在写了，别催。', 'pout');
     }
     function waitJzh(id, before) {
         if (waiting[id]) return;
@@ -280,7 +550,12 @@
                 fetchBoard().then(function (doc) {
                     var fresh = doc.querySelector('.card[data-post="' + id + '"]');
                     var n = fresh ? fresh.querySelectorAll('.comment.jzh').length : 0;
-                    if (n > before) { swapCard(doc, id); delete waiting[id]; return; }
+                    if (n > before) {
+                        var nc = swapCard(doc, id); delete waiting[id];
+                        var said = nc ? nc.querySelectorAll('.comment.jzh img.jzh-ava[data-say]') : [];
+                        if (said.length) kbReact(said[said.length - 1].dataset.say);
+                        return;
+                    }
                     var c0 = card(id); if (c0 && !c0.querySelector('.typing')) typingBox(id);
                     if (!fresh || Date.now() - waiting[id] > 45000) { delete waiting[id]; typingBox(id, true); return; }
                     poll();
@@ -333,7 +608,7 @@
         row.className = 'bub ' + role;
         if (role !== 'me') {
             var img = document.createElement('img');
-            img.className = 'jzh-ava'; img.alt = 'JZH'; img.src = face(text);
+            img.className = 'jzh-ava'; img.alt = 'JZH'; img.src = face(text); img.dataset.say = text;
             row.appendChild(img);
         }
         var t = document.createElement('div');
@@ -357,6 +632,18 @@
         }
     };
     document.getElementById('chatClose').onclick = function () { chat.hidden = true; };
+    // 聊天框里的三个页：聊天 / 换装 / 立绘
+    var tabs = document.querySelectorAll('.chat-tabs button');
+    tabs.forEach(function (b) {
+        b.onclick = function () {
+            tabs.forEach(function (x) { x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
+            var t = b.dataset.tab;
+            log.hidden = t !== 'chat';
+            document.getElementById('chatForm').hidden = t !== 'chat';
+            document.getElementById('kbDress').hidden = t !== 'dress';
+            document.getElementById('kbLook').hidden = t !== 'look';
+        };
+    });
     document.getElementById('chatForm').addEventListener('submit', function (e) {
         e.preventDefault();
         var msg = input.value.trim();
@@ -367,6 +654,7 @@
         wait.className = 'typing'; wait.innerHTML = '<span>JZH 正在输入</span><i></i><i></i><i></i>';
         log.appendChild(wait); log.scrollTop = log.scrollHeight;
         send.disabled = true;
+        setMood('pout');
         fetch('/bot/chat', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
                              body: JSON.stringify({ message: msg }) })
             .then(function (r) { return r.json(); })
@@ -374,6 +662,7 @@
                 wait.remove();
                 if (d.reply) {
                     bubble('bot', d.reply);
+                    kbReact(d.reply);
                     if (d.remaining != null) document.getElementById('chatLeft').textContent = '今天还能聊 ' + d.remaining + ' 句';
                 } else bubble('err', d.error || 'JZH 没搭理你');
             })
