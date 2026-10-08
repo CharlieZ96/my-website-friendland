@@ -15,7 +15,8 @@ from datetime import datetime, timedelta
 import json
 import jiangshi
 from bot_actions import (ensure_bot, on_new_post, on_new_comment,
-                         chat as bot_chat, maybe_bot_join, bot_fill_deck_if_needed)
+                         chat as bot_chat, chat_history as bot_chat_history,
+                         maybe_bot_join, bot_fill_deck_if_needed)
 import pet
 import casino
 import highway
@@ -25,7 +26,8 @@ UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)             # 没有这文件夹就自动建
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024    # 上传最大 8MB，超了拒绝
 ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp"}   # 只允许这些图片格式
-app.secret_key = "change-me"
+# 以后想换密钥：在服务文件里加一行 Environment="FLASK_SECRET_KEY=一串随机字符"（换了以后所有人要重新登录）
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "change-me"
 socketio = SocketIO(app, cors_allowed_origins="*")
 ADMIN_USERNAME = "admin"
 DAILY_DRAW_LIMIT_ON = True     # True=开启每日限制；False=关闭（无限抽）
@@ -167,8 +169,7 @@ def enforce_post_limit(conn):
             if os.path.exists(path):
                 os.remove(path)
         conn.execute("DELETE FROM posts WHERE id = ?", (pid,))
-        conn.execute("DELETE FROM comments WHERE post_id = ?", (pid,))
-        delete_post_comments(conn, pid)
+        delete_post_comments(conn, pid)          # 连评论里的图片文件一起删（以前先删了评论，图片就漏删了）
     conn.commit()
 
 MATCH_KEEP = 70          # 最多保留多少条对局记录（想更省就改小，比如 100）
@@ -203,20 +204,18 @@ def save_image(file, target_kb=120):
     if ext not in ALLOWED_EXT:
         return None                                  # 不是图片，拒绝
 
-    # 2. 用 Pillow 打开图片
-    img = Image.open(file)
-    if img.mode != "RGBA":
-        # 有透明通道：先铺一层白底，避免透明区域变黑
-        img = img.convert("RGBA")
-        bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
-        img = Image.alpha_composite(bg, img).convert("RGB")
-        img.thumbnail((900, 900))
+    # 2. 用 Pillow 打开图片（打不开 = 不是真图片，拒绝）
+    try:
+        img = Image.open(file)
+        img = ImageOps.exif_transpose(img)           # 手机竖着拍的照片按 EXIF 转正，不再横着躺
+    except Exception:
+        return None
+    # 带透明背景的图（比如卡牌立绘 png）保留透明；其他统一转成普通 RGB
+    has_alpha = img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info)
+    img = img.convert("RGBA" if has_alpha else "RGB")
 
-    # 3. 压缩：如果太宽，按比例缩到最大宽度 1080
-    max_width = 1080
-    if img.width > max_width:
-        ratio = max_width / img.width
-        img = img.resize((max_width, int(img.height * ratio)))
+    # 3. 压缩：最长边缩到 900 以内
+    img.thumbnail((900, 900))
 
     # 4. 生成一个绝不重名的文件名，统一存成 png
     new_name = uuid.uuid4().hex + ".png"
@@ -351,22 +350,22 @@ POST_LIMIT = 30
 def board():
     if request.method == "POST":                       # 用户点了"发布"
         content = request.form.get("content", "").strip()
-        image_name = None
-        if not content and not image_name:
-            flash("说点什么，或者配张图吧")
-            return redirect(url_for("board"))
         if len(content) > 500:
             flash("内容太长了（最多500字）")
             return redirect(url_for("board"))
         is_anon = 1 if request.form.get("anonymous") else 0
         # 处理图片（从 request.files 拿，不是 request.form）
-        
+        image_name = None
         file = request.files.get("image")
         if file and file.filename:              # 用户确实选了图
             image_name = save_image(file)
             if image_name is None:              # 格式不对
                 flash("图片格式不支持（只能 png/jpg/gif/webp）")
                 return redirect(url_for("board"))
+        # 先看完图片再判断"是不是空帖"：只发一张图也可以
+        if not content and not image_name:
+            flash("说点什么，或者配张图吧")
+            return redirect(url_for("board"))
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
         conn = sqlite3.connect("users.db")
@@ -376,7 +375,7 @@ def board():
         conn.commit()
         enforce_post_limit(conn)
         conn.close()
-        on_new_post(new_post_id, content)        # ← 加这行：JZH 可能来冒泡回帖
+        on_new_post(new_post_id, content, session["username"])   # @JZH 必回；否则 JZH 可能随机冒泡
         return redirect(url_for("board"))
         # 发完刷新回留言板
 
@@ -385,13 +384,6 @@ def board():
     cur = conn.execute("SELECT username, content, created_at, is_anon, image, id FROM posts ORDER BY id DESC")
     posts = cur.fetchall()
 
-    # 查所有评论，按 post_id 分组
-    comments = {}
-    for c in conn.execute(
-        "SELECT post_id, username, content, created_at, id, image FROM comments ORDER BY id ASC"
-    ).fetchall():
-        comments.setdefault(c[0], []).append(c)
-    
     # 取所有评论，按 post_id 分组成字典 {帖子id: [评论, 评论...]}
     comments = {}
     for c in conn.execute("SELECT post_id, username, content, created_at, id, image FROM comments ORDER BY id ASC").fetchall():
@@ -450,7 +442,7 @@ def add_comment(post_id):
                  (post_id, session["username"], content, now, image_name))
     conn.commit()
     conn.close()
-    on_new_comment(post_id, content)    # ← 加这行：评论里 @JZH 就召唤它
+    on_new_comment(post_id, content, session["username"])    # 评论里 @JZH 就召唤它（JZH 知道是谁在叫他）
     return redirect(url_for("board"))
 
 @app.route("/delete/<int:post_id>", methods=["POST"])
@@ -855,6 +847,12 @@ def battle_result(mid):
 def bot_chat_route():
     data = request.get_json(silent=True) or {}
     return bot_chat(session["username"], data.get("message", ""), data.get("history", []))
+
+@app.route("/bot/history")
+@login_required
+def bot_history_route():
+    # 留言板右下角的聊天框打开时，显示最近聊过的几句
+    return bot_chat_history(session["username"])
 
 @app.route("/pet")
 @login_required

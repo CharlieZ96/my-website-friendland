@@ -6,7 +6,7 @@
     <title>留言板</title>
     <style>
         body { margin:0; font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#f4f6f8; }
-        .container { max-width:600px; margin:0 auto; padding:20px; }
+        .container { max-width:600px; margin:0 auto; padding:20px 20px 90px; }
         .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
         .topbar h2 { color:#333; margin:0; }
         .topbar a { color:#888; text-decoration:none; font-size:14px; }
@@ -30,56 +30,105 @@
         .c-row { display:flex; align-items:baseline; font-size:13px; color:#555; }
         .c-author { color:#4a90e2; font-weight:bold; }
         .c-time { color:#ccc; font-size:11px; margin-left:auto; white-space:nowrap; }
+
+        /* —— JZH（鲸鱼女仆）—— */
+        .jzh-ava { width:30px; height:30px; border-radius:50%; vertical-align:middle; margin-right:6px; cursor:zoom-in;
+                   box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(40,70,200,.25); transition:transform .15s; flex:none; }
+        .jzh-ava:hover { transform:scale(1.12) rotate(-5deg); }
+        .head .jzh-ava { width:34px; height:34px; }
+        .author.jzh, .c-author.jzh { color:#3b5bfd; }
+        .comment.jzh { background:#eef3ff; border-radius:10px; padding:5px 8px; margin:6px 0; }
+        .comment.jzh .c-row { align-items:center; }
+        .comment.fresh { animation:pop .45s cubic-bezier(.2,1.5,.4,1); }
+        @keyframes pop { from { transform:scale(.9); opacity:0; } }
+        .typing { display:flex; align-items:center; gap:6px; background:#eef3ff; border-radius:10px; padding:5px 8px; margin:6px 0;
+                  font-size:13px; color:#5a6fd8; }
+        .typing i { display:inline-block; width:5px; height:5px; border-radius:50%; background:#5a6fd8; animation:blink 1.2s infinite; }
+        .typing i:nth-child(3) { animation-delay:.2s; } .typing i:nth-child(4) { animation-delay:.4s; }
+        @keyframes blink { 50% { opacity:.2; transform:translateY(-2px); } }
+        .typing.fail { color:#999; background:#f3f3f3; }
+        .at-jzh { flex:none; padding:5px 8px; border:1px solid #c9d5ff; background:#f3f6ff; color:#3b5bfd; border-radius:6px;
+                  font-size:12px; cursor:pointer; }
+        .post-tools { margin-top:10px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+        .post-form .at-jzh { float:none; margin:0; padding:5px 10px; background:#f3f6ff; color:#3b5bfd; border:1px solid #c9d5ff;
+                             border-radius:6px; font-size:13px; }
+        .jzh-pop { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center;
+                   background:rgba(20,30,80,.45); cursor:zoom-out; }
+        .jzh-pop img { width:min(84vw,84vh,440px); border-radius:50%; box-shadow:0 14px 40px rgba(0,0,0,.35);
+                       animation:pop .3s cubic-bezier(.2,1.5,.4,1); }
+
+        /* —— 右下角：找 JZH 聊天 —— */
+        #chatBtn { position:fixed; right:18px; bottom:18px; z-index:50; width:62px; height:62px; border:none; padding:0;
+                   border-radius:50%; cursor:pointer; background:none; filter:drop-shadow(0 4px 10px rgba(40,70,200,.35)); }
+        #chatBtn img { width:62px; height:62px; border-radius:50%; box-shadow:0 0 0 3px #fff; display:block; }
+        #chatBtn b { position:absolute; right:-4px; top:-4px; background:#3b5bfd; color:#fff; font-size:11px; border-radius:10px;
+                     padding:2px 6px; box-shadow:0 0 0 2px #fff; }
+        #chatBtn:hover img { transform:rotate(-6deg); transition:transform .15s; }
+        #chat { position:fixed; right:18px; bottom:92px; z-index:60; width:340px; max-width:calc(100vw - 24px);
+                height:min(480px, calc(100vh - 120px)); background:#fff; border-radius:16px; display:flex; flex-direction:column;
+                box-shadow:0 10px 36px rgba(20,30,80,.25); overflow:hidden; }
+        #chat[hidden] { display:none; }
+        .chat-head { display:flex; align-items:center; gap:10px; padding:10px 12px; color:#fff;
+                     background:linear-gradient(135deg,#4d6bfe,#6fd3ff); }
+        .chat-head img { width:40px; height:40px; border-radius:50%; box-shadow:0 0 0 2px #fff; }
+        .chat-head .t { font-weight:bold; line-height:1.2; }
+        .chat-head .s { font-size:12px; opacity:.9; }
+        .chat-head button { margin-left:auto; background:none; border:none; color:#fff; font-size:20px; cursor:pointer; }
+        #chatLog { flex:1; overflow-y:auto; padding:12px; background:#f6f8ff; }
+        .bub { display:flex; gap:8px; margin:0 0 10px; align-items:flex-end; }
+        .bub .t { max-width:76%; padding:8px 11px; border-radius:14px; font-size:14px; line-height:1.45;
+                  white-space:pre-wrap; word-break:break-word; }
+        .bub.me { justify-content:flex-end; }
+        .bub.me .t { background:#4a90e2; color:#fff; border-bottom-right-radius:4px; }
+        .bub.bot .t { background:#fff; color:#333; border-bottom-left-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+        .bub.err .t { background:#fff3f3; color:#c0392b; }
+        .bub img { width:32px; height:32px; border-radius:50%; flex:none; }
+        .chat-in { display:flex; gap:6px; padding:8px; border-top:1px solid #eee; }
+        .chat-in input { flex:1; min-width:0; padding:9px 11px; border:1px solid #ddd; border-radius:20px; font-size:14px; }
+        .chat-in button { padding:0 16px; background:#4d6bfe; color:#fff; border:none; border-radius:20px; font-size:14px; cursor:pointer; }
+        .chat-in button:disabled { opacity:.5; cursor:default; }
+        @media (max-width:480px) {
+            #chat { right:12px; left:12px; width:auto; max-width:none; bottom:86px; }
+        }
     </style>
 </head>
 
-<script>
-// 拦截所有评论表单的提交，改用 AJAX，不整页刷新
-document.addEventListener('submit', function (e) {
-    var form = e.target;
-    if (form.matches('form[action^="/comment/"]')) {   // 只拦评论表单
-        e.preventDefault();                            // 阻止默认的跳转刷新
-        var data = new FormData(form);                 // 打包表单（含图片）
-        fetch(form.action, { method: 'POST', body: data })
-            .then(function () { return fetch('/board'); })   // 提交完，重新拉取列表
-            .then(function (res) { return res.text(); })
-            .then(function (html) {
-                var doc = new DOMParser().parseFromString(html, 'text/html');
-                var newFeed = doc.querySelector('#feed');
-                var curFeed = document.querySelector('#feed');
-                if (newFeed && curFeed) { curFeed.innerHTML = newFeed.innerHTML; }
-                // 页面滚动位置不变 → 你还停在原来那条帖子，看到评论上去了
-            });
-    }
-});
-</script>
-
 <body>
+    {% set JZH = "JZH" %}
     <div class="container">
         <div class="topbar">
             <h2>留言板</h2>
             <a href="/hub">← 返回主页</a>
         </div>
 
+        <div id="flash">
         {% with messages = get_flashed_messages() %}
           {% for m in messages %}<p class="msg">{{ m }}</p>{% endfor %}
         {% endwith %}
+        </div>
 
-        <form class="post-form" method="POST" enctype="multipart/form-data">
-            <textarea name="content" placeholder="发点什么JZH吧..."></textarea>
-            <input type="file" name="image" accept="image/*" style="margin-top:10px;">
-            <label style="display:inline-block; margin-top:10px; color:#888; font-size:14px;">
-                <input type="checkbox" name="anonymous"> 匿名发布
-            </label>
+        <form class="post-form" id="postForm" method="POST" enctype="multipart/form-data">
+            <textarea name="content" placeholder="发点什么JZH吧...（写 @JZH 她一定会来回你）"></textarea>
+            <div class="post-tools">
+                <input type="file" name="image" accept="image/*">
+                <label style="color:#888; font-size:14px;">
+                    <input type="checkbox" name="anonymous"> 匿名发布
+                </label>
+                <button type="button" class="at-jzh" data-target="content">@JZH</button>
+            </div>
             <button type="submit">发布</button>
             <div style="clear:both;"></div>
-</form>
+        </form>
+
 <div id="feed">
         {% if posts %}
             {% for p in posts %}
-            <div class="card">
+            {% set is_jzh = (p[0] == JZH and not p[3]) %}
+            <div class="card" data-post="{{ p[5] }}" data-mine="{{ 1 if p[0] == username else 0 }}">
                 <div class="head">
-                    <span class="author">{% if p[3] %}匿名{% else %}{{ p[0] }}{% endif %}</span>
+                    <span class="author{% if is_jzh %} jzh{% endif %}">
+                        {% if is_jzh %}<img class="jzh-ava" alt="JZH" src="{{ url_for('static', filename='jzh/jzh_pout.png') }}" data-say="{{ p[1] }}">{% endif %}{% if p[3] %}匿名{% else %}{{ p[0] }}{% endif %}
+                    </span>
                     <span>{{ p[2] }}</span>
                 </div>
                 <div class="content">{{ p[1] }}</div>
@@ -88,19 +137,19 @@ document.addEventListener('submit', function (e) {
                 {% endif %}
                 {% if p[0] == username %}
                 <form method="POST" action="/delete/{{ p[5] }}" style="margin-top:8px;">
-                <button type="submit"
-                style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:13px;">
-                    删除
-                </button>
-    </form>
-    {% endif %}
-    <!-- 评论列表 -->
+                    <button type="submit"
+                        style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:13px;">
+                        删除
+                    </button>
+                </form>
+                {% endif %}
+                <!-- 评论列表 -->
                 <div class="comments">
                     {% for c in comments.get(p[5], []) %}
-                    <div class="comment">
+                    <div class="comment{% if c[1] == JZH %} jzh{% endif %}" data-cid="{{ c[4] }}">
                         <div class="c-row">
                             <span class="c-body">
-                                <span class="c-author">{{ c[1] }}</span>:{{ c[2] }}
+                                {% if c[1] == JZH %}<img class="jzh-ava" alt="JZH" src="{{ url_for('static', filename='jzh/jzh_pout.png') }}" data-say="{{ c[2] }}">{% endif %}<span class="c-author{% if c[1] == JZH %} jzh{% endif %}">{{ c[1] }}</span>:{{ c[2] }}
                                 {% if c[1] == username %}
                                 <form method="POST" action="/delete_comment/{{ c[4] }}" style="display:inline;">
                                     <button type="submit" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:11px;">删</button>
@@ -114,26 +163,224 @@ document.addEventListener('submit', function (e) {
                         {% endif %}
                     </div>
                     {% endfor %}
-                    </div>
+                </div>
                 <!-- 评论框（未满8条才显示） -->
                 {% if comments.get(p[5], [])|length < 8 %}
-            <form method="POST" action="/comment/{{ p[5] }}" enctype="multipart/form-data" style="margin-top:8px; display:flex; gap:6px; align-items:center;">
-                <input type="text" name="content" maxlength="200" placeholder="写评论或发个图吧…" style="flex:1; padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
-                <label style="cursor:pointer; font-size:18px; padding:0 4px;" title="添加图片">
-                <span>🖼️</span>
-                <input type="file" name="image" accept="image/*" style="display:none;"
-               onchange="this.previousElementSibling.textContent = this.files.length ? '✅' : '🖼️';">
-                </label>
-                <button type="submit" style="padding:6px 14px; background:#4a90e2; color:white; border:none; border-radius:6px; font-size:13px; cursor:pointer;">评论</button>
-            </form>
+                <form method="POST" action="/comment/{{ p[5] }}" enctype="multipart/form-data" style="margin-top:8px; display:flex; gap:6px; align-items:center;">
+                    <button type="button" class="at-jzh" title="叫 JZH 来回复">@JZH</button>
+                    <input type="text" name="content" maxlength="200" placeholder="写评论或发个图吧…" style="flex:1; min-width:0; padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                    <label style="cursor:pointer; font-size:18px; padding:0 4px;" title="添加图片">
+                        <span>🖼️</span>
+                        <input type="file" name="image" accept="image/*" style="display:none;"
+                               onchange="this.previousElementSibling.textContent = this.files.length ? '✅' : '🖼️';">
+                    </label>
+                    <button type="submit" style="padding:6px 14px; background:#4a90e2; color:white; border:none; border-radius:6px; font-size:13px; cursor:pointer;">评论</button>
+                </form>
                 {% else %}
                 <div style="color:#aaa; font-size:12px; margin-top:6px;">评论已满 8 条</div>
                 {% endif %}
-                </div>
-                {% endfor %}
+            </div>
+            {% endfor %}
         {% else %}
             <p class="empty">还没有人发帖，来做第一个吧！</p>
         {% endif %}
+</div>
     </div>
+
+    <!-- 右下角：找 JZH 聊天 -->
+    <button id="chatBtn" type="button" title="找 JZH 聊天"><img alt="JZH" src="{{ url_for('static', filename='jzh/jzh_pout.png') }}"><b>聊</b></button>
+    <div id="chat" hidden>
+        <div class="chat-head">
+            <img alt="JZH" src="{{ url_for('static', filename='jzh/jzh_pout.png') }}">
+            <div><div class="t">JZH</div><div class="s" id="chatLeft">有话快说</div></div>
+            <button type="button" id="chatClose" title="关闭">×</button>
+        </div>
+        <div id="chatLog"></div>
+        <form class="chat-in" id="chatForm">
+            <input id="chatInput" maxlength="200" placeholder="跟 JZH 说点什么…" autocomplete="off">
+            <button type="submit" id="chatSend">发送</button>
+        </form>
+    </div>
+
+<script>
+(function () {
+    var IMG = "{{ url_for('static', filename='jzh/') }}";
+    var SUMMON = /[@＠]\s*jzh/i;                 // @JZH、@jzh、＠JZH 都算
+    // 按 JZH 说的话挑表情：急了 → 炸毛，得意 → 坏笑，其他 → 哼
+    function face(text) {
+        text = text || '';
+        if (/急|滚|草|死|卧槽|懒得|烦|傻|该死|打一架|气|别搞|闭嘴|妈/.test(text)) return IMG + 'jzh_angry.png';
+        if (/神|确实|超模|哈哈|嘿|呵|就这|看看|赢|懂|我觉得我是|1\+1/.test(text)) return IMG + 'jzh_smug.png';
+        return IMG + 'jzh_pout.png';
+    }
+    function setFaces(root) {
+        root.querySelectorAll('img.jzh-ava[data-say]').forEach(function (img) { img.src = face(img.dataset.say); });
+    }
+    setFaces(document);
+
+    // 点头像看大图
+    document.addEventListener('click', function (e) {
+        var a = e.target.closest('.jzh-ava');
+        if (!a) return;
+        var pop = document.createElement('div');
+        pop.className = 'jzh-pop';
+        pop.innerHTML = '<img alt="JZH" src="' + IMG + 'jzh_card.png">';
+        pop.onclick = function () { pop.remove(); };
+        document.body.appendChild(pop);
+    });
+    // 「@JZH」小按钮：把 @JZH 填进输入框
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest('.at-jzh');
+        if (!b) return;
+        var box = b.dataset.target ? b.form.querySelector('[name=' + b.dataset.target + ']') : b.form.querySelector('input[name=content]');
+        if (!SUMMON.test(box.value)) box.value = '@JZH ' + box.value.replace(/^\s+/, '');
+        box.focus();
+    });
+
+    // —— 只刷新某一条帖子（别的帖子里你正在写的字不会被冲掉）——
+    function card(id) { return document.querySelector('.card[data-post="' + id + '"]'); }
+    function jzhCount(id) { var c = card(id); return c ? c.querySelectorAll('.comment.jzh').length : 0; }
+    function fetchBoard() {
+        return fetch('/board', { credentials: 'same-origin' }).then(function (r) { return r.text(); })
+            .then(function (html) { return new DOMParser().parseFromString(html, 'text/html'); });
+    }
+    function showFlash(doc) {
+        var f = doc.querySelector('#flash');
+        if (f && f.textContent.trim()) document.querySelector('#flash').innerHTML = f.innerHTML;
+    }
+    function swapCard(doc, id) {
+        var fresh = doc.querySelector('.card[data-post="' + id + '"]'), cur = card(id);
+        if (!fresh || !cur) return null;
+        var seen = {};
+        cur.querySelectorAll('.comment[data-cid]').forEach(function (c) { seen[c.dataset.cid] = 1; });
+        cur.replaceWith(fresh);
+        fresh.querySelectorAll('.comment[data-cid]').forEach(function (c) { if (!seen[c.dataset.cid]) c.classList.add('fresh'); });
+        setFaces(fresh);
+        return fresh;
+    }
+
+    // —— 等 JZH 回复：显示"正在输入…"，每 2.5 秒看一眼，最多等 45 秒 ——
+    var waiting = {};
+    function typingBox(id, failed) {
+        var c = card(id); if (!c) return;
+        var old = c.querySelector('.typing'); if (old) old.remove();
+        var d = document.createElement('div');
+        d.className = 'typing' + (failed ? ' fail' : '');
+        d.innerHTML = '<img class="jzh-ava" alt="JZH" src="' + IMG + (failed ? 'jzh_pout.png' : 'jzh_smug.png') + '">' +
+            (failed ? '<span>JZH 没理你……可能去吃白饭了，等会儿再 @ 她试试</span>' : '<span>JZH 正在输入</span><i></i><i></i><i></i>');
+        c.querySelector('.comments').appendChild(d);
+        if (failed) setTimeout(function () { d.remove(); }, 6000);
+    }
+    function waitJzh(id, before) {
+        if (waiting[id]) return;
+        waiting[id] = Date.now();
+        typingBox(id);
+        (function poll() {
+            setTimeout(function () {
+                fetchBoard().then(function (doc) {
+                    var fresh = doc.querySelector('.card[data-post="' + id + '"]');
+                    var n = fresh ? fresh.querySelectorAll('.comment.jzh').length : 0;
+                    if (n > before) { swapCard(doc, id); delete waiting[id]; return; }
+                    var c0 = card(id); if (c0 && !c0.querySelector('.typing')) typingBox(id);
+                    if (!fresh || Date.now() - waiting[id] > 45000) { delete waiting[id]; typingBox(id, true); return; }
+                    poll();
+                }).catch(function () { if (Date.now() - waiting[id] < 45000) poll(); else delete waiting[id]; });
+            }, 2500);
+        })();
+    }
+
+    // —— 评论用 AJAX 提交，不整页刷新 ——
+    document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!form.matches('form[action^="/comment/"]')) return;
+        e.preventDefault();
+        var id = (form.action.match(/\/comment\/(\d+)/) || [])[1];
+        var text = (form.querySelector('input[name=content]') || {}).value || '';
+        var before = jzhCount(id);
+        var btn = form.querySelector('button[type=submit]'); if (btn) btn.disabled = true;
+        fetch(form.action, { method: 'POST', body: new FormData(form), credentials: 'same-origin' })
+            .then(fetchBoard)
+            .then(function (doc) {
+                showFlash(doc);
+                swapCard(doc, id);
+                if (SUMMON.test(text)) waitJzh(id, before);
+            })
+            .catch(function () { location.reload(); });
+    });
+
+    // —— 发新帖：如果写了 @JZH，刷新回来以后也等她回 ——
+    var postForm = document.getElementById('postForm');
+    postForm.addEventListener('submit', function () {
+        if (SUMMON.test(postForm.content.value)) {
+            try { sessionStorage.setItem('jzhWaitPost', String(Date.now())); } catch (err) {}
+        }
+    });
+    try {
+        var t = +sessionStorage.getItem('jzhWaitPost');
+        sessionStorage.removeItem('jzhWaitPost');
+        if (t && Date.now() - t < 60000) {
+            var mine = document.querySelector('.card[data-mine="1"]');
+            if (mine && !mine.querySelector('.comment.jzh')) waitJzh(mine.dataset.post, 0);
+        }
+    } catch (err) {}
+
+    // —— 右下角聊天框 ——
+    var chat = document.getElementById('chat'), log = document.getElementById('chatLog');
+    var input = document.getElementById('chatInput'), send = document.getElementById('chatSend');
+    var loaded = false;
+    function bubble(role, text) {
+        var row = document.createElement('div');
+        row.className = 'bub ' + role;
+        if (role !== 'me') {
+            var img = document.createElement('img');
+            img.className = 'jzh-ava'; img.alt = 'JZH'; img.src = face(text);
+            row.appendChild(img);
+        }
+        var t = document.createElement('div');
+        t.className = 't'; t.textContent = text;
+        row.appendChild(t);
+        log.appendChild(row);
+        log.scrollTop = log.scrollHeight;
+        return row;
+    }
+    document.getElementById('chatBtn').onclick = function () {
+        chat.hidden = !chat.hidden;
+        if (!chat.hidden) {
+            input.focus();
+            if (!loaded) {
+                loaded = true;
+                fetch('/bot/history', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+                    (d.items || []).forEach(function (it) { bubble(it.role === 'model' ? 'bot' : 'me', it.text); });
+                    if (!(d.items || []).length) bubble('bot', '有事说事。');
+                }).catch(function () {});
+            }
+        }
+    };
+    document.getElementById('chatClose').onclick = function () { chat.hidden = true; };
+    document.getElementById('chatForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var msg = input.value.trim();
+        if (!msg || send.disabled) return;
+        input.value = '';
+        bubble('me', msg);
+        var wait = document.createElement('div');
+        wait.className = 'typing'; wait.innerHTML = '<span>JZH 正在输入</span><i></i><i></i><i></i>';
+        log.appendChild(wait); log.scrollTop = log.scrollHeight;
+        send.disabled = true;
+        fetch('/bot/chat', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify({ message: msg }) })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                wait.remove();
+                if (d.reply) {
+                    bubble('bot', d.reply);
+                    if (d.remaining != null) document.getElementById('chatLeft').textContent = '今天还能聊 ' + d.remaining + ' 句';
+                } else bubble('err', d.error || 'JZH 没搭理你');
+            })
+            .catch(function () { wait.remove(); bubble('err', '网络不太好，再试一次'); })
+            .then(function () { send.disabled = false; input.focus(); });
+    });
+})();
+</script>
 </body>
 </html>
