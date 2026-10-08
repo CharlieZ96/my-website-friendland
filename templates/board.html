@@ -317,8 +317,8 @@
     // —— 皮肤（衣服）：每套一个文件夹 static/jzh/skins/<id>/ ——
     // box = 脸部那块小图贴在全身图上的位置（x, y, 宽），全身图都是 832×1216
     var SKINS = [
-        { id: 'red',  name: '常服 · 深红女仆', box: [150, 8, 320] },
-        { id: 'blue', name: '初版 · 蓝鲸女仆', box: [292, 95, 240] }
+        { id: 'red',    name: '禁忌 · 深红女仆', box: [150, 8, 320], hello: '怎么还是喜欢女仆？' },
+        { id: 'casual', name: '日常 · 萌妹卫衣',     box: [150, 8, 320], hello: '随便穿穿……' }
     ];
     var FW = 832, FH = 1216;
     var KB = { skin: 'red', show: true, anim: true, size: 100 };   // 每个人的选择存在自己浏览器里
@@ -450,7 +450,7 @@
         document.querySelector('#chatBtn img').src = sdir() + 'av_pout.webp';
         setMood(mood);
         renderSkins(); renderSkinbar();
-        if (!quiet) kbSay(KB.skin === 'red' ? '还是这身最顺眼。' : '这身是初版……有点怀念吧？', 'smug');
+        if (!quiet) kbSay(skinOf(KB.skin).hello, 'smug');
     }
     function renderSkins() {                                   // 聊天框「换装」页
         var box = document.getElementById('kbSkins'); box.innerHTML = '';
