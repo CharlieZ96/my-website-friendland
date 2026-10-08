@@ -97,8 +97,30 @@ def _hide_keys(text):
     return text
 
 
+def _use_system_dns():
+    """网站为了 WebSocket 改用 eventlet 之后，eventlet 会把"查域名"换成它自带的 greendns，
+    在这台服务器上它查不到 api.deepseek.com（日志里的 NameResolutionError 就是这个）。
+    这里把查域名换回系统自带的方法：只影响查域名这一步，几毫秒，其它都不变。
+    没用 eventlet 的时候什么都不做。每次发请求前调用，保证不管 eventlet 什么时候打的补丁都能盖回来。"""
+    try:
+        from eventlet import patcher
+    except Exception:
+        return
+    try:
+        if not patcher.is_monkey_patched("socket"):
+            return
+        import socket
+        orig = patcher.original("socket")
+        for name in ("getaddrinfo", "gethostbyname", "gethostbyname_ex", "getnameinfo"):
+            if getattr(socket, name, None) is not getattr(orig, name):
+                setattr(socket, name, getattr(orig, name))
+    except Exception as e:
+        print("【DNS修复没生效】", repr(e))
+
+
 def _post(name, url, **kw):
     """发请求；不是 200 就抛出带「HTTP 号 + 对方原话」的错误，日志里一眼能看懂"""
+    _use_system_dns()
     r = requests.post(url, timeout=TIMEOUT, **kw)
     if r.status_code != 200:
         raise RuntimeError(_hide_keys(f"{name} HTTP {r.status_code}: {r.text[:300]}"))
