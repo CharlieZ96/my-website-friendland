@@ -12,3 +12,6 @@ uploads/
 .env
 bak-*/
 *.log
+# —— 只放在服务器上的私密内容（不公开）——
+private/
+static/gallery/
