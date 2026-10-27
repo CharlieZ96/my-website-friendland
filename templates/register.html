@@ -5,6 +5,11 @@
 <h1>{{ _('领取属于你的 JZH') }}</h1>
 <p class="lede">{{ _('注册一个账号，就能加入大家。') }}</p>
 
+<div class="warn" role="note">
+    <strong>{{ _('请牢记您的密码。') }}</strong>
+    {{ _('本站不支持找回密码，忘记密码后将无法恢复账号。') }}
+</div>
+
 {% set flash_class = 'notice' %}{% include "_flash.html" %}
 
 <form method="POST">
@@ -29,5 +34,11 @@
 
 <p class="panel-alt">{{ _('已经有账号了？') }}<a href="/login">{{ _('去登录') }}</a></p>
 
+{% if lang == 'en' %}
+<p class="legal-links">By signing up, you agree to the <button type="button" class="linkish" data-open="dlg-privacy">Privacy notice</button> and the <button type="button" class="linkish" data-open="dlg-terms">Disclaimer</button>.</p>
+{% else %}
+<p class="legal-links">注册即表示你已阅读并同意<button type="button" class="linkish" data-open="dlg-privacy">《隐私说明》</button>和<button type="button" class="linkish" data-open="dlg-terms">《免责声明》</button>。</p>
+{% endif %}
 {% endblock %}
 
+{% block after %}{% include "_legal.html" %}{% endblock %}

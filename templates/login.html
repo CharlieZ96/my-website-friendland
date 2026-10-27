@@ -21,5 +21,12 @@
 
 <p class="panel-alt">{{ _('还没有账号？') }}<a href="/register">{{ _('注册，领取你的 JZH') }}</a></p>
 
+{% if lang == 'en' %}
+<p class="about-note"><b>About this site.</b> The content here is a fictional creation inspired by a real friend, made with their permission, purely as a joke among friends. Please do not repost or share it, and do not use it to attack or defame anyone.</p>
+<p class="legal-links">By signing in, you agree to the <button type="button" class="linkish" data-open="dlg-privacy">Privacy notice</button> and the <button type="button" class="linkish" data-open="dlg-terms">Disclaimer</button>.</p>
+{% else %}
+<p class="legal-links">登录即表示你已阅读并同意<button type="button" class="linkish" data-open="dlg-privacy">《隐私说明》</button>和<button type="button" class="linkish" data-open="dlg-terms">《免责声明》</button>。</p>
+{% endif %}
 {% endblock %}
 
+{% block after %}{% include "_legal.html" %}{% endblock %}
