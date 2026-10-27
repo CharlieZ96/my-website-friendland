@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
+{% include "_i18n.html" %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>老虎机</title>
+<title>{{ _('老虎机') }}</title>
 <style>
   :root{--bg:#06070f;--pink:#ff2e88;--cyan:#27e3ff;--purple:#a06bff;--amber:#ffb54d;--green:#34d17e;--ink:#eaf2ff;}
   *{box-sizing:border-box}
@@ -104,7 +105,7 @@
 <div class="wrap">
   <div class="top">
     <span class="coins">🪙<span id="coin">…</span></span>
-    <span class="leave" id="leave">离开 ↩</span>
+    <span class="leave" id="leave">{{ _('离开') }} ↩</span>
   </div>
 
   <div class="cab">
@@ -129,23 +130,23 @@
     <div class="tray" id="tray"></div>
 
     <!-- 摇杆（往下一拉开转，像真老虎机）。rod 在前、base 在后盖住杆底，像拉杆插进底座 -->
-    <div class="lever" id="lever" title="往下拉摇杆开转">
+    <div class="lever" id="lever" title="{{ _('往下拉摇杆开转') }}">
       <div class="lrod"><div class="lknob"></div></div>
       <div class="lbase"></div>
     </div>
   </div>
 
-  <div class="msg" id="msg">投币，试试手气～</div>
+  <div class="msg" id="msg">{{ _('投币，试试手气～') }}</div>
 
   <div class="betrow" id="betrow">
-    <button class="betbtn sel" data-b="3">押 3 金币</button>
-    <button class="betbtn" data-b="5">押 5 金币</button>
+    <button class="betbtn sel" data-b="3">{{ _('押 3 金币') }}</button>
+    <button class="betbtn" data-b="5">{{ _('押 5 金币') }}</button>
   </div>
 
   <div class="paytable" id="paytable">
-    <h4>赔付表（三个一样 · ×本金）</h4>
+    <h4>{{ _('赔付表（三个一样 · ×本金）') }}</h4>
     <div id="prows"></div>
-    <div class="ptip">恰好两个 <b style="color:#ff8fa0">🍒</b> 或 <b style="color:#8fe6ff">💎</b> 也有小奖，两个 <b>7️⃣</b> 更高；其余两个一样退回本来～</div>
+    <div class="ptip">{{ _('恰好两个') }} <b style="color:#ff8fa0">🍒</b> {{ _('或') }} <b style="color:#8fe6ff">💎</b> {{ _('也有小奖，两个') }} <b>7️⃣</b> {{ _('更高；其余两个一样退回本来～') }}</div>
   </div>
 </div>
 
@@ -217,7 +218,7 @@ document.getElementById('betrow').addEventListener('click',e=>{
 document.getElementById('leave').addEventListener('click',()=>{location.href='/casino';});
 
 const lever=document.getElementById('lever'), msg=document.getElementById('msg'), payline=document.getElementById('payline');
-const IDLE='投币，试试手气～';
+const IDLE=__('投币，试试手气～');
 
 // 中奖闪光：机柜金光脉冲 + 一层闪光 + 撒几颗✨
 function celebrate(){
@@ -236,13 +237,13 @@ async function spin(){
   if(spinning) return;
   spinning=true; lever.classList.add('busy'); payline.classList.remove('win');
   lever.classList.add('pull'); setTimeout(()=>lever.classList.remove('pull'),560);   // 摇杆下拉动画
-  msg.className='msg'; msg.textContent='转动中…';
+  msg.className='msg'; msg.textContent=__('转动中…');
   let data;
   try{
     data=await (await fetch('/casino/slots/spin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bet})})).json();
-  }catch(e){ toast('网络卡了，再试一次'); spinning=false; lever.classList.remove('busy'); msg.textContent=IDLE; return; }
+  }catch(e){ toast(__('网络卡了，再试一次')); spinning=false; lever.classList.remove('busy'); msg.textContent=IDLE; return; }
   if(!data.ok){
-    toast(data.msg||'现在不能玩');
+    toast(data.msg||__('现在不能玩'));
     if(data.coins!=null) document.getElementById('coin').textContent=Math.floor(data.coins);
     spinning=false; lever.classList.remove('busy'); msg.className='msg'; msg.textContent=IDLE; return;
   }

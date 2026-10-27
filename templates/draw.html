@@ -1,50 +1,53 @@
 <!DOCTYPE html>
-<html lang="zh">
+{% from "_appbar.html" import appbar, head with context %}
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>抽卡</title>
+    {{ head(_('抽取你的JZH')) }}
     <style>
-        body { margin:0; min-height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#f4f6f8; }
-        .result { background:white; border-radius:12px; padding:20px; box-shadow:0 4px 20px #c59d9d1a; text-align:center; width:220px; margin-bottom:20px; }
-        .result img { width:100%; height:220px; object-fit:contain; border-radius:8px; background:#f4f6f8 }
-        .result .name { font-weight:bold; font-size:18px; margin:8px 0 2px; }
-        .result .rarity { color:#e67e22; }
-        .result .stat { color:#555; }
-        .btn { padding:14px 40px; background:#4a90e2; color:white; border:none; border-radius:8px; font-size:18px; cursor:pointer; }
-        .nav { margin-top:16px; }
-        .nav a { color:#888; text-decoration:none; margin:0 8px; font-size:14px; }
+        .draw { display:flex; flex-direction:column; align-items:center; text-align:center; }
+        .draw .tcard-lg { margin:0 auto 28px; animation:reveal .6s cubic-bezier(.2,.8,.2,1) both; }
+        @keyframes reveal { from { opacity:0; transform:translateY(14px) rotateY(50deg); } to { opacity:1; transform:none; } }
+        .draw-left { margin:0 0 16px; color:var(--ink-soft); }
+        .draw-left b { color:var(--claret); font-size:18px; }
+        .draw-empty { margin:0 0 16px; color:var(--ink-soft); }
+        .draw-links { display:flex; gap:20px; margin-top:28px; font-size:15px; }
+        .draw-hint { max-width:24em; margin:0 auto 28px; color:var(--ink-soft); }
     </style>
 </head>
 <body>
-    {% with messages = get_flashed_messages() %}
-      {% for m in messages %}<p style="color:#e74c3c; text-align:center;">{{ m }}</p>{% endfor %}
-    {% endwith %}
+    {{ appbar(_('抽取你的JZH'), [('/collection', _('卡册')), ('/hub', _('返回大厅'))]) }}
+    <main class="page draw">
+        {% include "_flash.html" %}
 
-    {% if result %}
-    <div class="result">
-        {% if result[4] %}<img src="/uploads/{{ result[4] }}">{% endif %}
-        <div class="name">{{ result[1] }}</div>
-        <div class="rarity">{{ result[5] }}</div>
-        <div class="stat">攻击力 {{ result[2] }} / 孝心值 {{ result[3] }}</div>
-    </div>
-    {% endif %}
+        {% if result %}
+        <article class="tcard tcard-lg" aria-live="polite">
+            {% if result[4] %}<img class="tcard-art" src="/uploads/{{ result[4] }}" alt="{{ result[1] }}">{% endif %}
+            <h1 class="tcard-name">{{ result[1] }}</h1>
+            <span class="rarity rarity-{{ result[5] }}">{{ result[5] }}</span>
+            <p class="tcard-stat">{{ _('攻击力') }} <b>{{ result[2] }}</b> · {{ _('孝心值') }} <b>{{ result[3] }}</b></p>
+        </article>
+        {% else %}
+        <div class="page-head">
+            <h1>{{ _('抽一张 JZH') }}</h1>
+        </div>
+        <p class="draw-hint">{{ _('每张卡都有攻击力和孝心值，抽到的卡可以组成卡组，去「JZH对撞」和别人对战。') }}</p>
+        {% endif %}
 
-    {% if limit_on %}
-    <p style="color:#888; font-size:14px;">今日剩余抽卡次数：{{ remaining }}</p>
-    {% endif %}
+        {% if limit_on %}
+        <p class="draw-left">{{ _('今日剩余抽卡次数：') }}<b>{{ remaining }}</b></p>
+        {% endif %}
 
-    {% if can_draw %}
-    <form method="POST">
-        <button type="submit" class="btn">抽一张 🎴</button>
-    </form>
-    {% else %}
-    <p style="color:#888; font-size:16px;">今天的抽卡次数用完了，明天再来 🌙</p>
-    {% endif %}
+        {% if can_draw %}
+        <form method="POST">
+            <button type="submit" class="btn btn-primary">{{ _('再抽一张') if result else _('抽一张') }}</button>
+        </form>
+        {% else %}
+        <p class="draw-empty">{{ _('今天的抽卡次数用完了，明天再来。') }}</p>
+        {% endif %}
 
-    <div class="nav">
-        <a href="/collection">我的收藏夹</a>
-        <a href="/hub">返回主页</a>
-    </div>
+        <div class="draw-links">
+            <a class="link" href="/collection">{{ _('看看我的卡册') }}</a>
+        </div>
+    </main>
 </body>
 </html>

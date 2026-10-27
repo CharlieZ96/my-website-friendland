@@ -1,132 +1,121 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+{% from "_appbar.html" import appbar, head with context %}
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>像素JZH · 养成</title>
+{{ head(_('拓麻JZH')) }}
 <style>
-  :root{--sky:#D9E2EC;--paper:#fff;--ink:#262B33;--muted:#6B7683;--grape:#6D4FA3;--marigold:#F5A623;--coral:#FF7A59;--line:#C6D0DA;--green:#5FBF8F;}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--sky);color:var(--ink);font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;padding:18px 12px 50px}
-  .wrap{max-width:460px;margin:0 auto}
-  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-  h1{font-size:22px;margin:0}
-  h1 em{font-style:normal;color:var(--grape)}
-  .back{font-size:13px;color:var(--muted);text-decoration:none}
-  .panel{background:var(--paper);border-radius:22px;padding:16px;box-shadow:0 10px 26px rgba(38,43,51,.10)}
-  .stage{position:relative;border-radius:16px;padding:10px;background:linear-gradient(180deg,#F7FAFD 0 68%,#E9EFF6 68%);display:flex;align-items:center;justify-content:center;min-height:230px;cursor:pointer;user-select:none}
-  .stage svg{width:min(200px,52vw);height:auto;image-rendering:pixelated}
-  .bubble{position:absolute;top:8px;left:50%;transform:translate(-50%,8px) scale(.85);opacity:0;font-size:16px;color:var(--grape);background:#fff;border:2px solid var(--ink);border-radius:14px;padding:4px 14px;pointer-events:none;transition:all .2s cubic-bezier(.2,1.6,.4,1);white-space:nowrap;z-index:3}
+  :root{--sky:#f3eef0;--paper:#fff;--ink:#1e2230;--muted:#5d6372;--grape:#6b1a2b;--marigold:#dcbf7e;--coral:#e6a9b2;--line:#e4dcdf;--green:#a7c8b6;}
+  body{background:var(--sky);line-height:normal}
+  .wrap{max-width:480px;margin:0 auto;padding:28px 16px 56px}
+  .coins{font-weight:600;color:var(--on-claret);white-space:nowrap}
+  .ppanel{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:16px}
+  .pstage{position:relative;border-radius:14px;padding:10px;background:linear-gradient(180deg,#fbf8f9 0 68%,#efe7ea 68%);display:flex;align-items:center;justify-content:center;min-height:230px;cursor:pointer;user-select:none}
+  .pstage svg{width:min(200px,52vw);height:auto;image-rendering:pixelated}
+  .bubble{position:absolute;top:8px;left:50%;transform:translate(-50%,8px) scale(.85);opacity:0;font-size:16px;color:var(--claret);background:#fff;border:1.5px solid var(--ink);border-radius:14px;padding:4px 14px;pointer-events:none;transition:all .2s cubic-bezier(.2,1.6,.4,1);white-space:nowrap;z-index:3}
   .bubble.on{opacity:1;transform:translate(-50%,0) scale(1)}
-  .nameline{text-align:center;margin:8px 0 2px}
-  .nameline b{font-size:20px}
+  .nameline{text-align:center;margin:10px 0 2px}
+  .nameline b{font-size:21px}
   .tag{display:inline-block;font-size:12px;background:var(--grape);color:#fff;border-radius:999px;padding:2px 10px;margin-left:6px;vertical-align:middle}
-  .sub{text-align:center;color:var(--muted);font-size:12px;margin:0 0 10px}
-  .bars{display:grid;gap:7px;margin-top:6px}
-  .bar{display:grid;grid-template-columns:56px 1fr 34px;align-items:center;gap:8px;font-size:12px}
-  .track{height:13px;background:#EDF1F5;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+  .sub{text-align:center;color:var(--muted);font-size:13px;margin:0 0 12px}
+  .bars{display:grid;gap:8px;margin-top:6px}
+  .bar{display:grid;grid-template-columns:64px 1fr 34px;align-items:center;gap:8px;font-size:13px}
+  .track{height:12px;background:#f1ecee;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
   .fill{height:100%;border-radius:999px;transition:width .4s}
   .bar span:last-child{color:var(--muted);text-align:right}
   .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-  .btn{font-weight:700;font-size:14px;cursor:pointer;flex:1 1 132px;min-width:0;border:2px solid var(--ink);border-radius:12px;padding:10px 12px;background:#fff;color:var(--ink);box-shadow:3px 3px 0 var(--ink);transition:transform .1s,box-shadow .1s;text-align:center;
-       /* 链接(a)和按钮(button)长得一模一样：文字都上下左右居中、同字体同行高 */
-       display:inline-flex;align-items:center;justify-content:center;font-family:inherit;line-height:1.2;text-decoration:none}
-  .btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+  .btn{font-weight:600;font-size:14px;letter-spacing:0;min-height:0;cursor:pointer;flex:1 1 132px;min-width:0;border:1.5px solid var(--ink);border-radius:12px;padding:10px 12px;background:#fff;color:var(--ink);box-shadow:2px 2px 0 var(--ink);transition:transform .1s,box-shadow .1s;text-align:center;
+       display:inline-flex;align-items:center;justify-content:center;font-family:inherit;line-height:1.25;text-decoration:none}
+  .btn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
   .btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
   .btn.y{background:var(--marigold)}.btn.c{background:var(--coral)}.btn.g{background:var(--green)}.btn.p{background:var(--grape);color:#fff}
   .btn.sm{font-size:12px;padding:6px 11px;box-shadow:2px 2px 0 var(--ink);flex:0 0 auto}
-  h2{font-size:12px;letter-spacing:.14em;color:var(--muted);margin:18px 0 8px}
+  h2{font-size:14px;font-weight:600;color:var(--ink);margin:22px 0 8px}
   .swatches{display:flex;flex-wrap:wrap;gap:8px}
-  .sw{width:32px;height:32px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px var(--line);cursor:pointer;padding:0}
+  .sw{width:32px;height:32px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1.5px var(--line);cursor:pointer;padding:0}
   .sw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--grape)}
-  .sw.locked{background:#e5e7eb;display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:#9aa0ab;box-shadow:0 0 0 2px #d5d9e2;cursor:not-allowed}
-  .lbl{font-size:12px;color:var(--muted);margin:12px 0 6px}
-  .plazalink{display:block;text-align:center;margin-top:14px;font-size:14px;color:var(--grape);text-decoration:none;font-weight:700}
-  .caslink{display:block;text-align:center;margin-top:10px;font-size:15px;font-weight:800;text-decoration:none;color:#2a1a04;
-    background:linear-gradient(90deg,#ffd85a,#ffb54d);border:2px solid #b9791f;border-radius:12px;padding:11px;
-    box-shadow:0 4px 14px rgba(255,181,77,.45)}
-  .caslink:active{transform:translateY(1px)}
-  .logbook{background:#F5F8FB;border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;line-height:1.8;color:#4a5561;max-height:190px;overflow:auto}
-  .logbook .t{color:#9aa0ab;font-size:11px;margin-left:6px}
-  .logbook .empty{color:#9aa0ab;font-size:12px}
-  .famempty{color:#9aa0ab;font-size:12px;grid-column:1/-1;white-space:nowrap}
+  .sw.locked{background:#ece8ea;display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:#9aa0ab;box-shadow:0 0 0 1.5px #ddd6d9;cursor:not-allowed}
+  .lbl{font-size:13px;color:var(--muted);margin:14px 0 6px}
+  .plazalink{display:block;text-align:center;font-size:15px;color:var(--claret);text-decoration:none;font-weight:600}
+  .caslink{display:block;text-align:center;margin-top:12px;font-size:15px;font-weight:600;text-decoration:none;color:var(--brass);
+    background:var(--ink);border:1.5px solid var(--ink);border-radius:12px;padding:11px;box-shadow:2px 2px 0 var(--brass)}
+  .caslink:active{transform:translate(2px,2px);box-shadow:none}
+  .famempty{color:var(--muted);font-size:13px;grid-column:1/-1}
   .famgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
-  .fam{background:#fff;border:2px solid var(--line);border-radius:12px;padding:6px;text-align:center}
+  .fam{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:6px;text-align:center}
   .fam svg{width:54px;height:54px;image-rendering:pixelated}
   .fam b{display:block;font-size:12px}
   .fam small{color:var(--muted);font-size:10px;display:block}
   .sprite{animation:float 3.2s ease-in-out infinite alternate}
   @keyframes float{from{transform:translateY(0)}to{transform:translateY(-6px)}}
   .cbtn .price{font-size:10px;opacity:.85;margin-left:2px}
-  .modal-bg{position:fixed;inset:0;background:rgba(38,43,51,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
-  .modal-bg[hidden]{display:none}   /* 关键：隐藏时真的不显示（否则 display:flex 会盖掉 hidden） */
-  .modal{background:#fff;border-radius:18px;padding:20px 18px;max-width:300px;width:100%;box-shadow:0 16px 40px rgba(0,0,0,.25);text-align:center}
+  .modal-bg{position:fixed;inset:0;background:rgba(40,10,18,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal{background:#fff;border-radius:18px;padding:20px 18px;max-width:320px;width:100%;box-shadow:0 16px 40px rgba(40,10,18,.25);text-align:center}
   .modal h3{margin:0 0 8px;font-size:17px}
-  .modal p{margin:0 0 16px;color:var(--muted);font-size:14px}
+  .modal p{margin:0 0 16px;color:var(--muted);font-size:14px;line-height:1.6}
   .modal .mrow{display:flex;gap:10px}
   .modal .mrow .btn{flex:1 1 0}
 </style>
 </head>
 <body>
+{% call appbar(_('拓麻JZH'), [('/hub', _('返回大厅'))]) %}<span class="coins" id="coins">🪙 0</span>{% endcall %}
 <div class="wrap">
-  <div class="topbar"><h1>像素<em>JZH</em></h1><div><span id="coins" style="font-weight:700;margin-right:12px">🪙 0</span><a class="back" href="/hub">← 回主页</a></div></div>
-  <div class="panel">
-    <div class="stage" id="stage"><div class="bubble" id="bubble">…</div><div id="petView"></div></div>
+  <div class="ppanel">
+    <div class="pstage" id="stage"><div class="bubble" id="bubble">…</div><div id="petView"></div></div>
     <div class="nameline"><b id="petName">JZH</b><span class="tag" id="stageTag"></span></div>
     <p class="sub" id="petSub"></p>
     <div class="bars" id="bars"></div>
     <div class="row" id="actions"></div>
-    <h2>换装</h2>
+    <h2>{{ _('换装') }}</h2>
     <div class="row" id="hats" style="margin-top:0"></div>
-    <p class="lbl">上衣</p><div class="swatches" id="swOutfit"></div>
-    <p class="lbl">发色</p><div class="swatches" id="swHair"></div>
-    <p class="lbl">肤色</p><div class="swatches" id="swSkin"></div>
-    <p class="lbl">衣服</p><div class="row" id="clothesRow" style="margin-top:0"></div>
-    <div class="row" style="margin-top:14px">
-      <a class="btn g" href="/plaza">🌿 去我的牧场</a>
-      <button class="btn" onclick="visitOther()">🔭 去别人的牧场</button>
+    <p class="lbl">{{ _('上衣') }}</p><div class="swatches" id="swOutfit"></div>
+    <p class="lbl">{{ _('发色') }}</p><div class="swatches" id="swHair"></div>
+    <p class="lbl">{{ _('肤色') }}</p><div class="swatches" id="swSkin"></div>
+    <p class="lbl">{{ _('衣服') }}</p><div class="row" id="clothesRow" style="margin-top:0"></div>
+    <div class="row" style="margin-top:18px">
+      <a class="btn g" href="/plaza">🌿 {{ _('去我的牧场') }}</a>
+      <button class="btn" onclick="visitOther()">🔭 {{ _('去别人的牧场') }}</button>
     </div>
-    <a class="caslink" href="/casino">🎰 去JZH读博的地方看看</a>
+    <a class="caslink" href="/casino">🎰 {{ _('去JZH读博的地方看看') }}</a>
   </div>
-  <div class="panel" style="margin-top:14px">
-    <a class="plazalink" href="/pet/records" style="margin-top:0">📖 打开成长记录册</a>
-    <h2>👶 家族相册 · 后代</h2>
+  <div class="ppanel" style="margin-top:14px">
+    <a class="plazalink" href="/pet/records">📖 {{ _('打开成长记录册') }}</a>
+    <h2>{{ _('家族相册 · 后代') }}</h2>
     <div id="family" class="famgrid"></div>
   </div>
 </div>
 
 <div id="buyModal" class="modal-bg" hidden>
   <div class="modal">
-    <h3 id="buyTitle">要购买这件衣服吗？</h3>
+    <h3 id="buyTitle">{{ _('要购买这件衣服吗？') }}</h3>
     <p id="buyDesc"></p>
     <div class="mrow">
-      <button class="btn" id="buyCancel">取消</button>
-      <button class="btn y" id="buyOk">确认购买</button>
+      <button class="btn" id="buyCancel">{{ _('取消') }}</button>
+      <button class="btn y" id="buyOk">{{ _('确认购买') }}</button>
     </div>
   </div>
 </div>
 
 <div id="consignModal" class="modal-bg" hidden>
   <div class="modal">
-    <h3>送去哪个牧场托管？</h3>
-    <p>托管期间JZH安全寄存、不掉状态，还能在那个牧场交朋友、结伴、生下一代。</p>
+    <h3>{{ _('送去哪个牧场托管？') }}</h3>
+    <p>{{ _('托管期间JZH安全寄存、不掉状态，还能在那个牧场交朋友、结伴、生下一代。') }}</p>
     <div class="mrow" style="flex-direction:column;gap:10px">
-      <button class="btn g" id="consignSelf">🏡 送去我自己的牧场</button>
-      <button class="btn p" id="consignOther">🔭 送去别人的牧场</button>
-      <button class="btn" id="consignCancel">取消</button>
+      <button class="btn g" id="consignSelf">🏡 {{ _('送去我自己的牧场') }}</button>
+      <button class="btn p" id="consignOther">🔭 {{ _('送去别人的牧场') }}</button>
+      <button class="btn" id="consignCancel">{{ _('取消') }}</button>
     </div>
   </div>
 </div>
 
 <div id="askModal" class="modal-bg" hidden>
   <div class="modal">
-    <h3 id="askTitle">输入用户名</h3>
+    <h3 id="askTitle">{{ _('输入用户名') }}</h3>
     <p id="askDesc"></p>
-    <input id="askInput" maxlength="32" placeholder="对方的用户名"
-      style="width:100%;padding:10px 12px;border:2px solid var(--line);border-radius:12px;font-size:15px;outline:none;box-sizing:border-box">
+    <input id="askInput" maxlength="32" aria-label="{{ _('对方的用户名') }}" placeholder="{{ _('对方的用户名') }}"
+      style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;font:inherit;font-size:15px;outline:none;box-sizing:border-box">
     <div class="mrow" style="margin-top:12px">
-      <button class="btn" id="askCancel">取消</button>
-      <button class="btn y" id="askOk">确定</button>
+      <button class="btn" id="askCancel">{{ _('取消') }}</button>
+      <button class="btn y" id="askOk">{{ _('确定') }}</button>
     </div>
   </div>
 </div>
@@ -134,32 +123,33 @@
 <script src="/static/pet_sprite.js"></script>
 <script>
 let S=null;
+function esc(s){const d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;}
 async function apiState(){const r=await fetch('/pet/state');return r.json();}
 async function apiAct(action){const r=await fetch('/pet/act',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});return r.json();}
 function say(t){if(!t)return;const b=document.getElementById('bubble');b.textContent=t;b.classList.add('on');clearTimeout(b._t);b._t=setTimeout(()=>b.classList.remove('on'),1600);}
-function fmt(sec){if(sec<60)return Math.ceil(sec)+'秒';const m=Math.ceil(sec/60);return m>=60?Math.ceil(m/60)+'小时':m+'分';}
-const STAGE_NAME={cocoon:"睡袋",kid:"幼年",adult:"成年",old:"老年",cloud:"云"};
+function fmt(sec){if(sec<60)return __('{n}秒',{n:Math.ceil(sec)});const m=Math.ceil(sec/60);return m>=60?__('{n}小时',{n:Math.ceil(m/60)}):__('{n}分',{n:m});}
+const STAGE_NAME={cocoon:__("睡袋"),kid:__("幼年"),adult:__("成年"),old:__("老年"),cloud:__("云")};
 
 function render(){
   document.getElementById('coins').textContent="🪙 "+Math.floor(S.coins||0);
   try{ document.getElementById('petView').innerHTML=petSVG(S); }
   catch(err){ document.getElementById('petView').innerHTML=''; console.error('❌ 像素图渲染失败，多半是 pet_sprite.js 没加载或有语法错误：', err); }
-  document.getElementById('petName').textContent=S.name||"新的JZH";
+  document.getElementById('petName').textContent=S.name||__("新的JZH");
   document.getElementById('stageTag').textContent=STAGE_NAME[S.stage]||S.stage;
 
   let sub;
-  if(S.stage==="cloud"){ sub="🌥️ 你的JZH化作了一朵云…"; }
-  else if(S.needs_name){ sub="先给它起个名字吧～"; }
-  else if(S.stage==="cocoon"){ sub=`还在睡 · 唤醒 ${S.wake}/${S.wakes_need}`+(S.can_wake?"":` · ${fmt(S.wake_in)}后可叫`); }
-  else if(S.status==="plaza"){ sub="🌿 正在"+(S.plaza_host?("「"+S.plaza_host+"」的"):"")+"牧场托管中"; }
-  else if(S.status&&S.status!=="home"){ sub=(S.status==="working"?"外出打工中…":"外出购物中…")+(S.can_collect?" 已回来，快收！":` 还要 ${fmt(S.out_in)}`); }
-  else if(S.stage==="old"){ sub="老年 · 安享晚年，好好陪陪它"; }
-  else if(S.stage==="kid"){ sub=`幼年 · 成长 ${S.growth}/${S.growth_need}`; }
-  else{ sub=`成年 · 好感 ${S.affection}`; }
+  if(S.stage==="cloud"){ sub="🌥️ "+__("你的JZH化作了一朵云…"); }
+  else if(S.needs_name){ sub=__("先给它起个名字吧～"); }
+  else if(S.stage==="cocoon"){ sub=__("还在睡 · 唤醒 {a}/{b}",{a:S.wake,b:S.wakes_need})+(S.can_wake?"":" · "+__("{t}后可叫",{t:fmt(S.wake_in)})); }
+  else if(S.status==="plaza"){ sub="🌿 "+(S.plaza_host?__("正在「{host}」的牧场托管中",{host:S.plaza_host}):__("正在牧场托管中")); }
+  else if(S.status&&S.status!=="home"){ sub=(S.status==="working"?__("外出打工中…"):__("外出购物中…"))+" "+(S.can_collect?__("已回来，快收！"):__("还要 {t}",{t:fmt(S.out_in)})); }
+  else if(S.stage==="old"){ sub=__("老年 · 安享晚年，好好陪陪它"); }
+  else if(S.stage==="kid"){ sub=__("幼年 · 成长 {a}/{b}",{a:S.growth,b:S.growth_need}); }
+  else{ sub=__("成年 · 好感 {n}",{n:S.affection}); }
   document.getElementById('petSub').textContent=sub;
 
   const bars = (S.stage==="cocoon") ? [] :
-    [["饱食",S.hunger,"#F5A623"],["清洁",S.clean,"#5FBF8F"],["SAN值",S.spirit,"#7FB3E8",S.spirit_max],["好感",S.affection,"#FF9FB2"]];
+    [[__("饱食"),S.hunger,"#c9a45c"],[__("清洁"),S.clean,"#7fa892"],[__("SAN值"),S.spirit,"#6d86b0",S.spirit_max],[__("好感"),S.affection,"#d98a97"]];
   document.getElementById('bars').innerHTML = bars.map(([n,v,c,mx])=>{
     const pct=Math.max(0,Math.min(100, v/(mx||100)*100));
     return `<div class="bar"><span>${n}</span><div class="track"><div class="fill" style="width:${pct}%;background:${c}"></div></div><span>${Math.round(v)}</span></div>`;
@@ -167,29 +157,28 @@ function render(){
 
   let acts;
   if(S.stage==="cloud"){
-    acts = `<button class="btn y" data-act="reborn">🌱 迎接新的JZH</button>`;
+    acts = `<button class="btn y" data-act="reborn">🌱 ${__("迎接新的JZH")}</button>`;
   }else if(S.needs_name){
-    acts = `<input id="nameInput" maxlength="8" placeholder="给JZH起个名字（最多8字）" style="flex:1 1 auto;padding:10px 12px;border:2px solid var(--line);border-radius:12px;font-size:14px;outline:none">
-       <button class="btn y" id="nameBtn" style="flex:0 0 auto">确定</button>`;
+    acts = `<input id="nameInput" maxlength="8" aria-label="${__("给JZH起个名字（最多8字）")}" placeholder="${__("给JZH起个名字（最多8字）")}" style="flex:1 1 auto;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;font:inherit;font-size:14px;outline:none">
+       <button class="btn y" id="nameBtn" style="flex:0 0 auto">${__("确定")}</button>`;
   }else if(S.stage==="cocoon"){
-    acts = `<button class="btn y" data-act="wake" ${S.can_wake?"":"disabled"}>${S.can_wake?"叫醒他（点一点）":"还在睡 "+fmt(S.wake_in)+"后可叫"}</button>`;
+    acts = `<button class="btn y" data-act="wake" ${S.can_wake?"":"disabled"}>${S.can_wake?__("叫醒他（点一点）"):__("还在睡，{t}后可叫",{t:fmt(S.wake_in)})}</button>`;
   }else if(S.status==="plaza"){
-    acts = `<button class="btn y" data-act="retrieve">🏠 把JZH领回来</button>`;
+    acts = `<button class="btn y" data-act="retrieve">🏠 ${__("把JZH领回来")}</button>`;
   }else if(S.status&&S.status!=="home"){
-    const label=S.status==="working"?"打工":"购物";
     acts = S.can_collect
-      ? `<button class="btn y" data-act="collect">${S.status==="working"?"💰 收工领钱":"🛍️ 收下战利品"}</button>`
-      : `<button class="btn" disabled>${label}中… ${fmt(S.out_in)}后回来</button>`;
+      ? `<button class="btn y" data-act="collect">${S.status==="working"?"💰 "+__("收工领钱"):"🛍️ "+__("收下战利品")}</button>`
+      : `<button class="btn" disabled>${S.status==="working"?__("打工中… {t}后回来",{t:fmt(S.out_in)}):__("购物中… {t}后回来",{t:fmt(S.out_in)})}</button>`;
   }else{
     // 幼年/成年/老年在家：所有按钮都可用（喂食/洗澡/摸头/互动/掉落/打工/购物/托管）
-    acts = `<button class="btn y" data-act="feed" ${S.can_feed?"":"disabled"}>${S.can_feed?"喂食":"喂食 "+fmt(S.feed_in)+"后"}</button>
-       <button class="btn g" data-act="wash">洗澡</button>
-       <button class="btn c" data-act="pet" ${S.can_pet?"":"disabled"}>${S.can_pet?"摸摸头":"摸头 "+fmt(S.pet_in)+"后"}</button>
-       <button class="btn p" data-act="play" ${S.can_play?"":"disabled"}>${S.can_play?"互动":"互动 "+fmt(S.play_in)+"后"}</button>
-       <button class="btn" data-act="drop" ${S.can_drop?"":"disabled"}>${S.can_drop?"🎁 领掉落":(S.has_locked?"掉落 "+fmt(S.drop_in)+"后":"装扮已集齐")}</button>
-       <button class="btn c" data-act="work">🛠️ 出去打工</button>
-       <button class="btn p" data-act="shop">🛍️ 出去购物 🪙${S.shop_cost}</button>
-       <button class="btn g" data-consign="1">🌿 送去牧场托管</button>`;
+    acts = `<button class="btn y" data-act="feed" ${S.can_feed?"":"disabled"}>${S.can_feed?__("喂食"):__("喂食（{t}后）",{t:fmt(S.feed_in)})}</button>
+       <button class="btn g" data-act="wash">${__("洗澡")}</button>
+       <button class="btn c" data-act="pet" ${S.can_pet?"":"disabled"}>${S.can_pet?__("摸摸头"):__("摸头（{t}后）",{t:fmt(S.pet_in)})}</button>
+       <button class="btn p" data-act="play" ${S.can_play?"":"disabled"}>${S.can_play?__("互动"):__("互动（{t}后）",{t:fmt(S.play_in)})}</button>
+       <button class="btn" data-act="drop" ${S.can_drop?"":"disabled"}>${S.can_drop?"🎁 "+__("领掉落"):(S.has_locked?__("掉落（{t}后）",{t:fmt(S.drop_in)}):__("装扮已集齐"))}</button>
+       <button class="btn c" data-act="work">🛠️ ${__("出去打工")}</button>
+       <button class="btn p" data-act="shop">🛍️ ${__("出去购物")} 🪙${S.shop_cost}</button>
+       <button class="btn g" data-consign="1">🌿 ${__("送去牧场托管")}</button>`;
   }
   document.getElementById('actions').innerHTML = acts;
 
@@ -198,12 +187,12 @@ function render(){
   try{
     document.getElementById('hats').innerHTML = Object.keys(HATS).map(h=>{
       const has=(owned.hat||[]).includes(h);
-      return `<button class="btn sm ${S.hat===h?'p':''}" data-hat="${h}" ${has?'':'disabled'}>${has?h:'🔒'+h}</button>`;
+      return `<button class="btn sm ${S.hat===h?'p':''}" data-hat="${h}" ${has?'':'disabled'}>${has?__(h):'🔒'+__(h)}</button>`;
     }).join("");
     const sw=(arr,key,colorOf)=>arr.map((x,i)=>{
       const has=(owned[key]||[]).includes(i);
       if(has) return `<button class="sw" data-set="${key}" data-i="${i}" style="background:${colorOf(x)}" aria-pressed="${(S[key]||0)===i}"></button>`;
-      return `<button class="sw locked" data-set="${key}" data-i="${i}" disabled title="未解锁">🔒</button>`;
+      return `<button class="sw locked" data-set="${key}" data-i="${i}" disabled title="${__("未解锁")}">🔒</button>`;
     }).join("");
     document.getElementById('swOutfit').innerHTML=sw(OUTFITS,"outfit",x=>x.main);
     document.getElementById('swHair').innerHTML=sw(HAIRS,"hair",x=>x.k);
@@ -213,8 +202,8 @@ function render(){
     document.getElementById('clothesRow').innerHTML = Object.keys(CLOTHES).map(name=>{
       const has = name==="无" || ownedClo.includes(name);
       const on  = (S.clothes||"无")===name;
-      if(has) return `<button class="btn sm cbtn ${on?'p':''}" data-clo="${name}">${name==="无"?"不穿":name}</button>`;
-      return `<button class="btn sm cbtn" data-buy="${name}">🔒${name}<span class="price">${price[name]||''}🪙</span></button>`;
+      if(has) return `<button class="btn sm cbtn ${on?'p':''}" data-clo="${name}">${name==="无"?__("不穿"):__(name)}</button>`;
+      return `<button class="btn sm cbtn" data-buy="${name}">🔒${__(name)}<span class="price">${price[name]||''}🪙</span></button>`;
     }).join("");
   }catch(err){ console.error('❌ 换装区渲染失败（pet_sprite.js 里的 HATS/OUTFITS/CLOTHES 等没加载）：', err); }
 
@@ -225,10 +214,10 @@ function render(){
   if(S.family&&S.family.length){
     fg.innerHTML=S.family.map(c=>{
       let svg=''; try{ svg=petSVG({version:c.version||'v1',stage:'kid',hat:'光头',outfit:0,hair:0,skin:0}); }catch(err){ svg=''; }
-      return `<div class="fam">${svg}<b>${c.name||'未命名'}</b><small>${(c.parents||[]).join('×')}</small><small>${c.version||'v1'}</small></div>`;
+      return `<div class="fam">${svg}<b>${esc(c.name||__('未命名'))}</b><small>${esc((c.parents||[]).join('×'))}</small><small>${esc(c.version||'v1')}</small></div>`;
     }).join("");
   }else{
-    fg.innerHTML='<div class="famempty">还没有后代。成年JZH在牧场结伴后会诞生下一代。</div>';
+    fg.innerHTML='<div class="famempty">'+esc(__('还没有后代。成年JZH在牧场结伴后会诞生下一代。'))+'</div>';
   }
 }
 
@@ -256,8 +245,8 @@ let pendingBuy=null;
 function openBuy(name){
   pendingBuy=name;
   const price=(S.clothes_price||{})[name]||0;
-  document.getElementById('buyTitle').textContent=`要购买【${name}】吗？`;
-  document.getElementById('buyDesc').innerHTML=`花费 <b>${price}</b> 🪙　（你现在有 ${Math.floor(S.coins||0)} 🪙）`;
+  document.getElementById('buyTitle').textContent=__('要购买【{name}】吗？',{name:__(name)});
+  document.getElementById('buyDesc').textContent=__('花费 {price} 🪙（你现在有 {coins} 🪙）',{price:price,coins:Math.floor(S.coins||0)});
   document.getElementById('buyModal').hidden=false;
 }
 function closeBuy(){ pendingBuy=null; document.getElementById('buyModal').hidden=true; }
@@ -283,7 +272,7 @@ askModal.addEventListener('click',e=>{ if(e.target.id==='askModal') askClose(); 
 
 // —— 去别人的牧场：输入用户名 ——
 function visitOther(){
-  askUsername('去别人的牧场','输入要拜访的玩家用户名', u=>{ location.href='/plaza/'+encodeURIComponent(u); });
+  askUsername(__('去别人的牧场'),__('输入要拜访的玩家用户名'), u=>{ location.href='/plaza/'+encodeURIComponent(u); });
 }
 // —— 送去牧场托管：自己的 / 别人的 ——
 const consignModal=document.getElementById('consignModal');
@@ -292,7 +281,7 @@ function closeConsign(){ consignModal.hidden=true; }
 document.getElementById('consignSelf').addEventListener('click',()=>{ closeConsign(); doAct('consign_self'); });
 document.getElementById('consignOther').addEventListener('click',()=>{
   closeConsign();
-  askUsername('送去别人的牧场','把JZH托管到哪个玩家的牧场？输入用户名', u=>{ doAct('consign_to:'+u); });
+  askUsername(__('送去别人的牧场'),__('把JZH托管到哪个玩家的牧场？输入用户名'), u=>{ doAct('consign_to:'+u); });
 });
 document.getElementById('consignCancel').addEventListener('click',closeConsign);
 consignModal.addEventListener('click',e=>{ if(e.target.id==='consignModal') closeConsign(); });

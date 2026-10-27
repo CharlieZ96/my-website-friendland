@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
+{% include "_i18n.html" %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>江世战争 · 编辑卡组</title>
+<title>{{ _('江世战争 · 编辑卡组') }}</title>
 <style>
   :root{
     --bg:#15101f; --bg2:#1f1830; --card:#271f3b; --line:#3a2f55; --ink:#f1ecff; --muted:#a79cc4;
@@ -157,36 +158,36 @@
 <!-- ======================= 编辑卡组 ======================= -->
 <div id="lobby">
   <div class="top">
-    <a href="/enoshima">← 回江之岛</a>
+    <a href="/enoshima">← {{ _('回江之岛') }}</a>
     <span class="coins">🪙 <span id="coins">-</span></span>
   </div>
   <div class="hero">
-    <h1>江世战争<small>卡组 · 图鉴 · 规则 &nbsp;|&nbsp; JZH ROYALE</small></h1>
+    <h1>{{ _('江世战争') }}<small>{{ _('卡组 · 图鉴 · 规则') }} &nbsp;|&nbsp; JZH ROYALE</small></h1>
     <div class="stats">
-      <div class="stat"><b id="sWin">0</b>真人胜</div>
-      <div class="stat"><b id="sLose">0</b>真人负</div>
-      <div class="stat"><b id="sAi">0</b>打AI胜</div>
+      <div class="stat"><b id="sWin">0</b>{{ _('真人胜') }}</div>
+      <div class="stat"><b id="sLose">0</b>{{ _('真人负') }}</div>
+      <div class="stat"><b id="sAi">0</b>{{ _('打AI胜') }}</div>
     </div>
-    <a class="fight" id="fightBtn" href="/jiangshi">带这套卡组去开战 ⚔️</a>
+    <a class="fight" id="fightBtn" href="/jiangshi">{{ _('带这套卡组去开战') }} ⚔️</a>
     <div class="today" id="today"></div>
   </div>
 
-  <h2>我的卡组 <span id="deckInfo"></span></h2>
+  <h2>{{ _('我的卡组') }} <span id="deckInfo"></span></h2>
   <div class="deck" id="deck"></div>
 
-  <h2>全部卡牌 <span>点卡牌看详情 · 加入/移出卡组</span></h2>
+  <h2>{{ _('全部卡牌') }} <span>{{ _('点卡牌看详情 · 加入/移出卡组') }}</span></h2>
   <div class="grid" id="grid"></div>
 
-  <h2>江世排行榜 <span>只算有效的真人胜场</span></h2>
+  <h2>{{ _('江世排行榜') }} <span>{{ _('只算有效的真人胜场') }}</span></h2>
   <div class="panel board"><ol id="board"></ol></div>
 
-  <h2>怎么玩</h2>
+  <h2>{{ _('怎么玩') }}</h2>
   <div class="panel rules">
-    · 两边各有 <b>2 座公主塔 + 1 座国王塔</b>，拆掉对方的塔拿皇冠，<b>拆掉国王塔直接赢</b>。<br>
-    · 出牌要花 <b>瓜拉娜</b>，每 2.8 秒回 1 点、最多 10 点；最后 1 分钟瓜拉娜 <b>双倍</b>。<br>
-    · 兵只能下在自己半场；拆掉对面某一路的公主塔后，那一路对面也能下。法术哪里都能丢。<br>
-    · 3:00 结束时皇冠多的赢；一样多就进 <b>加时</b>，先拆一座塔的赢。<br>
-    · 进洞后 15 秒没等到真人，<b>洞窟守卫</b>（AI）会来陪你打。
+    · {{ _('两边各有') }} <b>{{ _('2 座公主塔 + 1 座国王塔') }}</b>{{ _('，拆掉对方的塔拿皇冠，') }}<b>{{ _('拆掉国王塔直接赢') }}</b>。<br>
+    · {{ _('出牌要花') }} <b>{{ _('瓜拉娜') }}</b>{{ _('，每 2.8 秒回 1 点、最多 10 点；最后 1 分钟瓜拉娜') }} <b>{{ _('双倍') }}</b>。<br>
+    · {{ _('兵只能下在自己半场；拆掉对面某一路的公主塔后，那一路对面也能下。法术哪里都能丢。') }}<br>
+    · {{ _('3:00 结束时皇冠多的赢；一样多就进') }} <b>{{ _('加时') }}</b>{{ _('，先拆一座塔的赢。') }}<br>
+    · {{ _('进洞后 15 秒没等到真人，') }}<b>{{ _('洞窟守卫') }}</b>{{ _('（AI）会来陪你打。') }}
   </div>
 </div>
 
@@ -208,7 +209,7 @@ const $ = id => document.getElementById(id);
 function cardEl(c, cls){
   const d = document.createElement('div');
   d.className = (cls||'card') + ' ' + (RARITY[c.rarity]||'');
-  d.innerHTML = `<span class="gua cost">${c.cost}</span><div class="em">${c.emoji}</div><div class="nm">${c.name}</div>`;
+  d.innerHTML = `<span class="gua cost">${c.cost}</span><div class="em">${c.emoji}</div><div class="nm">${__(c.name)}</div>`;
   return d;
 }
 function cardByKey(k){ return L.cards.find(c=>c.key===k); }
@@ -221,7 +222,7 @@ async function loadLobby(){
 function renderLobby(){
   $('coins').textContent = L.coins;
   $('sWin').textContent = L.stats.wins; $('sLose').textContent = L.stats.losses; $('sAi').textContent = L.stats.ai_wins;
-  $('today').innerHTML = `今天还能领：真人胜利奖励 <b>${L.today.pvp_rewards_left}</b> 次（每胜 ${L.rewards.pvp_win} 金币）· 打 AI 金币 <b>${L.today.ai_coins_left}</b>`;
+  $('today').innerHTML = `${__('今天还能领：真人胜利奖励')} <b>${L.today.pvp_rewards_left}</b> ${__('次（每胜 {p0} 金币）· 打 AI 金币',{p0:(L.rewards.pvp_win)})} <b>${L.today.ai_coins_left}</b>`;
   // 卡组
   const dk = $('deck'); dk.innerHTML = '';
   for(let i=0;i<L.deck_size;i++){
@@ -229,10 +230,10 @@ function renderLobby(){
     else { const e = document.createElement('div'); e.className='card empty'; e.textContent='+'; dk.appendChild(e); }
   }
   const avg = deck.length ? (deck.reduce((s,k)=>s+cardByKey(k).cost,0)/deck.length).toFixed(1) : '-';
-  $('deckInfo').innerHTML = `${deck.length}/${L.deck_size} · 平均 <span class="gua" style="width:18px;height:18px;font-size:10px">${avg}</span>`;
+  $('deckInfo').innerHTML = `${__('{p0}/{p1} · 平均',{p0:(deck.length),p1:(L.deck_size)})} <span class="gua" style="width:18px;height:18px;font-size:10px">${avg}</span>`;
   const full = deck.length === L.deck_size;
   $('fightBtn').classList.toggle('off', !full);
-  $('fightBtn').textContent = full ? '带这套卡组去开战 ⚔️' : `卡组还差 ${L.deck_size-deck.length} 张`;
+  $('fightBtn').textContent = full ? (__('带这套卡组去开战')+' ⚔️') : `${__('卡组还差 {p0} 张',{p0:(L.deck_size-deck.length)})}`;
   // 全部卡
   const g = $('grid'); g.innerHTML = '';
   const cards = L.cards.slice().sort((a,b)=>a.cost-b.cost);
@@ -246,37 +247,37 @@ function renderLobby(){
   }
   // 排行
   const b = $('board'); b.innerHTML = '';
-  if(!L.board.length) b.innerHTML = '<li><span>还没有人上榜，第一个就是你</span></li>';
+  if(!L.board.length) b.innerHTML = ('<li>'+'<span>'+__('还没有人上榜，第一个就是你')+'</span>'+'</li>');
   L.board.forEach((r,i)=>{
     const li = document.createElement('li'); if(r.name===ME) li.className='me';
-    li.innerHTML = `<span>${['🥇','🥈','🥉'][i]||(i+1)+'.'} ${esc(r.name)}</span><span>${r.wins} 胜 / ${r.losses} 负</span>`;
+    li.innerHTML = `<span>${['🥇','🥈','🥉'][i]||(i+1)+'.'} ${esc(r.name)}</span><span>${__('{p0} 胜 / {p1} 负',{p0:(r.wins),p1:(r.losses)})}</span>`;
     b.appendChild(li);
   });
 }
 function esc(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-const TGT = {ground:'地面', both:'对空对地', buildings:'只打建筑', none:'不攻击'};
+const TGT = {ground:__('地面'), both:__('对空对地'), buildings:__('只打建筑'), none:__('不攻击')};
 function openSheet(c){
   const owned = L.owned.includes(c.key), inDeck = deck.includes(c.key);
   const s = $('sheet');
   let stats = '';
-  if(c.type==='spell') stats = `<div>伤害<b>${c.dmg}</b></div><div>范围<b>半径 ${c.radius} 格</b></div><div>类型<b>法术</b></div>`;
-  else stats = `<div>生命<b>${c.hp}</b></div><div>伤害<b>${c.dmg||'-'}</b></div><div>攻速<b>${c.hs?c.hs+' 秒':'-'}</b></div>
-    <div>射程<b>${c.rng>=1?c.rng+' 格':(c.rng?'近战':'-')}</b></div><div>移速<b>${c.spd||'不动'}</b></div>
-    <div>目标<b>${TGT[c.tgt]||'-'}</b></div>${c.count>1?`<div>数量<b>×${c.count}</b></div>`:''}`;
+  if(c.type==='spell') stats = `<div>${__('伤害')}<b>${c.dmg}</b></div><div>${__('范围')}<b>${__('半径 {p0} 格',{p0:(c.radius)})}</b></div><div>${__('类型')}<b>${__('法术')}</b></div>`;
+  else stats = `<div>${__('生命')}<b>${c.hp}</b></div><div>${__('伤害')}<b>${c.dmg||'-'}</b></div><div>${__('攻速')}<b>${c.hs?c.hs+(' '+__('秒')):'-'}</b></div>
+    <div>${__('射程')}<b>${c.rng>=1?c.rng+(' '+__('格')):(c.rng?__('近战'):'-')}</b></div><div>${__('移速')}<b>${c.spd?__(c.spd):__('不动')}</b></div>
+    <div>${__('目标')}<b>${TGT[c.tgt]||'-'}</b></div>${c.count>1?`<div>${__('数量')}<b>×${c.count}</b></div>`:''}`;
   let action;
-  if(!owned) action = `<button class="btn gold" id="shAct">🪙 ${c.price} 解锁</button>`;
-  else if(inDeck) action = `<button class="btn" id="shAct">移出卡组</button>`;
+  if(!owned) action = `<button class="btn gold" id="shAct">🪙 ${__('{p0} 解锁',{p0:(c.price)})}</button>`;
+  else if(inDeck) action = `<button class="btn" id="shAct">${__('移出卡组')}</button>`;
   else action = `<button class="btn primary" id="shAct" ${deck.length>=L.deck_size?'disabled style="opacity:.5"':''}>
-      ${deck.length>=L.deck_size?'卡组满了（先移出一张）':'加入卡组'}</button>`;
+      ${deck.length>=L.deck_size?__('卡组满了（先移出一张）'):__('加入卡组')}</button>`;
   s.innerHTML = `<div class="row"><div class="big">${c.emoji}</div><div>
-      <h3>${c.name}<span class="tag" style="color:var(--r-${RARITY[c.rarity]})">${c.rarity}</span></h3>
-      <div style="margin-top:6px"><span class="gua">${c.cost}</span> <span style="font-size:12px;color:var(--muted)">瓜拉娜</span></div>
-    </div></div><p>${c.desc}</p><div class="kv">${stats}</div>${action}`;
+      <h3>${__(c.name)}<span class="tag" style="color:var(--r-${RARITY[c.rarity]})">${__(c.rarity)}</span></h3>
+      <div style="margin-top:6px"><span class="gua">${c.cost}</span> <span style="font-size:12px;color:var(--muted)">${__('瓜拉娜')}</span></div>
+    </div></div><p>${__(c.desc)}</p><div class="kv">${stats}</div>${action}`;
   $('sheetBg').classList.remove('hidden');
   $('shAct').onclick = async ()=>{
     if(!owned){
-      if(!confirm(`花 ${c.price} 金币解锁「${c.name}」？`)) return;
+      if(!confirm(`${__('花 {p0} 金币解锁「{p1}」？',{p0:(c.price),p1:(__(c.name))})}`)) return;
       const r = await (await fetch('/jiangshi/unlock',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({card:c.key})})).json();
       if(!r.ok){ alert(r.msg); return; }
@@ -294,7 +295,7 @@ async function saveDeck(){
   if(deck.length !== L.deck_size) return;
   const r = await (await fetch('/jiangshi/deck',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({deck})})).json();
-  if(!r.ok) alert(r.msg); else toast('卡组已保存 ✓');
+  if(!r.ok) alert(r.msg); else toast((__('卡组已保存')+' ✓'));
 }
 
 
@@ -305,7 +306,7 @@ function toast(text){
 }
 // 去开战前确保卡组已存好（防止刚改完卡组就点，还没来得及保存）
 $('fightBtn').onclick = async e=>{ e.preventDefault(); if(deck.length!==L.deck_size) return; await saveDeck(); location.href='/jiangshi'; };
-loadLobby().catch(()=>toast('加载失败，刷新试试'));
+loadLobby().catch(()=>toast(__('加载失败，刷新试试')));
 </script>
 </body>
 </html>

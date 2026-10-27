@@ -1,0 +1,1 @@
+{% with messages = get_flashed_messages() %}{% for m in messages %}<p class="{{ flash_class or 'flash' }}" role="alert">{{ _(m) }}</p>{% endfor %}{% endwith %}

@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
+{% include "_i18n.html" %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TOYOBA 车行</title>
+<title>{{ _('TOYOBA 车行') }}</title>
 <style>
   *{box-sizing:border-box}
   body{margin:0;background:#0e1420;color:#eaf2ff;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;padding:14px 12px 40px}
@@ -48,18 +49,18 @@
 <body>
 <div class="wrap">
   <div class="top">
-    <h1>🚗 <em>TOYOBA</em> 车行</h1>
+    <h1>🚗 <em>TOYOBA</em> {{ _('车行') }}</h1>
     <span class="coins">🪙 <span id="coins">…</span></span>
   </div>
   <div class="top" style="margin-bottom:12px">
-    <a class="back" href="/enoshima">← 回江之岛</a>
-    <a class="back" href="/plaza" style="margin-left:12px">🚙 我的车库</a>
+    <a class="back" href="/enoshima">← {{ _('回江之岛') }}</a>
+    <a class="back" href="/plaza" style="margin-left:12px">🚙 {{ _('我的车库') }}</a>
   </div>
-  <p class="sub">买车后进「JZH高速」就能开对应的车。档位越高极速越快、越好操控、越好跑分。买过的车会进你的车库展示。</p>
+  <p class="sub">{{ _('买车后进「JZH高速」就能开对应的车。档位越高极速越快、越好操控、越好跑分。买过的车会进你的车库展示。') }}</p>
 
-  <button class="go" onclick="location.href='/highway'">🏁 上 JZH高速 开一把</button>
+  <button class="go" onclick="location.href='/highway'">🏁 {{ _('上 JZH高速 开一把') }}</button>
 
-  <div id="list"><div class="loading">正在开门营业…</div></div>
+  <div id="list"><div class="loading">{{ _('正在开门营业…') }}</div></div>
 </div>
 <div id="toast"></div>
 <script src="/static/car_sprites.js"></script>
@@ -71,17 +72,17 @@ function barHTML(val,max,color){const p=Math.round(val/max*100);return '<span cl
 function carHTML(c){
   const canBuy = !c.owned && COINS>=c.price;
   let btn;
-  if(c.owned) btn='<button class="btn owned">✅ 已拥有</button>';
-  else btn='<button class="btn buy" '+(canBuy?'':'disabled')+' onclick="buy(\''+c.id+'\')">购买</button>';
+  if(c.owned) btn=('<button class="btn owned">'+'✅ '+__('已拥有')+'</button>');
+  else btn='<button class="btn buy" '+(canBuy?'':'disabled')+' onclick="buy(\''+c.id+'\')">'+__('购买')+'</button>';
   return '<div class="car">'
     + '<div class="ic" style="box-shadow:inset 0 0 0 2px '+c.color+'55">'+(window.carSprite?carSprite(c.id):c.emoji)+'</div>'
     + '<div class="info">'
-      + '<div class="nm">'+esc(c.name)+'<span class="tier">T'+c.tier+'</span></div>'
-      + '<div class="desc">'+esc(c.desc||'')+'</div>'
+      + '<div class="nm">'+esc(__(c.name))+'<span class="tier">T'+c.tier+'</span></div>'
+      + '<div class="desc">'+esc(c.desc?__(c.desc):'')+'</div>'
       + '<div class="stats">'
-        + '<span class="stat">极速 '+barHTML(c.top,320,'#ff6b6b')+' <b>'+c.top+'</b></span>'
-        + '<span class="stat">加速 '+barHTML(c.accel,1,'#ffd85a')+'</span>'
-        + '<span class="stat">操控 '+barHTML(c.grip,10,'#27e3ff')+'</span>'
+        + ('<span class="stat">'+__('极速')+' ')+barHTML(c.top,320,'#ff6b6b')+' <b>'+c.top+'</b></span>'
+        + ('<span class="stat">'+__('加速')+' ')+barHTML(c.accel,1,'#ffd85a')+'</span>'
+        + ('<span class="stat">'+__('操控')+' ')+barHTML(c.grip,10,'#27e3ff')+'</span>'
       + '</div>'
     + '</div>'
     + '<div class="buyc"><div class="price">'+c.price+'<small>🪙</small></div>'+btn+'</div>'
@@ -92,16 +93,16 @@ async function load(){
     const d=await (await fetch('/toyoba/data')).json();
     COINS=d.coins||0; document.getElementById('coins').textContent=COINS;
     document.getElementById('list').innerHTML=(d.cars||[]).map(carHTML).join('');
-  }catch(e){ document.getElementById('list').innerHTML='<div class="loading">加载失败，刷新试试</div>'; }
+  }catch(e){ document.getElementById('list').innerHTML=('<div class="loading">'+__('加载失败，刷新试试')+'</div>'); }
 }
 async function buy(id){
   if(busy) return; busy=true;
   try{
     const d=await (await fetch('/toyoba/buy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({car_id:id})})).json();
-    toast(d.msg||(d.ok?'提车成功':'买不了'), !d.ok);
+    toast(d.msg||(d.ok?__('提车成功'):__('买不了')), !d.ok);
     if(d.coins!==undefined) COINS=d.coins;
     await load();
-  }catch(e){ toast('网络出错，待会儿再试',true); }
+  }catch(e){ toast(__('网络出错，待会儿再试'),true); }
   finally{ busy=false; }
 }
 load();

@@ -1,25 +1,20 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+{% from "_appbar.html" import appbar, head with context %}
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>小屋</title>
+{{ head(_('小屋')) }}
 <style>
-  :root{--sky:#D9E2EC;--paper:#fff;--ink:#262B33;--muted:#6B7683;--grape:#6D4FA3;--marigold:#F5A623;--line:#C6D0DA;--green:#5FBF8F;}
-  *{box-sizing:border-box}
-  [hidden]{display:none!important}   /* 关键：让 hidden 属性真正隐藏元素，别被 .uprow{display:flex} 之类盖过 */
-  body{margin:0;background:var(--sky);color:var(--ink);font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;padding:18px 12px 46px}
-  .wrap{max-width:460px;margin:0 auto}
-  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-  h1{font-size:21px;margin:0}
-  h1 em{font-style:normal;color:var(--grape)}
-  .back{font-size:13px;color:var(--muted);text-decoration:none}
-  .tag{display:inline-block;font-size:12px;background:var(--grape);color:#fff;border-radius:999px;padding:2px 10px;margin-left:6px;vertical-align:middle}
-  .panel{background:var(--paper);border-radius:20px;padding:12px;box-shadow:0 10px 26px rgba(38,43,51,.10);margin-bottom:14px}
+  :root{--sky:#f3eef0;--paper:#fff;--ink:#1e2230;--muted:#5d6372;--grape:#6b1a2b;--marigold:#dcbf7e;--line:#e4dcdf;--green:#7fa892;}
+  body{background:var(--sky);line-height:normal}
+  .wrap{max-width:480px;margin:0 auto;padding:28px 16px 52px}
+  .hhead{display:flex;align-items:center;gap:8px;margin:0 0 14px}
+  .hhead h1{margin:0;font-size:26px;font-weight:600}
+  .tag{display:inline-block;font-size:12px;background:var(--grape);color:#fff;border-radius:999px;padding:2px 10px;vertical-align:middle}
+  .hpanel{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:14px}
   .interior{width:100%;height:auto;display:block;border-radius:14px}
   .lvlnote{text-align:center;color:var(--muted);font-size:12px;margin:8px 2px 0}
-  h2{font-size:13px;margin:0 0 10px;display:flex;align-items:center;gap:6px}
-  h2 small{color:var(--muted);font-weight:400;font-size:11px}
+  h2{font-size:15px;font-weight:600;margin:4px 0 8px;display:flex;align-items:center;gap:6px}
+  h2 small{color:var(--muted);font-weight:400;font-size:12px}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px}
   .cell{background:#F5F8FB;border:1px solid var(--line);border-radius:12px;padding:8px 4px;text-align:center}
   .cell .ic{font-size:26px;line-height:1}
@@ -30,15 +25,15 @@
 
   /* —— 升级小屋 —— */
   .uprow{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
-  .upbtn{font-weight:800;font-size:13px;cursor:pointer;border:2px solid var(--ink);border-radius:12px;padding:9px 14px;background:var(--marigold);color:#3a2a00;box-shadow:3px 3px 0 var(--ink)}
-  .upbtn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+  .upbtn{font:inherit;font-weight:600;font-size:13px;cursor:pointer;border:1.5px solid var(--ink);border-radius:12px;padding:9px 14px;background:var(--marigold);color:var(--ink);box-shadow:2px 2px 0 var(--ink)}
+  .upbtn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
   .upbtn.max{background:#efe7d6;color:var(--muted);border-color:var(--line);box-shadow:none;cursor:default}
   .upbtn.poor{background:#eceff3;color:#8b93a0;box-shadow:2px 2px 0 var(--line)}
   .upcoins{font-size:12px;color:var(--muted)}
-  .upcoins b{color:var(--marigold)}
+  .upcoins b{color:var(--claret)}
 
   /* —— 展示墙：钓具架 + 鱼获墙 —— */
-  .wallhint{font-size:11px;color:var(--muted);margin:0 0 10px}
+  .wallhint{font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.6}
   .rack{display:flex;flex-wrap:wrap;gap:10px 12px;padding:16px 12px 12px;border-radius:12px;position:relative}
   .rack.gear{background:linear-gradient(#efe0c6,#e6d2ac);border:1px solid #d8c199}
   .rack.gear::before{content:"";position:absolute;left:12px;right:12px;top:9px;height:7px;border-radius:4px;background:#a97d47;box-shadow:0 2px 0 #8a5f34}
@@ -58,71 +53,71 @@
   .slotcap{font-size:11px;color:var(--muted);text-align:center;margin:10px 2px 0}
 
   /* —— 升级确认弹窗 + 提示条 —— */
-  .hmodal{position:fixed;inset:0;background:rgba(38,43,51,.5);display:flex;align-items:center;justify-content:center;z-index:80;padding:20px}
+  .hmodal{position:fixed;inset:0;background:rgba(40,10,18,.45);display:flex;align-items:center;justify-content:center;z-index:80;padding:20px}
   .hmodal[hidden]{display:none}
   .hbox{position:relative;background:#fff;border-radius:18px;padding:18px;max-width:320px;width:100%;box-shadow:0 16px 40px rgba(0,0,0,.25)}
-  .htitle{font-size:16px;font-weight:800;text-align:center;margin-bottom:8px}
-  .htext{font-size:13px;color:var(--muted);text-align:center;line-height:1.7;margin-bottom:14px}
+  .htitle{font-size:17px;font-weight:600;text-align:center;margin-bottom:8px}
+  .htext{font-size:14px;color:var(--muted);text-align:center;line-height:1.7;margin-bottom:14px}
   .htext b{color:var(--grape)}
   .hbtns{display:flex;gap:10px}
-  .hbtns button{flex:1;font-weight:800;font-size:14px;cursor:pointer;border-radius:12px;padding:10px;border:2px solid var(--ink)}
-  .hcancel{background:#fff;color:var(--ink);box-shadow:3px 3px 0 var(--ink)}
-  .hok{background:var(--marigold);color:#3a2a00;box-shadow:3px 3px 0 var(--ink)}
-  .hbtns button:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+  .hbtns button{flex:1;font:inherit;font-weight:600;font-size:14px;cursor:pointer;border-radius:12px;padding:10px;border:1.5px solid var(--ink)}
+  .hcancel{background:#fff;color:var(--ink);box-shadow:2px 2px 0 var(--ink)}
+  .hok{background:var(--marigold);color:var(--ink);box-shadow:2px 2px 0 var(--ink)}
+  .hbtns button:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
   .htoast{position:fixed;left:50%;bottom:42px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;padding:10px 16px;border-radius:12px;z-index:90;box-shadow:0 8px 20px rgba(0,0,0,.3);max-width:80%;text-align:center}
   .htoast[hidden]{display:none}
 </style>
 </head>
 <body>
 <!-- hut build 2026-09-18 · visitor-safe-upgrade-v4 -->
+{% call appbar(_('小屋')) %}<a id="backLink" href="/plaza">{{ _('回牧场') }}</a>{% endcall %}
 <div class="wrap">
-  <div class="topbar">
-    <h1>🏕️ <em id="hutTitle">小屋</em><span class="tag" id="lvlTag">…</span></h1>
-    <a class="back" id="backLink" href="/plaza">← 回牧场</a>
+  <div class="hhead">
+    <h1 id="hutTitle">{{ _('小屋') }}</h1><span class="tag" id="lvlTag">…</span>
   </div>
 
-  <div class="panel">
+  <div class="hpanel">
     <div id="interior"></div>
     <p class="lvlnote" id="lvlNote"></p>
     <div class="uprow" id="upRow" hidden>
-      <button class="upbtn" id="upBtn">升级</button>
+      <button class="upbtn" id="upBtn">{{ _('升级') }}</button>
       <span class="upcoins" id="upCoins"></span>
     </div>
   </div>
 
-  <div class="panel">
-    <h2>🎣 钓具架 <small id="gearCount"></small></h2>
-    <p class="wallhint">在上岛屋买到的钓具挂在架上；小屋越大，挂位越多</p>
+  <div class="hpanel">
+    <h2>🎣 {{ _('钓具架') }} <small id="gearCount"></small></h2>
+    <p class="wallhint">{{ _('在上岛屋买到的钓具挂在架上；小屋越大，挂位越多') }}</p>
     <div class="rack gear" id="gearBox"></div>
     <p class="slotcap" id="gearCap"></p>
   </div>
 
-  <div class="panel">
-    <h2>🐟 鱼获墙 <small id="fishCount"></small></h2>
-    <p class="wallhint">在江之岛·中岛钓到的鱼挂上墙展示；小屋越大，展示位越多</p>
+  <div class="hpanel">
+    <h2>🐟 {{ _('鱼获墙') }} <small id="fishCount"></small></h2>
+    <p class="wallhint">{{ _('在江之岛·中岛钓到的鱼挂上墙展示；小屋越大，展示位越多') }}</p>
     <div class="rack fish" id="fishBox"></div>
     <p class="slotcap" id="fishCap"></p>
   </div>
 
-  <p style="text-align:center;color:#c2c9d2;font-size:10px;margin:6px 0 0">build v4 · 0918 · 访客不显示升级(CSS修复)</p>
 </div>
 
 <!-- 升级确认弹窗 -->
 <div class="hmodal" id="upModal" hidden>
   <div class="hbox">
-    <div class="htitle">🏠 升级小屋</div>
+    <div class="htitle">🏠 {{ _('升级小屋') }}</div>
     <div class="htext" id="upmText"></div>
     <div class="hbtns">
-      <button class="hcancel" id="upmNo">再想想</button>
-      <button class="hok" id="upmYes">确定升级</button>
+      <button class="hcancel" id="upmNo">{{ _('再想想') }}</button>
+      <button class="hok" id="upmYes">{{ _('确定升级') }}</button>
     </div>
   </div>
 </div>
 <div class="htoast" id="toast" hidden></div>
 
 <script>
-const HOST = "{{ host }}";
-const LVL_DESC = ["简陋的帐篷，能遮风挡雨就行","木制棚屋，总算像个家了","红砖小屋，结实又暖和","精美小屋，处处有心思","气派的一户建","豪宅，人生赢家"];
+const HOST = {{ host|tojson }};
+function esc(s){const d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;}
+const LVL_DESC = [__("简陋的帐篷，能遮风挡雨就行"),__("木制棚屋，总算像个家了"),__("红砖小屋，结实又暖和"),__("精美小屋，处处有心思"),__("气派的一户建"),__("豪宅，人生赢家")];
 
 // ===== 小屋内景：6 级，保留各自身份，随时间「白天/傍晚/夜晚」自动变窗外景 + 开关灯 =====
 // 白天：窗外明亮、屋内灯关；傍晚：暖色夕照、开灯；夜晚：城市夜景、开灯。
@@ -470,9 +465,9 @@ function renderGear(box, items, n){
     const it=items[i];
     if(it){
       const ic = it.emoji ? `<span style="font-size:30px">${it.emoji}</span>` : pxRod(false);
-      html += `<div class="hook"><span class="pin"></span><div class="tile filled">${ic}</div><div class="slotlbl">${it.name||'钓具'}</div></div>`;
+      html += `<div class="hook"><span class="pin"></span><div class="tile filled">${ic}</div><div class="slotlbl">${esc(__(it.name||'钓具'))}</div></div>`;
     }else{
-      html += `<div class="hook"><span class="pin"></span><div class="tile empty">${pxRod(true)}</div><div class="slotlbl dim">空位</div></div>`;
+      html += `<div class="hook"><span class="pin"></span><div class="tile empty">${pxRod(true)}</div><div class="slotlbl dim">${__('空位')}</div></div>`;
     }
   }
   box.innerHTML = html;
@@ -483,9 +478,9 @@ function renderFish(box, items, n){
     const it=items[i];
     if(it){
       const ic = it.emoji ? `<span style="font-size:26px">${it.emoji}</span>` : pxFish(false);
-      html += `<div class="mount"><div class="plaque">${ic}</div><div class="slotlbl">${it.name||'鱼'}</div></div>`;
+      html += `<div class="mount"><div class="plaque">${ic}</div><div class="slotlbl">${esc(__(it.name||'鱼'))}</div></div>`;
     }else{
-      html += `<div class="mount"><div class="plaque empty">${pxFish(true)}</div><div class="slotlbl dim">空位</div></div>`;
+      html += `<div class="mount"><div class="plaque empty">${pxFish(true)}</div><div class="slotlbl dim">${__('空位')}</div></div>`;
     }
   }
   box.innerHTML = html;
@@ -505,41 +500,41 @@ function render(d){
   const lvl = d.house_level||0;
   const slots = d.slots || {gear:1, fish:2};
   const gears = d.gear||[], fishes = d.fish||[];
-  document.getElementById('hutTitle').textContent = d.is_me ? '我的小屋' : ((d.host||'')+' 的小屋');
-  document.getElementById('lvlTag').textContent = d.house_name || '帐篷';
+  document.getElementById('hutTitle').textContent = d.is_me ? __('我的小屋') : __('{name} 的小屋', {name: d.host||''});
+  document.getElementById('lvlTag').textContent = __(d.house_name || '帐篷');
   document.getElementById('backLink').href = '/plaza/'+encodeURIComponent(d.host||HOST);
   const tod = timeOfDay();
   document.getElementById('interior').innerHTML = interiorSVG(lvl, tod);
-  const TOD_CN = {day:'☀️ 白天', dusk:'🌇 傍晚', night:'🌙 夜晚'};
-  document.getElementById('lvlNote').textContent = LVL_DESC[Math.min(lvl, LVL_DESC.length-1)] + '　·　'+TOD_CN[tod]+'（窗外与灯光随时间自动变化）';
+  const TOD_CN = {day:'☀️ '+__('白天'), dusk:'🌇 '+__('傍晚'), night:'🌙 '+__('夜晚')};
+  document.getElementById('lvlNote').textContent = LVL_DESC[Math.min(lvl, LVL_DESC.length-1)] + ' · '+TOD_CN[tod]+__('（窗外与灯光随时间自动变化）');
 
   renderGear(document.getElementById('gearBox'), gears, slots.gear);
   renderFish(document.getElementById('fishBox'), fishes, slots.fish);
   document.getElementById('gearCount').textContent = '· '+gears.length+'/'+slots.gear;
   document.getElementById('fishCount').textContent = '· '+fishes.length+'/'+slots.fish;
-  document.getElementById('gearCap').textContent = '钓具展示位 '+slots.gear+' 个 · 升级小屋可增加';
-  document.getElementById('fishCap').textContent = '鱼获展示位 '+slots.fish+' 个 · 升级小屋可增加';
+  document.getElementById('gearCap').textContent = __('钓具展示位 {n} 个 · 升级小屋可增加', {n: slots.gear});
+  document.getElementById('fishCap').textContent = __('鱼获展示位 {n} 个 · 升级小屋可增加', {n: slots.fish});
 
   // 升级行：只有自己的小屋能升
   const upRow=document.getElementById('upRow'), upBtn=document.getElementById('upBtn'), upCoins=document.getElementById('upCoins');
   if(!d.is_me){ upRow.hidden=true; return; }
   upRow.hidden=false;
   if(d.next_cost==null){
-    upBtn.className='upbtn max'; upBtn.textContent='🏰 已是最高级 · 豪宅'; upCoins.innerHTML='';
+    upBtn.className='upbtn max'; upBtn.textContent='🏰 '+__('已是最高级 · 豪宅'); upCoins.innerHTML='';
   }else{
     const enough=(d.coins||0)>=d.next_cost;
     upBtn.className='upbtn'+(enough?'':' poor');
-    upBtn.textContent='⬆️ 升级为 '+d.next_name+' · '+d.next_cost+'金币';
-    upCoins.innerHTML='你有 <b>'+(d.coins||0)+'</b> 金币'+(enough?'':'（还差 '+(d.next_cost-(d.coins||0))+'）');
+    upBtn.textContent='⬆️ '+__('升级为 {name} · {cost}金币', {name: __(d.next_name), cost: d.next_cost});
+    upCoins.innerHTML=esc(__('你有 {n} 金币', {n: d.coins||0}))+(enough?'':esc(__('（还差 {n}）', {n: d.next_cost-(d.coins||0)})));
   }
 }
 
 // 升级按钮 → 确认弹窗
 document.getElementById('upBtn').addEventListener('click', ()=>{
   if(!D || !D.is_me || D.next_cost==null) return;
-  if((D.coins||0) < D.next_cost){ toast('金币不够，去赌场或打工赚点再来～'); return; }
+  if((D.coins||0) < D.next_cost){ toast(__('金币不够，去赌场或打工赚点再来～')); return; }
   document.getElementById('upmText').innerHTML =
-    '把小屋升级为 <b>'+D.next_name+'</b> 吗？<br>要花 <b>'+D.next_cost+'</b> 金币（你现在有 '+(D.coins||0)+'）';
+    esc(__('把小屋升级为 {name} 吗？', {name: __(D.next_name)}))+'<br>'+esc(__('要花 {cost} 金币（你现在有 {coins}）', {cost: D.next_cost, coins: D.coins||0}));
   document.getElementById('upModal').hidden=false;
 });
 document.getElementById('upmNo').addEventListener('click', ()=>{ document.getElementById('upModal').hidden=true; });
@@ -548,14 +543,14 @@ document.getElementById('upmYes').addEventListener('click', async ()=>{
   document.getElementById('upModal').hidden=true;
   let r;
   try{ r = await (await fetch('/hut/upgrade',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json(); }
-  catch(e){ toast('升级失败，网络出错了'); return; }
+  catch(e){ toast(__('升级失败，网络出错了')); return; }
   if(r && r.ok){
-    toast(r.msg || '升级成功！');
+    toast(r.msg || __('升级成功！'));
     D = Object.assign({}, D, {house_level:r.house_level, house_name:r.house_name,
       next_name:r.next_name, next_cost:r.next_cost, slots:r.slots, coins:r.coins});
     render(D);
   }else{
-    toast((r && r.msg) || '升级失败');
+    toast((r && r.msg) || __('升级失败'));
     if(r && typeof r.coins==='number'){ D.coins=r.coins; render(D); }
   }
 });
@@ -576,8 +571,8 @@ setInterval(()=>{
     _tod = t;
     const lvl = D.house_level||0;
     document.getElementById('interior').innerHTML = interiorSVG(lvl, t);
-    const TOD_CN = {day:'☀️ 白天', dusk:'🌇 傍晚', night:'🌙 夜晚'};
-    document.getElementById('lvlNote').textContent = LVL_DESC[Math.min(lvl, LVL_DESC.length-1)] + '　·　'+TOD_CN[t]+'（窗外与灯光随时间自动变化）';
+    const TOD_CN = {day:'☀️ '+__('白天'), dusk:'🌇 '+__('傍晚'), night:'🌙 '+__('夜晚')};
+    document.getElementById('lvlNote').textContent = LVL_DESC[Math.min(lvl, LVL_DESC.length-1)] + ' · '+TOD_CN[t]+__('（窗外与灯光随时间自动变化）');
   }
 }, 60000);
 </script>

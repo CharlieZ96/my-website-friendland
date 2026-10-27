@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
+{% include "_i18n.html" %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>江世战争</title>
+<title>{{ _('江世战争') }}</title>
 <style>
   :root{
     --bg:#15101f; --bg2:#1f1830; --card:#271f3b; --line:#3a2f55; --ink:#f1ecff; --muted:#a79cc4;
@@ -172,30 +173,30 @@
 <!-- ======================= 进洞：排队等对手 ======================= -->
 <div id="wait">
   <div class="wbox">
-    <h1>江世战争</h1>
-    <div class="sub">洞窟深处的竞技场 · JZH ROYALE</div>
+    <h1>{{ _('江世战争') }}</h1>
+    <div class="sub">{{ _('洞窟深处的竞技场 · JZH ROYALE') }}</div>
     <div class="spin" id="wSpin"></div>
-    <h3 id="wTitle">正在连接洞窟…</h3>
+    <h3 id="wTitle">{{ _('正在连接洞窟…') }}</h3>
     <p id="qText"></p>
     <div class="mini" id="myDeck"></div>
-    <button class="btn" id="qCancel">不打了，回江之岛</button>
-    <a class="btn" href="/jiangshi/cards">🃏 去编辑卡组</a>
+    <button class="btn" id="qCancel">{{ _('不打了，回江之岛') }}</button>
+    <a class="btn" href="/jiangshi/cards">🃏 {{ _('去编辑卡组') }}</a>
   </div>
 </div>
 
 <!-- ======================= 对战 ======================= -->
 <div id="game" class="hidden">
   <div class="hud">
-    <div class="who"><button class="flag" id="giveUp" title="投降">🏳️</button>
-      <span class="nm" id="oppName">对手</span><span class="crowns" id="oppCr"></span></div>
+    <div class="who"><button class="flag" id="giveUp" title="{{ _('投降') }}">🏳️</button>
+      <span class="nm" id="oppName">{{ _('对手') }}</span><span class="crowns" id="oppCr"></span></div>
     <div class="clock" id="clock">3:00</div>
-    <div class="who r"><span class="crowns" id="myCr"></span><span class="nm" id="myName">我</span></div>
+    <div class="who r"><span class="crowns" id="myCr"></span><span class="nm" id="myName">{{ _('我') }}</span></div>
   </div>
   <div id="stage"><canvas id="cv"></canvas></div>
   <div class="dock">
     <div class="hand" id="hand"></div>
     <div class="guabar">
-      <span class="lbl">瓜拉娜</span>
+      <span class="lbl">{{ _('瓜拉娜') }}</span>
       <div class="segs"><div class="fill" id="gfill"></div><div class="ticks"></div></div>
       <span class="gnum" id="gnum">5</span>
       <span class="gx2 hidden" id="gx2">×2</span>
@@ -206,13 +207,13 @@
 <!-- 结算 -->
 <div class="overlay hidden" id="result">
   <div class="res">
-    <div class="t" id="resT">胜利</div>
+    <div class="t" id="resT">{{ _('胜利') }}</div>
     <div class="cr" id="resCr"></div>
     <div class="gain" id="resGain"></div>
     <div class="note" id="resNote"></div>
-    <button class="btn gold" id="again">再来一局</button>
-    <a class="btn" href="/jiangshi/cards" style="display:block;text-decoration:none;text-align:center;margin-top:8px">🃏 编辑卡组</a>
-    <a class="btn" href="/enoshima" style="display:block;text-decoration:none;text-align:center;margin-top:8px">回江之岛</a>
+    <button class="btn gold" id="again">{{ _('再来一局') }}</button>
+    <a class="btn" href="/jiangshi/cards" style="display:block;text-decoration:none;text-align:center;margin-top:8px">🃏 {{ _('编辑卡组') }}</a>
+    <a class="btn" href="/enoshima" style="display:block;text-decoration:none;text-align:center;margin-top:8px">{{ _('回江之岛') }}</a>
   </div>
 </div>
 
@@ -257,15 +258,15 @@ async function connect(){
   sock.on('js_state', onState);
   sock.on('js_end', onEnd);
   sock.on('js_error', d=>toast(d.msg));
-  sock.on('connect_error', ()=>toast('连接洞窟失败，稍后再试'));
+  sock.on('connect_error', ()=>toast(__('连接洞窟失败，稍后再试')));
 }
 let queueStart = 0, queueWait = 15, qTimer = null;
 function showQueue(on){
   clearInterval(qTimer);
-  if(on){ $('wTitle').textContent = '正在洞窟深处寻找对手…'; $('wSpin').classList.remove('stop'); }
+  if(on){ $('wTitle').textContent = __('正在洞窟深处寻找对手…'); $('wSpin').classList.remove('stop'); }
   if(on) qTimer = setInterval(()=>{
     const s = Math.floor((Date.now()-queueStart)/1000), left = Math.max(0, queueWait - s);
-    $('qText').textContent = left>0 ? `已等 ${s} 秒 · ${left} 秒后没人的话，洞窟守卫会来陪你打` : '洞窟守卫正在赶来…';
+    $('qText').textContent = left>0 ? `${__('已等 {p0} 秒 · {p1} 秒后没人的话，洞窟守卫会来陪你打',{p0:(s),p1:(left)})}` : __('洞窟守卫正在赶来…');
   }, 300);
 }
 $('qCancel').onclick = ()=>{ wantQueue = false; if(sock) sock.emit('js_cancel', {}); location.href = '/enoshima'; };
@@ -290,7 +291,7 @@ function startGame(d){
   $('oppName').textContent = d.opp + (d.opp_ai?'（AI）':'');
   $('myName').textContent = ME;
   renderHand(); resize(); requestAnimationFrame(resize);
-  banner(d.opp_ai ? '洞窟守卫来了！' : '对手出现：'+d.opp);
+  banner(d.opp_ai ? __('洞窟守卫来了！') : __('对手出现：')+d.opp);
 }
 function resize(){
   if(!G) return;
@@ -337,7 +338,7 @@ function curPos(u, now){
 }
 function updateHud(){
   const t = Math.ceil(G.t), mm = Math.floor(t/60), ss = String(t%60).padStart(2,'0');
-  $('clock').textContent = (G.ot?'加时 ':'') + mm+':'+ss;
+  $('clock').textContent = (G.ot?(__('加时')+' '):'') + mm+':'+ss;
   $('clock').classList.toggle('ot', G.ot);
   $('myCr').textContent = '👑'.repeat(G.cr[0]) + '♔'.repeat(3-G.cr[0]);
   $('oppCr').textContent = '👑'.repeat(G.cr[1]) + '♔'.repeat(3-G.cr[1]);
@@ -351,13 +352,13 @@ function updateHud(){
 function renderHand(){
   const h = $('hand'); h.innerHTML = '';
   const nx = document.createElement('div'); nx.className='next';
-  const nc = G.cards[G.next]; nx.innerHTML = nc ? `${nc.emoji}<small>下一张</small>` : '';
+  const nc = G.cards[G.next]; nx.innerHTML = nc ? `${nc.emoji}<small>${__('下一张')}</small>` : '';
   h.appendChild(nx);
   G.hand.forEach((k,i)=>{
     const c = G.cards[k]; const el = document.createElement('div');
     el.className = 'hcard '+(RARITY[c.rarity]||'') + (G.sel===i?' sel':'');
     el.dataset.k = k; el.dataset.i = i;
-    el.innerHTML = `<span class="gua cost">${c.cost}</span><div class="em">${c.emoji}</div><div class="nm">${c.name}</div>`;
+    el.innerHTML = `<span class="gua cost">${c.cost}</span><div class="em">${c.emoji}</div><div class="nm">${__(c.name)}</div>`;
     el.addEventListener('pointerdown', e=>{ e.preventDefault(); G.drag={i, moved:false, x:e.clientX, y:e.clientY}; });
     h.appendChild(el);
   });
@@ -414,12 +415,12 @@ function validSpot(key, x, y){
 }
 function tryPlay(i, x, y){
   const k = G.hand[i], c = G.cards[k];
-  if(c.cost > G.elixir+1e-6){ toast('瓜拉娜不够'); return; }
-  if(!validSpot(k,x,y)){ toast('这里不能下'); return; }
+  if(c.cost > G.elixir+1e-6){ toast(__('瓜拉娜不够')); return; }
+  if(!validSpot(k,x,y)){ toast(__('这里不能下')); return; }
   sock.emit('js_play', {i, x:+x.toFixed(2), y:+y.toFixed(2)});
   G.sel = -1; G.ghost = null; renderHand();
 }
-$('giveUp').onclick = ()=>{ if(G && !G.over && confirm('确定投降吗？')) sock.emit('js_surrender', {}); };
+$('giveUp').onclick = ()=>{ if(G && !G.over && confirm(__('确定投降吗？'))) sock.emit('js_surrender', {}); };
 
 // ================================================================
 // 画面
@@ -681,11 +682,11 @@ function addFx(e, now){
   else if(e.k==='spell') f.dur = e.c==='zap' ? 260 : 480;
   else if(e.k==='die') f.dur = e.big ? 600 : 360;
   else if(e.k==='boom') f.dur = 500;
-  else if(e.k==='tower'){ f.dur = 900; banner(e.s===G.side ? '我方塔倒了！' : '拆掉一座塔！👑'); }
+  else if(e.k==='tower'){ f.dur = 900; banner(e.s===G.side ? __('我方塔倒了！') : (__('拆掉一座塔！')+'👑')); }
   else if(e.k==='rage') f.dur = 500;
   else if(e.k==='dash') f.dur = 300;
   else if(e.k==='king'){ f.dur = 700; }
-  else if(e.k==='ot'){ banner('加时赛！先拆一座塔的赢'); return; }
+  else if(e.k==='ot'){ banner(__('加时赛！先拆一座塔的赢')); return; }
   else if(e.k==='play'){ if(e.s===G.side) return; f.dur = 900; }
   else return;
   G.fx.push(f);
@@ -738,9 +739,9 @@ function drawFx(now){
     } else if(f.k==='play'){
       const c = G.cards[f.c]; if(!c){ ctx.restore(); continue; }
       ctx.globalAlpha = a<0.8 ? 1 : (1-a)*5; const x=sx(f.x), y=sy(f.y)-T*1.4-a*T*0.5;
-      ctx.font = `bold ${Math.max(11,T*0.55)}px system-ui`; const tw = ctx.measureText(c.name).width + T*1.3;
+      ctx.font = `bold ${Math.max(11,T*0.55)}px system-ui`; const tw = ctx.measureText(__(c.name)).width + T*1.3;
       ctx.fillStyle='#000b'; roundRect(x-tw/2, y-T*0.45, tw, T*0.9, T*0.3); ctx.fill();
-      ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(c.emoji+' '+c.name, x, y);
+      ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(c.emoji+' '+__(c.name), x, y);
     }
     ctx.restore();
   }
@@ -800,15 +801,15 @@ function onEnd(d){
     $('wait').classList.add('hidden');
   }
   if(G){ G.over = true; G.sel = -1; }
-  const T0 = {win:'胜 利', lose:'失 败', draw:'平 局'}[d.result];
+  const T0 = {win:__('胜 利'), lose:__('失 败'), draw:__('平 局')}[d.result];
   $('resT').textContent = T0; $('resT').className = 't ' + d.result;
   $('resCr').textContent = `👑 ${d.cr[0]} : ${d.cr[1]} 👑`;
   const st = d.settle || {};
-  $('resGain').textContent = st.coins ? `+${st.coins} 金币` : '';
-  const why = {surrender: d.result==='win' ? '对手投降了' : '你投降了', king:'国王塔被拆', time:'时间到，皇冠多的赢',
-               ot:'加时赛分出胜负', kinghp:'加时结束，国王塔血量多的赢', draw:'双方打平', error:'对局出错，按平局处理'}[d.reason] || '';
-  const vs = d.opp ? `对手：${d.opp}` : '';
-  $('resNote').textContent = [missed ? '你离开期间，上一局已经结束了' : '', missed ? vs : '', why, st.note].filter(Boolean).join(' · ');
+  $('resGain').textContent = st.coins ? `${__('+{p0} 金币',{p0:(st.coins)})}` : '';
+  const why = {surrender: d.result==='win' ? __('对手投降了') : __('你投降了'), king:__('国王塔被拆'), time:__('时间到，皇冠多的赢'),
+               ot:__('加时赛分出胜负'), kinghp:__('加时结束，国王塔血量多的赢'), draw:__('双方打平'), error:__('对局出错，按平局处理')}[d.reason] || '';
+  const vs = d.opp ? `${__('对手：{p0}',{p0:(d.opp)})}` : '';
+  $('resNote').textContent = [missed ? __('你离开期间，上一局已经结束了') : '', missed ? vs : '', why, st.note].filter(Boolean).join(' · ');
   $('resT').dataset.missed = missed ? '1' : '';
   setTimeout(()=>$('result').classList.remove('hidden'), missed ? 0 : 900);
 }
@@ -817,9 +818,9 @@ function onEnd(d){
 function onGone(){
   if(!G) return;
   G.over = true; G.sel = -1;
-  $('resT').textContent = '对局已结束'; $('resT').className = 't draw';
+  $('resT').textContent = __('对局已结束'); $('resT').className = 't draw';
   $('resCr').textContent = ''; $('resGain').textContent = '';
-  $('resNote').textContent = '这局在你断线期间已经结束了（洞窟可能刚维护过），结果以金币和战绩为准';
+  $('resNote').textContent = __('这局在你断线期间已经结束了（洞窟可能刚维护过），结果以金币和战绩为准');
   $('result').classList.remove('hidden');
 }
 
@@ -827,7 +828,7 @@ function onGone(){
 $('again').onclick = ()=>{
   $('result').classList.add('hidden'); $('game').classList.add('hidden'); $('wait').classList.remove('hidden');
   G = null; wantQueue = true;
-  $('wTitle').textContent = '正在洞窟深处寻找对手…'; $('qText').textContent = '';
+  $('wTitle').textContent = __('正在洞窟深处寻找对手…'); $('qText').textContent = '';
   if(sock && sock.connected) sock.emit('js_queue', {});
 };
 
@@ -835,22 +836,22 @@ function renderMyDeck(){
   const box = $('myDeck'); box.innerHTML = '';
   const map = {}; L.cards.forEach(c=>map[c.key]=c);
   L.deck.forEach(k=>{ const c = map[k]; if(!c) return;
-    const d = document.createElement('div'); d.className = 'mc ' + (RARITY[c.rarity]||''); d.title = c.name;
+    const d = document.createElement('div'); d.className = 'mc ' + (RARITY[c.rarity]||''); d.title = __(c.name);
     d.innerHTML = `<b>${c.cost}</b>${c.emoji}`; box.appendChild(d); });
 }
 async function boot(){
   try{ L = await (await fetch('/jiangshi/data')).json(); }
-  catch(e){ $('wTitle').textContent = '洞窟连不上'; $('qText').textContent = '刷新一下试试'; $('wSpin').classList.add('stop'); return; }
+  catch(e){ $('wTitle').textContent = __('洞窟连不上'); $('qText').textContent = __('刷新一下试试'); $('wSpin').classList.add('stop'); return; }
   renderMyDeck();
   if(L.deck.length !== L.deck_size){
     $('wSpin').classList.add('stop');
-    $('wTitle').textContent = '卡组还没组好';
-    $('qText').textContent = `需要 ${L.deck_size} 张卡才能开战，先去编辑卡组吧`;
+    $('wTitle').textContent = __('卡组还没组好');
+    $('qText').textContent = `${__('需要 {p0} 张卡才能开战，先去编辑卡组吧',{p0:(L.deck_size)})}`;
     return;
   }
   wantQueue = true;
   try{ await connect(); }
-  catch(e){ $('wTitle').textContent = '洞窟连不上'; $('qText').textContent = '网络好像有问题，刷新试试'; $('wSpin').classList.add('stop'); }
+  catch(e){ $('wTitle').textContent = __('洞窟连不上'); $('qText').textContent = __('网络好像有问题，刷新试试'); $('wSpin').classList.add('stop'); }
 }
 boot();
 </script>

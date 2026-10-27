@@ -15,12 +15,10 @@ DB = "users.db"
 # 新版本就自动进入随机池，老逻辑一律不用动。
 PET_VERSIONS = ["v1", "v2", "v3", "v4", "v5", "v6", "v7"]
  
-# ====== 说话库（点击JZH随机说一句，随时增删）======
-SAYINGS = {
-    "cocoon": ["呼…呼…", "（睡得很香）", "再睡五分钟"],
-    "kid":    ["我才是皇帝！", "背单词好舒服", "今天也要吃咖喱", "陪我玩", "我不困"],
-    "adult":  ["谢谢老板", "急了", "为什么不去上班", "先吃饭再说", "今天也辛苦了", "骂我一会呗"],
-}
+# ====== 说话库（点击JZH随机说一句）======
+# 台词在 jzh_content.py（仓库里是示例，真实台词在服务器的 private/jzh_private.py）
+import jzh_content
+from i18n import t as tr      # 翻译函数（act() 里的 t 是时间，别混用）
  
 # ====== 节奏参数（随时调）======
 WAKE_GAP        = 30      # 唤醒间隔：4分钟（秒）
@@ -411,11 +409,11 @@ def homestead_upgrade(owner):
         cost = _house_next_cost(lvl)
         coins = _coins_read(conn, owner)
         if cost is None:
-            return {"ok": False, "msg": "已经是最高级「豪宅」啦，没得升咯～", "house_level": lvl,
+            return {"ok": False, "msg": tr("已经是最高级「豪宅」啦，没得升咯～"), "house_level": lvl,
                     "house_name": HOUSE_LEVELS[lvl], "next_name": None, "next_cost": None,
                     "slots": _house_slots(lvl), "coins": coins}
         if coins < cost:
-            return {"ok": False, "msg": f"金币不够（升「{HOUSE_LEVELS[lvl+1]}」要 {cost}，你有 {coins}）",
+            return {"ok": False, "msg": tr("金币不够（升「{house}」要 {cost}，你有 {coins}）", house=tr(HOUSE_LEVELS[lvl+1]), cost=cost, coins=coins),
                     "house_level": lvl, "house_name": HOUSE_LEVELS[lvl],
                     "next_name": HOUSE_LEVELS[lvl + 1], "next_cost": cost,
                     "slots": _house_slots(lvl), "coins": coins}
@@ -432,7 +430,7 @@ def homestead_upgrade(owner):
         d["house_level"] = newlvl
         homestead_save(conn, owner, d)
         conn.commit()
-        return {"ok": True, "msg": f"🏠 升级成功！花了 {cost} 金币，小屋升为「{HOUSE_LEVELS[newlvl]}」",
+        return {"ok": True, "msg": tr("🏠 升级成功！花了 {cost} 金币，小屋升为「{house}」", cost=cost, house=tr(HOUSE_LEVELS[newlvl])),
                 "house_level": newlvl, "house_name": HOUSE_LEVELS[newlvl],
                 "next_name": HOUSE_LEVELS[newlvl + 1] if _house_next_cost(newlvl) is not None else None,
                 "next_cost": _house_next_cost(newlvl),
@@ -666,7 +664,7 @@ def plaza_data(viewer, host=None, limit=60):
         })
         if len(pets) >= limit:
             break
-    return {"pets": pets, "sayings": SAYINGS, "me": viewer, "host": host,
+    return {"pets": pets, "sayings": jzh_content.pet_sayings(), "me": viewer, "host": host,
             "is_me": (host == viewer), "exists": exists,
             "home": {"house_level": home["house_level"],
                      "house_name": _house_name(home["house_level"]),
@@ -687,7 +685,7 @@ def act(owner, action):
         # 已化云：除了"迎接新JZH"，其它动作一律不处理
         if s.get("stage") == "cloud" and action != "reborn":
             _save(conn, owner, s)
-            r = _public(s); r["msg"] = "它已经化作云了…迎接新的JZH吧"
+            r = _public(s); r["msg"] = tr("它已经化作云了…迎接新的JZH吧")
             return r
  
         if action == "wake":
@@ -696,37 +694,37 @@ def act(owner, action):
                 s["last_wake"] = t
                 if s["wake"] >= WAKES_NEED:
                     s["stage"] = "kid"; s["born"] = t
-                    msg = "☀️ 终于起床了！"
+                    msg = tr("☀️ 终于起床了！")
                 else:
-                    msg = f"叫醒了一次（{s['wake']}/{WAKES_NEED}）"
+                    msg = tr("叫醒了一次（{a}/{b}）", a=s['wake'], b=WAKES_NEED)
             else:
-                msg = "还没到叫醒的时候…"
+                msg = tr("还没到叫醒的时候…")
  
         elif action == "feed":
             if s["stage"] == "cocoon":
-                msg = "还在睡，喂不了"
+                msg = tr("还在睡，喂不了")
             elif (t - s.get("last_fed", 0)) >= FEED_GAP:
                 s["last_fed"] = t
                 s["hunger"] = _clamp(s["hunger"] + 30, 0, 100)
                 s["growth"] += 20
-                msg = "吃饱啦～"
+                msg = tr("吃饱啦～")
                 if s["stage"] == "kid" and s["growth"] >= GROWTH_TO_ADULT:
                     s["stage"] = "adult"; s["growth"] = 0; s["adult_at"] = t
-                    msg = "✨ 长成成年态啦！"
+                    msg = tr("✨ 长成成年态啦！")
             else:
-                msg = "还不饿，过会儿再喂"
+                msg = tr("还不饿，过会儿再喂")
  
         elif action == "wash":
             s["clean"] = 100
-            msg = "洗得干干净净～"
+            msg = tr("洗得干干净净～")
  
         elif action == "pet":       # 摸头，慢慢加好感（有冷却，不能猛点）
             if (t - s.get("last_pet", 0)) >= PET_GAP:
                 s["last_pet"] = t
                 s["affection"] = _clamp(s.get("affection", 0) + 4, 0, AFFECTION_MAX)
-                msg = "JZH锤了锤你"
+                msg = tr("JZH锤了锤你")
             else:
-                msg = "JZH还在害羞呢～"
+                msg = tr("JZH还在害羞呢～")
  
         elif action == "play":      # 互动，涨精神 + 少量好感（有冷却）
             if (t - s.get("last_play", 0)) >= PLAY_GAP:
@@ -734,20 +732,21 @@ def act(owner, action):
                 s["spirit"] = _clamp(s["spirit"] + 15, 0, SPIRIT_MAX)
                 s["clean"]  = _clamp(s["clean"] - 5, 0, 100)
                 s["affection"] = _clamp(s.get("affection", 0) + 2, 0, AFFECTION_MAX)
-                msg = "玩得好开心！"
+                msg = tr("玩得好开心！")
             else:
-                msg = "玩累了，歇会儿再玩～"
+                msg = tr("玩累了，歇会儿再玩～")
  
         elif action == "say":       # 点击JZH，随机说一句；好感满了偶尔叫姐姐
             if s.get("affection", 0) >= AFFECTION_MAX and random.random() < 0.35:
-                msg = random.choice(["姐姐~", "姐姐最好了", "就喜欢姐姐嘿嘿", "姐姐再摸摸我嘛"])
+                msg = tr(random.choice(["姐姐~", "姐姐最好了", "就喜欢姐姐嘿嘿", "姐姐再摸摸我嘛"]))
             else:
-                pool = SAYINGS.get(s["stage"], SAYINGS["adult"])
+                sayings = jzh_content.pet_sayings()
+                pool = sayings.get(s["stage"], sayings["adult"])
                 msg = random.choice(pool)
  
         elif action == "drop":      # 领取掉落，随机解锁一样装扮
             if s["stage"] == "cocoon":
-                msg = "还在睡呢"
+                msg = tr("还在睡呢")
             elif (t - s.get("last_drop", 0)) >= DROP_GAP:
                 # 大概率出颜色，小概率(DROP_HAT_CHANCE)才出装饰帽子；某类没得出就退而求其次
                 if random.random() < DROP_HAT_CHANCE:
@@ -755,36 +754,36 @@ def act(owner, action):
                 else:
                     got = _unlock_random(s, {"outfit", "hair", "skin"}) or _unlock_random(s, {"hat"})
                 s["last_drop"] = t
-                msg = ("🎁 掉落解锁：「" + got + "」") if got else "装扮已经集齐啦～"
+                msg = tr("🎁 掉落解锁：「{item}」", item=tr(got)) if got else tr("装扮已经集齐啦～")
             else:
-                msg = "还没到掉落时间"
+                msg = tr("还没到掉落时间")
  
         elif action == "work":      # 出去打工赚金币
             if s["stage"] == "cocoon":
-                msg = "还在睡呢"
+                msg = tr("还在睡呢")
             elif s.get("status", "home") != "home":
-                msg = "它已经在外面啦"
+                msg = tr("它已经在外面啦")
             else:
                 s["status"] = "working"; s["out_until"] = t + WORK_SEC
-                msg = "去打工了，过会儿回来收工～"
+                msg = tr("去打工了，过会儿回来收工～")
  
         elif action == "shop":      # 出去购物淘装饰（花金币）
             if s["stage"] == "cocoon":
-                msg = "还在睡呢"
+                msg = tr("还在睡呢")
             elif s.get("status", "home") != "home":
-                msg = "它已经在外面啦"
+                msg = tr("它已经在外面啦")
             elif s.get("coins", 0) < SHOP_COST:
-                msg = f"金币不够（需要 {SHOP_COST}）"
+                msg = tr("金币不够（需要 {n}）", n=SHOP_COST)
             else:
                 s["coins"] -= SHOP_COST
                 s["status"] = "shopping"; s["out_until"] = t + SHOP_SEC
-                msg = "去逛街了，看看能淘到啥～"
+                msg = tr("去逛街了，看看能淘到啥～")
  
         elif action == "collect":   # 外出结束，收获
             if s.get("status", "home") == "home":
-                msg = "它在家呢"
+                msg = tr("它在家呢")
             elif t < s.get("out_until", 0):
-                msg = "还没回来"
+                msg = tr("还没回来")
             else:
                 st = s["status"]
                 s["status"] = "home"; s["out_until"] = 0
@@ -793,50 +792,50 @@ def act(owner, action):
                     s["coins"] = s.get("coins", 0) + earn
                     s["hunger"] = _clamp(s["hunger"] - 10, 0, 100)
                     s["spirit"] = _clamp(s["spirit"] - 10, 0, SPIRIT_MAX)
-                    msg = f"💰 打工回来，赚了 {earn} 金币"
+                    msg = tr("💰 打工回来，赚了 {n} 金币", n=earn)
                     if random.random() < WORK_DECO_CHANCE:
                         got = _unlock_random(s, {"hat"})   # 打工顺手捡到的算装饰（帽子）
                         if got:
-                            msg += f"，还顺手捡到装饰「{got}」！"
+                            msg += tr("，还顺手捡到装饰「{item}」！", item=tr(got))
                 else:  # shopping：一定带回一件装饰（帽子）；帽子都齐了就退钱
                     got = _unlock_random(s, {"hat"})
                     if got:
-                        msg = f"🛍️ 淘到了新装饰「{got}」！"
+                        msg = tr("🛍️ 淘到了新装饰「{item}」！", item=tr(got))
                     else:
                         s["coins"] = s.get("coins", 0) + SHOP_COST
-                        msg = "🛍️ 逛了一圈，装饰都集齐了，金币退你～"
+                        msg = tr("🛍️ 逛了一圈，装饰都集齐了，金币退你～")
  
         elif action in ("consign", "consign_self"):   # 送去自己的牧场托管
             if s["stage"] == "cocoon":
-                msg = "还在睡，先叫醒它"
+                msg = tr("还在睡，先叫醒它")
             elif s.get("status", "home") not in ("home",):
-                msg = "它现在没在家，没法托管"
+                msg = tr("它现在没在家，没法托管")
             else:
                 s["status"] = "plaza"; s["plaza_host"] = owner
-                msg = "🌿 送到你自己的牧场啦"
+                msg = tr("🌿 送到你自己的牧场啦")
         elif action.startswith("consign_to:"):        # 送去别人的牧场托管
             target = action.split(":", 1)[1].strip()[:32]
             if s["stage"] == "cocoon":
-                msg = "还在睡，先叫醒它"
+                msg = tr("还在睡，先叫醒它")
             elif s.get("status", "home") not in ("home",):
-                msg = "它现在没在家，没法托管"
+                msg = tr("它现在没在家，没法托管")
             elif not target:
-                msg = "请输入要送去的玩家用户名"
+                msg = tr("请输入要送去的玩家用户名")
             elif not _user_exists(conn, target):
-                msg = f"找不到玩家「{target}」的牧场"
+                msg = tr("找不到玩家「{name}」的牧场", name=target)
             else:
                 s["status"] = "plaza"; s["plaza_host"] = target
-                msg = f"🌿 送到「{target}」的牧场啦"
+                msg = tr("🌿 送到「{name}」的牧场啦", name=target)
         elif action == "retrieve":  # 从牧场领回
             if s.get("status") == "plaza":
                 s["status"] = "home"; s["plaza_host"] = ""
-                msg = "🏠 把JZH领回来啦"
+                msg = tr("🏠 把JZH领回来啦")
             else:
-                msg = "它不在牧场"
+                msg = tr("它不在牧场")
  
         elif action == "reborn":    # 化云之后，迎接新JZH
             if s.get("stage") != "cloud":
-                msg = "它还好好的呢"
+                msg = tr("它还好好的呢")
             else:
                 cause = s.get("death_cause", "natural")
                 inherit = (cause != "neglect")           # 只有"养死"才不继承
@@ -870,36 +869,36 @@ def act(owner, action):
                 else:
                     _addlog(ns, "🐣 新的JZH来了。上一只疏于照顾没能留住，装饰和颜色都被回收了")
                 s = ns
-                msg = "🌱 迎接新的JZH！"
+                msg = tr("🌱 迎接新的JZH！")
  
         elif action.startswith("name:"):   # 给JZH起名
             newname = action.split(":", 1)[1].strip()[:8]
             if newname:
                 s["name"] = newname
                 _current_life(s)["name"] = newname   # 名字同时记进它自己的生平
-                msg = f"就叫「{newname}」啦！"
+                msg = tr("就叫「{name}」啦！", name=newname)
             else:
-                msg = "名字不能是空的"
+                msg = tr("名字不能是空的")
  
         elif action.startswith("buy_clothes:"):   # 花金币购买/穿上一件衣服款式
             name = action.split(":", 1)[1]
             owned_clo = s.setdefault("owned", {}).setdefault("clothes", ["无"])
             price = CLOTHES_PRICE.get(name)
             if name == "无":
-                s["clothes"] = "无"; msg = "脱下啦～"
+                s["clothes"] = "无"; msg = tr("脱下啦～")
             elif price is None:
-                msg = "没有这件衣服"
+                msg = tr("没有这件衣服")
             elif name in owned_clo:
                 s["clothes"] = name                # 已买过就直接穿上
-                msg = f"换上「{name}」～"
+                msg = tr("换上「{item}」～", item=tr(name))
             elif s.get("coins", 0) < price:
-                msg = f"金币不够（需要 {price}，先去打工赚点）"
+                msg = tr("金币不够（需要 {n}，先去打工赚点）", n=price)
             else:
                 s["coins"] = s.get("coins", 0) - price
                 owned_clo.append(name)
                 s["clothes"] = name                # 买了直接穿上
                 _addlog(s, f"🛒 花 {price} 金币买了新衣服「{name}」")
-                msg = f"🛒 购买成功！花了 {price} 金币，穿上「{name}」"
+                msg = tr("🛒 购买成功！花了 {n} 金币，穿上「{item}」", n=price, item=tr(name))
 
         # 换装（前端传 dress:类别:值）——只能换已解锁的
         elif action.startswith("dress:"):
@@ -909,12 +908,12 @@ def act(owner, action):
                 if val in o.get("hat", []):
                     s["hat"] = val
                 else:
-                    msg = "这个还没解锁"
+                    msg = tr("这个还没解锁")
             elif key == "clothes":
                 if val == "无" or val in o.get("clothes", ["无"]):
                     s["clothes"] = val
                 else:
-                    msg = "这件还没买"
+                    msg = tr("这件还没买")
             elif key in ("outfit", "hair", "skin"):
                 try:
                     iv = int(val)
@@ -923,7 +922,7 @@ def act(owner, action):
                 if iv is not None and iv in o.get(key, []):
                     s[key] = iv
                 else:
-                    msg = "这个还没解锁"
+                    msg = tr("这个还没解锁")
  
         _save(conn, owner, s)
         r = _public(s)

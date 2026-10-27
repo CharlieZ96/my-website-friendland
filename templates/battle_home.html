@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
-    <meta charset="UTF-8">
+    {% include "_i18n.html" %}
+<meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>卤蛋对撞</title>
+    <title>{{ _('卤蛋对撞') }}</title>
     <style>
         body { margin:0; min-height:100vh; display:flex; flex-direction:column; justify-content:center;
                align-items:center; font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#160f0c; color:#f0e6d2; }
@@ -14,10 +15,10 @@
     </style>
 </head>
 <body>
-    <h1>JZH对战</h1>
+    <h1>{{ _('JZH对战') }}</h1>
     <form method="POST" action="/battle/find">
-        <button type="submit" class="btn">找对战</button>
+        <button type="submit" class="btn">{{ _('找对战') }}</button>
     </form>
-    <a href="/hub">← 返回主页</a>
+    <a href="/hub">← {{ _('返回主页') }}</a>
 </body>
 </html>

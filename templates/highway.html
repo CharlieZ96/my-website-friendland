@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
+{% include "_i18n.html" %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>JZH高速</title>
+<title>{{ _('JZH高速') }}</title>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;overflow:hidden;background:#0a0e18;color:#eaf2ff;
@@ -141,10 +142,10 @@
     <div class="box"><span class="km" id="hkm">0.00</span> <span style="color:#7CFFB2">km</span></div>
     <div class="box"><span class="spd" id="hspd">0</span> <span style="color:#ffd85a">km/h</span></div>
     <div class="box" id="coinBox">🪙 <b id="hcoin" style="color:#ffd85a">0</b></div>
-    <div class="box best">最高 <b id="hbest">0</b></div>
-    <button class="quit" id="quitBtn">退出</button>
+    <div class="box best">{{ _('最高') }} <b id="hbest">0</b></div>
+    <button class="quit" id="quitBtn">{{ _('退出') }}</button>
   </div>
-  <div id="warn">⚠️ 偏离路面</div>
+  <div id="warn">⚠️ {{ _('偏离路面') }}</div>
   <div id="mile"></div>
 
   <!-- 转向灯（跟随方向盘自动闪） -->
@@ -157,9 +158,9 @@
 
     <!-- 左侧：灯光/双闪/喇叭 -->
     <div id="lightPanel">
-      <button class="cbtn" id="btnLight" title="车灯">💡</button>
-      <button class="cbtn" id="btnHazard" title="双闪">⚠️</button>
-      <button class="cbtn" id="btnHorn" title="喇叭">📣</button>
+      <button class="cbtn" id="btnLight" title="{{ _('车灯') }}">💡</button>
+      <button class="cbtn" id="btnHazard" title="{{ _('双闪') }}">⚠️</button>
+      <button class="cbtn" id="btnHorn" title="{{ _('喇叭') }}">📣</button>
     </div>
 
     <!-- 右侧：挡位 P R N D + 掉头 -->
@@ -168,13 +169,13 @@
       <span class="gear" data-g="R">R</span>
       <span class="gear" data-g="N">N</span>
       <span class="gear on" data-g="D">D</span>
-      <button class="cbtn" id="btnUturn" title="掉头">⟲</button>
+      <button class="cbtn" id="btnUturn" title="{{ _('掉头') }}">⟲</button>
     </div>
 
     <div id="wheelWrap"><svg id="wheel" viewBox="0 0 100 100"></svg></div>
     <div class="pedals">
-      <div class="pedal" id="brake"><i class="led"></i><span>刹车</span></div>
-      <div class="pedal" id="gas"><i class="led"></i><span>油门</span></div>
+      <div class="pedal" id="brake"><i class="led"></i><span>{{ _('刹车') }}</span></div>
+      <div class="pedal" id="gas"><i class="led"></i><span>{{ _('油门') }}</span></div>
     </div>
   </div>
   <!-- 夜间车头灯光束 -->
@@ -184,36 +185,36 @@
 
   <div class="panel" id="selPanel">
     <div class="card">
-      <h2>🏁 <em>JZH高速</em></h2>
-      <p class="muted">从<b>静安区</b>一路开往<b>苏州</b>。踩油门加速，<b>拧方向盘让车头跟着公路拐弯</b>，别开出路面、别撞前车——里程即成绩。沿途<b>吃金币能换成乐园金币</b>，遇到<b>跳板开上去还能加速</b>。档位越高越快越好开。</p>
+      <h2>🏁 <em>{{ _('JZH高速') }}</em></h2>
+      <p class="muted">{{ _('从') }}<b>{{ _('静安区') }}</b>{{ _('一路开往') }}<b>{{ _('苏州') }}</b>{{ _('。踩油门加速，') }}<b>{{ _('拧方向盘让车头跟着公路拐弯') }}</b>{{ _('，别开出路面、别撞前车——里程即成绩。沿途') }}<b>{{ _('吃金币能换成乐园金币') }}</b>{{ _('，遇到') }}<b>{{ _('跳板开上去还能加速') }}</b>{{ _('。档位越高越快越好开。') }}</p>
       <div class="cars" id="carList"></div>
-      <button class="big" id="startBtn" disabled>选辆车开始</button>
-      <a class="ghost" href="/toyoba">🚗 没有车？去 TOYOBA 买一辆</a>
-      <a class="ghost" href="/enoshima">← 回江之岛</a>
+      <button class="big" id="startBtn" disabled>{{ _('选辆车开始') }}</button>
+      <a class="ghost" href="/toyoba">🚗 {{ _('没有车？去 TOYOBA 买一辆') }}</a>
+      <a class="ghost" href="/enoshima">← {{ _('回江之岛') }}</a>
     </div>
   </div>
 
   <div class="panel" id="overPanel" hidden>
     <div class="card">
       <div class="result">
-        <div class="sub">本次里程</div>
+        <div class="sub">{{ _('本次里程') }}</div>
         <div class="rkm"><span id="runKm">0.00</span> km</div>
-        <div id="bestBadge" class="badge" hidden>🎉 新纪录！</div>
+        <div id="bestBadge" class="badge" hidden>🎉 {{ _('新纪录！') }}</div>
         <div class="coinres" id="coinResult" hidden></div>
-        <div class="sub" style="margin-top:10px">你的最高 <b id="myBest" style="color:#7CFFB2">0</b> km ｜ 累计 <b id="myTotal" style="color:#7CFFB2">0</b> km</div>
+        <div class="sub" style="margin-top:10px">{{ _('你的最高') }} <b id="myBest" style="color:#7CFFB2">0</b> {{ _('km ｜ 累计') }} <b id="myTotal" style="color:#7CFFB2">0</b> km</div>
       </div>
       <div class="tabs">
-        <button id="tabBest" class="on">🏆 单次最高榜</button>
-        <button id="tabTotal">📏 累计里程榜</button>
+        <button id="tabBest" class="on">🏆 {{ _('单次最高榜') }}</button>
+        <button id="tabTotal">📏 {{ _('累计里程榜') }}</button>
       </div>
       <ul class="lb" id="lb"></ul>
-      <button class="big" id="againBtn">🔁 再来一把</button>
-      <button class="ghost" id="reselBtn">🚙 换辆车</button>
-      <a class="ghost" href="/enoshima">← 回江之岛</a>
+      <button class="big" id="againBtn">🔁 {{ _('再来一把') }}</button>
+      <button class="ghost" id="reselBtn">🚙 {{ _('换辆车') }}</button>
+      <a class="ghost" href="/enoshima">← {{ _('回江之岛') }}</a>
     </div>
   </div>
 
-  <div id="err"><div><div style="font-size:40px">🚧</div><p>这台设备/浏览器好像不支持 3D(WebGL)。<br>换个新点的浏览器再来试试吧。</p><a class="ghost" href="/enoshima" style="max-width:220px;margin:10px auto 0">← 回江之岛</a></div></div>
+  <div id="err"><div><div style="font-size:40px">🚧</div><p>{{ _('这台设备/浏览器好像不支持 3D(WebGL)。') }}<br>{{ _('换个新点的浏览器再来试试吧。') }}</p><a class="ghost" href="/enoshima" style="max-width:220px;margin:10px auto 0">← {{ _('回江之岛') }}</a></div></div>
 </div>
 
 <script src="/static/car_sprites.js"></script>
@@ -403,16 +404,16 @@ const STEP=10, N=4000, HALFW=8;                 // 每节10米、共4000节(40km
 const LANES=[-4.6,0,4.6];
 // 静安区 → 苏州 一路的立交/出口牌（按“游戏里 km”摆放；看得见出口，开不下去）
 const MILESTONES=[
-  {km:1.5,  place:'内环高速',     exit:'内环高架 出口 →'},
-  {km:4.0,  place:'中环路',       exit:'中环路 出口 →'},
-  {km:7.0,  place:'外环 A20',     exit:'外环高速 出口 →'},
-  {km:10.5, place:'G2 京沪高速',  exit:'嘉定 · 安亭 出口 →'},
-  {km:14.5, place:'花桥 · 江苏',  exit:'欢迎进入 江苏 →'},
-  {km:19.0, place:'昆山',         exit:'昆山 · 阳澄湖 出口 →'},
-  {km:24.0, place:'苏州工业园',   exit:'苏州工业园区 出口 →'},
-  {km:29.0, place:'苏州',         exit:'苏州 · 金鸡湖 出口 →'},
-  {km:34.0, place:'苏州西',       exit:'苏州西 出口 →'},
-  {km:38.5, place:'太湖 · 木渎',  exit:'太湖 · 木渎 出口 →'},
+  {km:1.5,  place:__('内环高速'),     exit:(__('内环高架 出口')+' →')},
+  {km:4.0,  place:__('中环路'),       exit:(__('中环路 出口')+' →')},
+  {km:7.0,  place:__('外环 A20'),     exit:(__('外环高速 出口')+' →')},
+  {km:10.5, place:__('G2 京沪高速'),  exit:(__('嘉定 · 安亭 出口')+' →')},
+  {km:14.5, place:__('花桥 · 江苏'),  exit:(__('欢迎进入 江苏')+' →')},
+  {km:19.0, place:__('昆山'),         exit:(__('昆山 · 阳澄湖 出口')+' →')},
+  {km:24.0, place:__('苏州工业园'),   exit:(__('苏州工业园区 出口')+' →')},
+  {km:29.0, place:__('苏州'),         exit:(__('苏州 · 金鸡湖 出口')+' →')},
+  {km:34.0, place:__('苏州西'),       exit:(__('苏州西 出口')+' →')},
+  {km:38.5, place:__('太湖 · 木渎'),  exit:(__('太湖 · 木渎 出口')+' →')},
 ];
 let node=[], head=[], nrm=[];                    // 中心线点/朝向/法向
 function buildTrack(){
@@ -474,8 +475,8 @@ function signTextures(){
   function mk(draw){ const c=document.createElement('canvas'); c.width=256; c.height=160; draw(c.getContext('2d'));
     const t=new THREE.CanvasTexture(c); return t; }
   const hw=mk(x=>{ x.fillStyle='#1f7a34'; x.fillRect(0,0,256,160); x.lineWidth=8; x.strokeStyle='#fff'; x.strokeRect(10,10,236,140);
-    x.fillStyle='#fff'; x.textAlign='center'; x.textBaseline='middle'; x.font='bold 50px sans-serif'; x.fillText('JZH高速',128,66);
-    x.font='bold 30px sans-serif'; x.fillText('▲ 前方', 128, 116); });
+    x.fillStyle='#fff'; x.textAlign='center'; x.textBaseline='middle'; x.font='bold 50px sans-serif'; x.fillText(__('JZH高速'),128,66);
+    x.font='bold 30px sans-serif'; x.fillText(('▲ '+__('前方')), 128, 116); });
   const round=(txt)=>mk(x=>{ x.clearRect(0,0,256,160); x.fillStyle='#d81e1e'; x.beginPath(); x.arc(128,80,74,0,7); x.fill();
     x.fillStyle='#fff'; x.beginPath(); x.arc(128,80,58,0,7); x.fill(); x.fillStyle='#111'; x.textAlign='center'; x.textBaseline='middle';
     x.font='bold 64px sans-serif'; x.fillText(txt,128,86); });
@@ -962,7 +963,7 @@ function update(dt){
   for(const r of ramps){
     if(r.used) continue;
     const dx=car.x-r.x, dz=car.z-r.z;
-    if(dx*dx+dz*dz < 6.25){ r.used=true; car.v=Math.min(CAR.top, car.v+58); boostT=0.5; showMile('🚀 跳板加速！'); }
+    if(dx*dx+dz*dz < 6.25){ r.used=true; car.v=Math.min(CAR.top, car.v+58); boostT=0.5; showMile(('🚀 '+__('跳板加速！'))); }
   }
   ramps=ramps.filter(r=>{ if(r.seg < car.seg-3){ freeRamp(r); return false;} return true; });
 
@@ -971,7 +972,7 @@ function update(dt){
   updateDayNight(kmNow);
   // —— 立交出口牌：经过时顶部提示（静安 → 苏州，看得见开不下去）——
   while(nextMile<MILESTONES.length && kmNow>=MILESTONES[nextMile].km){
-    showMile('🛣️ '+MILESTONES[nextMile].place+'　出口（本线直行，无法下道）');
+    showMile('🛣️ '+MILESTONES[nextMile].place+('　'+__('出口（本线直行，无法下道）')));
     nextMile++;
   }
 
@@ -1013,14 +1014,14 @@ async function init(){
 }
 function renderCarList(){
   const box=document.getElementById('carList');
-  if(!CARS.length){ box.innerHTML='<div class="muted" style="text-align:center;padding:10px">你还没有车。先去 TOYOBA 买一辆吧！</div>';
+  if(!CARS.length){ box.innerHTML=('<div class="muted" style="text-align:center;padding:10px">'+__('你还没有车。先去 TOYOBA 买一辆吧！')+'</div>');
     document.getElementById('startBtn').disabled=true; return; }
   box.innerHTML=CARS.map((c,i)=>'<div class="crow" data-i="'+i+'"><div class="ic">'+(window.carSprite?carSprite(c.id):c.emoji)+'</div>'
-    +'<div style="flex:1"><div class="nm">'+esc(c.name)+'<span class="tier">T'+c.tier+'</span></div>'
-    +'<div class="st">极速 '+c.top+' ｜ 加速 '+Math.round(c.accel*10)+'/10 ｜ 操控 '+c.grip+'/10</div></div></div>').join('');
+    +'<div style="flex:1"><div class="nm">'+esc(__(c.name))+'<span class="tier">T'+c.tier+'</span></div>'
+    +'<div class="st">'+__('极速 {a} ｜ 加速 {b}/10 ｜ 操控 {c}/10',{a:c.top,b:Math.round(c.accel*10),c:c.grip})+'</div></div></div>').join('');
   box.querySelectorAll('.crow').forEach(el=>el.addEventListener('click',()=>{
     box.querySelectorAll('.crow').forEach(x=>x.classList.remove('sel')); el.classList.add('sel');
-    CAR=CARS[+el.dataset.i]; const b=document.getElementById('startBtn'); b.disabled=false; b.textContent='🏁 开「'+CAR.name+'」上路';
+    CAR=CARS[+el.dataset.i]; const b=document.getElementById('startBtn'); b.disabled=false; b.textContent=('🏁 '+__('开「{p0}」上路',{p0:(__(CAR.name))}));
   }));
   box.querySelector('.crow').click();
 }
@@ -1068,15 +1069,15 @@ async function endRun(){
     if(res&&res.ok){
       const earned=(res.coins_earned!=null)?res.coins_earned:0;
       if(coinCount>0){
-        cr.innerHTML='🪙 本次收集 <b>'+coinCount+'</b> 金币，已存入钱包 <b style="color:#ffd85a">+'+earned+'</b>'
-          + (res.daily_capped?' <span style="color:#ff9d9d">(今日已达上限)</span>'
-             : (res.coins_capped?' <span style="color:#8fa0c8">(已封顶)</span>':''))
-          + (res.wallet!=null?' <span style="color:#8fa0c8">｜ 钱包 '+res.wallet+'</span>':'')
-          + (res.day_left!=null?' <span style="color:#8fa0c8">｜ 今日还可得 '+res.day_left+'</span>':'');
+        cr.innerHTML=('🪙 '+__('本次收集')+' '+'<b>')+coinCount+('</b>'+' '+__('金币，已存入钱包')+' '+'<b style="color:#ffd85a">'+'+')+earned+'</b>'
+          + (res.daily_capped?(' '+'<span style="color:#ff9d9d">'+__('(今日已达上限)')+'</span>')
+             : (res.coins_capped?(' '+'<span style="color:#8fa0c8">'+__('(已封顶)')+'</span>'):''))
+          + (res.wallet!=null?(' '+'<span style="color:#8fa0c8">'+__('｜ 钱包')+' ')+res.wallet+'</span>':'')
+          + (res.day_left!=null?(' '+'<span style="color:#8fa0c8">'+__('｜ 今日还可得')+' ')+res.day_left+'</span>':'');
         cr.hidden=false;
       } else cr.hidden=true;
     } else if(coinCount>0){
-      cr.innerHTML='<span style="color:#ff9d9d">本局未计分'+((res&&res.msg)?'：'+esc(res.msg):'（网络问题）')+'</span>';
+      cr.innerHTML=('<span style="color:#ff9d9d">'+__('本局未计分'))+((res&&res.msg)?'：'+esc(res.msg):__('（网络问题）'))+'</span>';
       cr.hidden=false;
     } else cr.hidden=true;
   }
@@ -1090,10 +1091,10 @@ async function loadLB(which){
   if(!LBDATA){ try{ LBDATA=await (await fetch('/highway/leaderboard')).json(); }catch(e){ LBDATA={best:[],total:[]}; } }
   const rows=(which==='best'?LBDATA.best:LBDATA.total)||[];
   const ul=document.getElementById('lb');
-  if(!rows.length){ ul.innerHTML='<li style="color:#8fa0c8;justify-content:center">还没有人跑过，快去当第一名！</li>'; return; }
-  ul.innerHTML=rows.map((r,i)=>{ const meRow=(r.owner===ME); const extra=which==='best'?(r.car||''):(r.runs+'趟');
+  if(!rows.length){ ul.innerHTML=('<li style="color:#8fa0c8;justify-content:center">'+__('还没有人跑过，快去当第一名！')+'</li>'); return; }
+  ul.innerHTML=rows.map((r,i)=>{ const meRow=(r.owner===ME); const extra=which==='best'?(r.car||''):(r.runs+__('趟'));
     const rk=(i===0)?'👑':(i+1);
-    const king=(i===0)?' <span style="color:#ffd85a;font-weight:800">· 高速之王</span>':'';
+    const king=(i===0)?(' '+'<span style="color:#ffd85a;font-weight:800">'+'· '+__('高速之王')+'</span>'):'';
     return '<li class="'+(meRow?'me':'')+'"><span class="rk">'+rk+'</span><span class="who">'+esc(r.owner)+king
       +' <span style="color:#6b7a99;font-size:11px">'+esc(extra)+'</span></span><span class="val">'+fmt(r.km)+' km</span></li>';}).join('');
 }
@@ -1184,8 +1185,8 @@ function updateBlinkers(dt, steer){
 }
 elBtnLight.addEventListener('click',()=>{ headlightManual=!headlightsOn; headlightsOn=headlightManual; syncHeadlightUI(); });
 elBtnHazard.addEventListener('click',()=>{ hazardOn=!hazardOn; elBtnHazard.classList.toggle('hz',hazardOn); });
-document.getElementById('btnHorn').addEventListener('pointerdown',e=>{ e.preventDefault(); showMile('📣 嘀——'); });
-document.getElementById('btnUturn').addEventListener('click',()=>showMile('🚧 本线直行，无法掉头'));
+document.getElementById('btnHorn').addEventListener('pointerdown',e=>{ e.preventDefault(); showMile(('📣 '+__('嘀——'))); });
+document.getElementById('btnUturn').addEventListener('click',()=>showMile(('🚧 '+__('本线直行，无法掉头'))));
 
 // ===== 键盘 =====
 addEventListener('keydown',e=>{
@@ -1222,7 +1223,7 @@ function loadThree(i){
   if(typeof THREE!=='undefined'){ init(); return; }
   if(i>=THREE_SRCS.length){
     const e=document.getElementById('err'); e.style.display='flex';
-    e.querySelector('p').innerHTML='加载 3D 引擎失败。<br>请把完整的 <b>three.min.js</b> 放到网站的 <b>static/</b> 目录（全小写），或检查网络。';
+    e.querySelector('p').innerHTML=(__('加载 3D 引擎失败。')+'<br>'+__('请把完整的')+' '+'<b>'+'three.min.js'+'</b>'+' '+__('放到网站的')+' '+'<b>'+'static/'+'</b>'+' '+__('目录（全小写），或检查网络。'));
     return;
   }
   const s=document.createElement('script'); s.src=THREE_SRCS[i];

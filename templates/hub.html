@@ -1,138 +1,147 @@
 <!DOCTYPE html>
-<html lang="zh">
+{% from "_appbar.html" import appbar, head with context %}
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>论坛主页</title>
+    {{ head(_('大厅')) }}
     <style>
-        * { box-sizing:border-box; }
-        body { margin:0; min-height:100vh; display:flex; flex-direction:column;
-               justify-content:center; align-items:center; padding:64px 16px 40px;
-               font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#f4f6f8; }
-        h1 { color:#333; margin:0 0 6px; }
-        .welcome { color:#888; margin:0 0 28px; }
+        /* —— 大厅：左边看板娘，右边像女仆咖啡馆的菜单 —— */
+        .hub { display:grid; grid-template-columns:260px minmax(0,1fr); gap:56px; align-items:start; }
+        .hub-aside { position:sticky; top:32px; text-align:center; }
+        .hub-aside img { display:block; width:200px; height:200px; margin:0 auto 18px; border-radius:50%;
+                         box-shadow:0 0 0 6px var(--paper), 0 0 0 7px var(--line); }
+        .hub-aside h1 { margin:0; font-size:24px; font-weight:600; line-height:1.35; overflow-wrap:anywhere; }
+        .hub-aside p { margin:6px 0 0; color:var(--ink-soft); font-size:15px; }
 
-        /* 按钮网格：电脑两列、手机自动变一列，每个都够大好点 */
-        .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px;
-                width:100%; max-width:440px; }
-        .tile { display:flex; align-items:center; justify-content:center; text-align:center;
-                min-height:56px; padding:14px 12px; font-size:16px; font-weight:600;
-                border-radius:10px; text-decoration:none; transition:0.2s; }
-        .tile:hover { opacity:0.88; transform:translateY(-2px); }
-        .span2 { grid-column:1 / -1; }               /* 跨整行 */
+        .menu { list-style:none; margin:0; padding:0; }
+        .menu + .menu-title { margin-top:40px; }
+        .menu-title { margin:0 0 4px; font-size:15px; font-weight:600; color:var(--ink-soft); }
+        .menu a { display:flex; align-items:baseline; gap:14px; padding:16px 2px; text-decoration:none; color:var(--ink);
+                  border-bottom:1px solid var(--line); }
+        .menu li:first-child a { border-top:1px solid var(--line); }
+        .menu-name { flex:none; font-size:19px; font-weight:600; letter-spacing:.03em; }
+        .menu-dots { flex:1; min-width:24px; border-bottom:2px dotted #cfc6ca; transform:translateY(-5px); }
+        .menu-desc { flex:none; max-width:58%; text-align:right; color:var(--ink-soft); font-size:15px; }
+        .menu a:hover .menu-name, .menu a:focus-visible .menu-name { color:var(--claret); }
+        .menu a:hover .menu-dots { border-bottom-color:var(--claret); }
+        .menu .hot .menu-name { color:var(--claret); }
 
-        .c-blue    { background:#4a90e2; color:#fff; }
-        .c-blueline{ background:#fff; color:#4a90e2; border:2px solid #4a90e2; }
-        .c-red     { background:#d9345b; color:#fff; }
-        .c-navyline{ background:#fff; color:#2769b5; border:2px solid #2769b5; }
-        .c-orange  { background:#ff9b0e; color:#fff; }
-        .c-pink    { background:#db87d7; color:#fff; }
-        .c-admin   { background:#e67e22; color:#fff; }
-        .c-joe     { background:#3d3a4f; color:#ffd98a; }   /* 老江账本：深色+暖金，像个后台工具 */
-
-        .pill { margin-top:24px; background:#241812; border:1px solid #f5b942; color:#f5b942;
-                font-weight:700; padding:9px 26px; border-radius:20px; text-decoration:none; }
-        .pill:hover { opacity:0.88; }
-
-        .topnav { position:absolute; top:20px; right:24px; display:flex; gap:16px; align-items:center; }
-        .topnav a { color:#888; text-decoration:none; font-size:14px; }
-
-        /* —— 系统消息：右上角小铃铛 —— */
-        .bell { position:relative; width:36px; height:36px; border:none; border-radius:50%;
-                background:#fff; box-shadow:0 1px 6px rgba(0,0,0,.08); cursor:pointer;
-                display:flex; align-items:center; justify-content:center; padding:0; color:#666; }
-        .bell:hover { color:#4a90e2; }
+        /* —— 顶栏里的铃铛 —— */
+        .bell { position:relative; width:34px; height:34px; border:none; border-radius:50%;
+                background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center;
+                padding:0; color:var(--on-claret); }
+        .bell:hover { background:rgba(255,255,255,.1); }
         .bell svg { width:20px; height:20px; }
         .bell.ring svg { animation:ring 1.6s ease-in-out 2; transform-origin:50% 10%; }
         @keyframes ring { 0%,100%{transform:rotate(0)} 10%{transform:rotate(14deg)} 20%{transform:rotate(-12deg)}
                           30%{transform:rotate(9deg)} 40%{transform:rotate(-6deg)} 50%{transform:rotate(0)} }
-        .dot { position:absolute; top:-3px; right:-4px; min-width:18px; height:18px; padding:0 5px;
-               border-radius:9px; background:#e74c3c; color:#fff; font-size:11px; font-weight:700;
-               line-height:18px; text-align:center; border:2px solid #f4f6f8; }
+        .dot { position:absolute; top:-2px; right:-4px; min-width:18px; height:18px; padding:0 5px;
+               border-radius:9px; background:var(--brass); color:var(--ink); font-size:11px; font-weight:700;
+               line-height:18px; text-align:center; border:2px solid var(--claret); }
         .hidden { display:none !important; }
 
         /* 消息面板 */
-        .nbg { position:fixed; inset:0; background:rgba(20,24,32,.35); z-index:50; }
-        .npanel { position:fixed; top:64px; right:16px; width:min(400px, calc(100vw - 32px));
-                  max-height:calc(100vh - 88px); background:#fff; border-radius:14px; z-index:51;
-                  box-shadow:0 12px 40px rgba(0,0,0,.18); display:flex; flex-direction:column; overflow:hidden; }
+        .nbg { position:fixed; inset:0; background:rgba(40,10,18,.35); z-index:50; }
+        .npanel { position:fixed; top:72px; right:16px; width:min(400px, calc(100vw - 32px));
+                  max-height:calc(100vh - 96px); background:var(--paper); border-radius:14px; z-index:51;
+                  border:1px solid var(--line); box-shadow:0 16px 40px rgba(40,10,18,.2); display:flex; flex-direction:column; overflow:hidden; }
         .nhead { display:flex; align-items:center; justify-content:space-between; padding:14px 16px;
-                 border-bottom:1px solid #eef0f3; }
-        .nhead b { font-size:16px; color:#333; }
-        .nhead button { border:none; background:none; color:#4a90e2; font-size:13px; cursor:pointer; padding:4px 6px; }
+                 border-bottom:1px solid var(--line); }
+        .nhead b { font-size:16px; }
+        .nhead button { border:none; background:none; color:var(--claret); font:inherit; font-size:13px; cursor:pointer; padding:4px 6px; }
         .nhead button:disabled { color:#bbb; cursor:default; }
         .nlist { overflow-y:auto; -webkit-overflow-scrolling:touch; }
-        .nitem { padding:12px 16px; border-bottom:1px solid #f2f3f5; cursor:pointer; }
-        .nitem:hover { background:#fafbfc; }
-        .nitem .t { display:flex; align-items:center; gap:6px; font-weight:600; color:#333; font-size:15px; }
-        .nitem .t .u { width:8px; height:8px; border-radius:50%; background:#e74c3c; flex:none; }
-        .nitem .tag { font-size:11px; color:#e67e22; border:1px solid #f3c79c; border-radius:4px; padding:0 4px; font-weight:500; }
-        .nitem .time { color:#aaa; font-size:12px; margin-top:3px; }
-        .nitem .pv { color:#888; font-size:13px; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .nitem.read .t { color:#777; font-weight:500; }
+        .nitem { padding:12px 16px; border-bottom:1px solid #f1ecee; cursor:pointer; }
+        .nitem:hover { background:#fbf8f9; }
+        .nitem .t { display:flex; align-items:center; gap:6px; font-weight:600; font-size:15px; }
+        .nitem .t .u { width:8px; height:8px; border-radius:50%; background:var(--claret); flex:none; }
+        .nitem .tag { font-size:11px; color:var(--claret); border:1px solid #e5c3cb; border-radius:4px; padding:0 4px; font-weight:500; }
+        .nitem .time { color:#9a9fab; font-size:12px; margin-top:3px; }
+        .nitem .pv { color:var(--ink-soft); font-size:13px; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .nitem.read .t { color:var(--ink-soft); font-weight:500; }
         .nitem .full { display:none; margin-top:8px; }
         .nitem.open .full { display:block; }
         .nitem.open .pv { display:none; }
-        .nitem .body { color:#444; font-size:14px; line-height:1.65; white-space:pre-wrap; word-break:break-word; }
-        .nitem .img { display:block; width:100%; margin-top:10px; border-radius:8px; border:1px solid #eee;
-                      max-height:420px; object-fit:cover; object-position:top; cursor:zoom-in; background:#f4f6f8; }
-        .nitem .imgtip { text-align:center; color:#aaa; font-size:12px; margin-top:4px; }
-        .nempty { padding:36px 16px; text-align:center; color:#aaa; font-size:14px; }
+        .nitem .body { font-size:14px; line-height:1.7; white-space:pre-wrap; word-break:break-word; }
+        .nitem .img { display:block; width:100%; margin-top:10px; border-radius:8px; border:1px solid var(--line);
+                      max-height:420px; object-fit:cover; object-position:top; cursor:zoom-in; background:var(--porcelain); }
+        .nitem .imgtip { text-align:center; color:#9a9fab; font-size:12px; margin-top:4px; }
+        .nempty { padding:36px 16px; text-align:center; color:var(--ink-soft); font-size:14px; }
 
-        /* 看长图：全屏、按宽度铺满、上下滑动 */
-        .viewer { position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.92); overflow-y:auto;
-                  -webkit-overflow-scrolling:touch; }
+        /* 看长图 */
+        .viewer { position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.92); overflow-y:auto; -webkit-overflow-scrolling:touch; }
         .viewer img { display:block; width:100%; max-width:760px; margin:0 auto; }
         .viewer .x { position:fixed; top:12px; right:14px; width:38px; height:38px; border-radius:50%;
                      border:none; background:rgba(255,255,255,.18); color:#fff; font-size:20px; cursor:pointer; }
 
-        @media (max-width:440px){ .grid { grid-template-columns:1fr; } .topnav { right:14px; gap:12px; } }
+        @media (max-width:820px){
+            .hub { grid-template-columns:1fr; gap:28px; }
+            .hub-aside { position:static; display:flex; align-items:center; gap:16px; text-align:left; }
+            .hub-aside img { width:88px; height:88px; margin:0; box-shadow:0 0 0 4px var(--paper), 0 0 0 5px var(--line); }
+            .hub-aside h1 { font-size:21px; }
+        }
+        @media (max-width:560px){
+            .menu a { flex-direction:column; gap:2px; padding:14px 2px; }
+            .menu-dots { display:none; }
+            .menu-desc { max-width:none; text-align:left; font-size:14px; }
+            .npanel { top:64px; }
+        }
     </style>
 </head>
 <body>
-    {% with messages = get_flashed_messages() %}
-      {% for m in messages %}<p style="color:#e74c3c; text-align:center;">{{ m }}</p>{% endfor %}
-    {% endwith %}
-    <div class="topnav">
-        <button class="bell" id="bell" title="系统消息" aria-label="系统消息">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    {% call appbar(_('大厅'), [('/change_password', _('修改密码')), ('/logout', _('退出登录'))]) %}
+        <button class="bell" id="bell" type="button" title="{{ _('系统消息') }}" aria-label="{{ _('系统消息') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>
             </svg>
             <span class="dot hidden" id="bellDot"></span>
         </button>
-        <a href="/change_password">修改密码</a>
-        <a href="/logout">退出登录</a>
-    </div>
-    <h1>神秘论坛</h1>
-    <p class="welcome">你醒啦，{{ username }}</p>
+    {% endcall %}
 
-    <div class="grid">
-        <a href="/board" class="tile c-blue">进入</a>
-        <a href="/jzhyl" class="tile c-blueline">JZH语录</a>
-        <a href="/draw" class="tile c-red">抽取你的JZH</a>
-        <a href="/collection" class="tile c-navyline">卡册</a>
-        <a href="/battle" class="tile c-orange">JZH对撞</a>
-        <a href="{{ url_for('pet_page') }}" class="tile c-pink">拓麻JZH</a>
+    <main class="page">
+        {% include "_flash.html" %}
+        <div class="hub">
+            <aside class="hub-aside">
+                <img src="{{ url_for('static', filename='jzh/skins/red/card.webp') }}" alt="JZH" width="200" height="200">
+                <div>
+                    <h1>{{ _('你醒啦，{name}', name=username) }}</h1>
+                    <p>{{ _('今天想和 JZH 玩什么？') }}</p>
+                </div>
+            </aside>
 
-        {% if is_admin %}
-        <a href="/admin/cards" class="tile c-admin">卡牌管理</a>
-        <a href="/admin/settings" class="tile c-admin">后台设置</a>
-        {% endif %}
+            <nav aria-label="{{ _('功能') }}">
+                <ul class="menu">
+                    <li><a class="hot" href="/board"><span class="menu-name">{{ _('留言板') }}</span><span class="menu-dots"></span><span class="menu-desc">{{ _('发帖聊天，@JZH 她会来回复') }}</span></a></li>
+                    <li><a href="/jzhyl"><span class="menu-name">{{ _('JZH语录') }}</span><span class="menu-dots"></span><span class="menu-desc">{{ _('随机翻出一句 JZH 名言') }}</span></a></li>
+                    <li><a href="/draw"><span class="menu-name">{{ _('抽取你的JZH') }}</span><span class="menu-dots"></span><span class="menu-desc">{{ _('抽卡，收集不同的 JZH') }}</span></a></li>
+                    <li><a href="/collection"><span class="menu-name">{{ _('卡册') }}</span><span class="menu-dots"></span><span class="menu-desc">{{ _('看看你收集到的卡牌') }}</span></a></li>
+                    <li><a href="/battle"><span class="menu-name">{{ _('JZH对撞') }}</span><span class="menu-dots"></span><span class="menu-desc">{{ _('组一套卡组，和别人对战') }}</span></a></li>
+                    <li><a href="{{ url_for('pet_page') }}"><span class="menu-name">{{ _('拓麻JZH') }}</span><span class="menu-dots"></span><span class="menu-desc">{{ _('养一只像素 JZH，再去牧场、赌场和江之岛逛逛') }}</span></a></li>
+                    <li><a href="/leaderboard"><span class="menu-name">{{ _('排行榜') }}</span><span class="menu-dots"></span><span class="menu-desc">{{ _('JZH 对撞的积分排名') }}</span></a></li>
+                </ul>
 
-        {% if username in ['joejoe', 'admin'] %}
-        <a href="/joe/board" class="tile c-joe span2">老江后台</a>
-        {% endif %}
-    </div>
-
-    <a href="/leaderboard" class="pill">🏆排行榜</a>
+                {% if is_admin or username in ['joejoe', 'admin'] %}
+                <h2 class="menu-title">{{ _('后台') }}</h2>
+                <ul class="menu">
+                    {% if is_admin %}
+                    <li><a href="/admin/cards"><span class="menu-name">{{ _('卡牌管理') }}</span><span class="menu-dots"></span><span class="menu-desc">{{ _('添加新的卡牌') }}</span></a></li>
+                    <li><a href="/admin/settings"><span class="menu-name">{{ _('后台设置') }}</span><span class="menu-dots"></span><span class="menu-desc">{{ _('抽卡次数、注册审批和公告') }}</span></a></li>
+                    {% endif %}
+                    {% if username in ['joejoe', 'admin'] %}
+                    <li><a href="/joe/board"><span class="menu-name">{{ _('老江后台') }}</span><span class="menu-dots"></span><span class="menu-desc">{{ _('看玩家留言，给大家发金币') }}</span></a></li>
+                    {% endif %}
+                </ul>
+                {% endif %}
+            </nav>
+        </div>
+    </main>
 
     <!-- 系统消息面板 -->
     <div class="nbg hidden" id="nbg"></div>
-    <div class="npanel hidden" id="npanel">
-        <div class="nhead"><b>系统消息</b><button id="readAll">全部已读</button></div>
+    <div class="npanel hidden" id="npanel" role="dialog" aria-label="{{ _('系统消息') }}">
+        <div class="nhead"><b>{{ _('系统消息') }}</b><button id="readAll" type="button">{{ _('全部已读') }}</button></div>
         <div class="nlist" id="nlist"></div>
     </div>
-    <div class="viewer hidden" id="viewer"><button class="x" id="vx">✕</button><img id="vimg" alt=""></div>
+    <div class="viewer hidden" id="viewer"><button class="x" id="vx" type="button" aria-label="{{ _('关闭') }}">✕</button><img id="vimg" alt=""></div>
 
 <script>
 (function(){
@@ -150,15 +159,15 @@
 
     function render(){
         const box = $('nlist'); box.innerHTML = '';
-        if(!data.notices.length){ box.appendChild(el('div', 'nempty', '还没有系统消息')); return; }
+        if(!data.notices.length){ box.appendChild(el('div', 'nempty', __('还没有系统消息'))); return; }
         for(const n of data.notices){
             const it = el('div', 'nitem' + (n.unread ? '' : ' read'));
             const t = el('div', 't');
             if(n.unread) t.appendChild(el('span', 'u'));
-            if(n.pinned) t.appendChild(el('span', 'tag', '置顶'));
+            if(n.pinned) t.appendChild(el('span', 'tag', __('置顶')));
             t.appendChild(el('span', '', n.title));
             it.appendChild(t);
-            it.appendChild(el('div', 'time', n.time + (n.image ? ' · 🖼️ 含图片' : '')));
+            it.appendChild(el('div', 'time', n.time + (n.image ? ' · 🖼️ ' + __('含图片') : '')));
             it.appendChild(el('div', 'pv', n.body || ''));
             const full = el('div', 'full');
             if(n.body) full.appendChild(el('div', 'body', n.body));
@@ -166,7 +175,7 @@
                 const img = el('img', 'img'); img.loading = 'lazy'; img.src = n.image; img.alt = n.title;
                 img.addEventListener('click', e => { e.stopPropagation(); openViewer(n.image); });
                 full.appendChild(img);
-                full.appendChild(el('div', 'imgtip', '点图片看完整长图'));
+                full.appendChild(el('div', 'imgtip', __('点图片看完整长图')));
             }
             it.appendChild(full);
             it.addEventListener('click', () => {

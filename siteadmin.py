@@ -12,6 +12,7 @@ siteadmin.py —— 系统公告 + 注册审批
 """
 import os
 import sqlite3
+import i18n
 import uuid
 from datetime import datetime
 from functools import wraps
@@ -176,7 +177,7 @@ def admin_registrations():
                 if mode in MODES:
                     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('register_mode', ?)", (mode,))
                     conn.commit()
-                    flash("注册方式已改为：" + MODES[mode])
+                    flash(i18n.t("注册方式已改为：{mode}", mode=i18n.t(MODES[mode])))
             elif act in ("approve", "reject"):
                 ids = request.form.getlist("pid") or []
                 done, skipped = [], []
@@ -195,9 +196,9 @@ def admin_registrations():
                         done.append(name)
                 conn.commit()
                 if done:
-                    flash(("已通过：" if act == "approve" else "已拒绝：") + "、".join(done))
+                    flash(i18n.t("已通过：{names}" if act == "approve" else "已拒绝：{names}", names="、".join(done)))
                 if skipped:
-                    flash("这些名字已经被注册，申请已移除：" + "、".join(skipped))
+                    flash(i18n.t("这些名字已经被注册，申请已移除：{names}", names="、".join(skipped)))
             return redirect(url_for("siteadmin.admin_registrations"))
         rows = conn.execute("SELECT id, username, note, created_at FROM pending_users ORDER BY id").fetchall()
         mode = get_mode(conn)

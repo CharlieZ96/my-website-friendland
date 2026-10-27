@@ -1,91 +1,93 @@
 <!DOCTYPE html>
-<html lang="zh">
+{% from "_appbar.html" import appbar, head with context %}
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>留言板</title>
+    {{ head(_('留言板')) }}
     <style>
-        body { margin:0; font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#f4f6f8; }
-        .container { max-width:600px; margin:0 auto; padding:20px 20px 90px; }
-        .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
-        .topbar h2 { color:#333; margin:0; }
-        .topbar a { color:#888; text-decoration:none; font-size:14px; }
-        .post-form { background:white; padding:16px; border-radius:12px;
-                     box-shadow:0 2px 10px rgba(0,0,0,0.06); margin-bottom:20px; }
-        textarea { width:100%; border:1px solid #ddd; border-radius:8px; padding:10px;
-                   font-size:15px; box-sizing:border-box; resize:vertical; min-height:60px;
-                   font-family:inherit; }
-        .post-form button { margin-top:10px; padding:10px 24px; background:#4a90e2; color:white;
-                            border:none; border-radius:8px; font-size:15px; cursor:pointer; float:right; }
-        .card { background:white; padding:16px; border-radius:12px;
-                box-shadow:0 2px 10px rgba(0,0,0,0.06); margin-bottom:14px; }
-        .card .head { display:flex; justify-content:space-between; color:#888;
+        .container { max-width:600px; margin:0 auto; padding:32px 16px 96px; }
+        .post-form { background:var(--paper); padding:16px; border-radius:14px; border:1px solid var(--line); margin-bottom:24px; }
+        .post-form textarea { display:block; width:100%; resize:vertical; min-height:72px; line-height:1.6; }
+        .post-tools { margin-top:12px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; }
+        .post-tools label { display:inline-flex; align-items:center; gap:6px; color:var(--ink-soft); font-size:14px; cursor:pointer; }
+        .post-submit { display:flex; justify-content:flex-end; margin-top:12px; }
+        .card { background:var(--paper); padding:16px 18px; border-radius:14px; border:1px solid var(--line); margin-bottom:12px; }
+        .card .head { display:flex; justify-content:space-between; align-items:center; gap:10px; color:var(--ink-soft);
                       font-size:13px; margin-bottom:8px; }
-        .card .author { color:#4a90e2; font-weight:bold; }
-        .card .content { color:#333; font-size:15px; line-height:1.5;
-                         white-space:pre-wrap; word-break:break-word; }
-        .empty { text-align:center; color:#aaa; margin-top:40px; }
-        .msg { color:#e74c3c; }
-        .comment { margin:5px 0; }
-        .c-row { display:flex; align-items:baseline; font-size:13px; color:#555; }
-        .c-author { color:#4a90e2; font-weight:bold; }
-        .c-time { color:#ccc; font-size:11px; margin-left:auto; white-space:nowrap; }
+        .card .author { color:var(--claret); font-weight:600; font-size:15px; }
+        .card .content { font-size:15px; line-height:1.7; white-space:pre-wrap; word-break:break-word; }
+        .card .post-img { display:block; max-width:100%; max-height:180px; border-radius:10px; margin-top:10px; }
+        .del { padding:0; border:none; background:none; color:var(--ink-soft); font:inherit; font-size:13px; cursor:pointer;
+               text-decoration:underline; text-underline-offset:3px; }
+        .del:hover { color:var(--danger); }
+        .empty { text-align:center; color:var(--ink-soft); margin-top:48px; }
+        .comments { margin-top:10px; }
+        .comments:not(:empty) { padding-top:8px; border-top:1px solid #f0eaec; }
+        .comment { margin:6px 0; }
+        .c-row { display:flex; align-items:baseline; gap:8px; font-size:14px; line-height:1.6; color:var(--ink); }
+        .c-body { min-width:0; word-break:break-word; }
+        .c-author { color:var(--claret); font-weight:600; }
+        .c-time { color:#a3a8b3; font-size:11px; margin-left:auto; white-space:nowrap; }
+        .c-img { display:block; max-width:120px; max-height:120px; border-radius:8px; margin-top:4px; }
+        .c-form { margin-top:10px; display:flex; gap:6px; align-items:center; }
+        .c-form input[type=text] { flex:1; min-width:0; padding:7px 12px; font-size:14px; }
+        .c-pic { cursor:pointer; font-size:18px; padding:0 4px; }
+        .c-full { color:var(--ink-soft); font-size:12px; margin-top:8px; }
 
         /* —— JZH（鲸鱼女仆）—— */
         .jzh-ava { width:30px; height:30px; border-radius:50%; vertical-align:middle; margin-right:6px; cursor:zoom-in;
-                   box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(40,70,200,.25); transition:transform .15s; flex:none; }
+                   box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(107,26,43,.25); transition:transform .15s; flex:none; }
         .jzh-ava:hover { transform:scale(1.12) rotate(-5deg); }
         .head .jzh-ava { width:34px; height:34px; }
-        .author.jzh, .c-author.jzh { color:#3b5bfd; }
-        .comment.jzh { background:#eef3ff; border-radius:10px; padding:5px 8px; margin:6px 0; }
+        .author.jzh, .c-author.jzh { color:var(--claret-deep); }
+        .comment.jzh { background:#f8eef0; border-radius:10px; padding:6px 10px; margin:6px 0; }
         .comment.jzh .c-row { align-items:center; }
         .comment.fresh { animation:pop .45s cubic-bezier(.2,1.5,.4,1); }
         @keyframes pop { from { transform:scale(.9); opacity:0; } }
-        .typing { display:flex; align-items:center; gap:6px; background:#eef3ff; border-radius:10px; padding:5px 8px; margin:6px 0;
-                  font-size:13px; color:#5a6fd8; }
-        .typing i { display:inline-block; width:5px; height:5px; border-radius:50%; background:#5a6fd8; animation:blink 1.2s infinite; }
+        .typing { display:flex; align-items:center; gap:6px; background:#f8eef0; border-radius:10px; padding:6px 10px; margin:6px 0;
+                  font-size:13px; color:var(--claret); }
+        .typing i { display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--claret); animation:blink 1.2s infinite; }
         .typing i:nth-child(3) { animation-delay:.2s; } .typing i:nth-child(4) { animation-delay:.4s; }
         @keyframes blink { 50% { opacity:.2; transform:translateY(-2px); } }
-        .typing.fail { color:#999; background:#f3f3f3; }
-        .at-jzh { flex:none; padding:5px 8px; border:1px solid #c9d5ff; background:#f3f6ff; color:#3b5bfd; border-radius:6px;
-                  font-size:12px; cursor:pointer; }
-        .post-tools { margin-top:10px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
-        .post-form .at-jzh { float:none; margin:0; padding:5px 10px; background:#f3f6ff; color:#3b5bfd; border:1px solid #c9d5ff;
-                             border-radius:6px; font-size:13px; }
+        .typing.fail { color:var(--ink-soft); background:#f2eff0; }
+        .at-jzh { flex:none; padding:5px 10px; border:1px solid #e5c3cb; background:#fbf1f3; color:var(--claret); border-radius:999px;
+                  font:inherit; font-size:12px; font-weight:600; cursor:pointer; }
+        .at-jzh:hover { border-color:var(--claret); }
+        .post-form .at-jzh { font-size:13px; }
         .jzh-pop { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center;
-                   background:rgba(20,30,80,.45); cursor:zoom-out; }
+                   background:rgba(40,10,18,.5); cursor:zoom-out; }
         .jzh-pop img { width:min(84vw,84vh,440px); border-radius:50%; box-shadow:0 14px 40px rgba(0,0,0,.35);
                        animation:pop .3s cubic-bezier(.2,1.5,.4,1); }
 
         /* —— 右下角：找 JZH 聊天 —— */
         #chatBtn { position:fixed; right:18px; bottom:18px; z-index:50; width:62px; height:62px; border:none; padding:0;
-                   border-radius:50%; cursor:pointer; background:none; filter:drop-shadow(0 4px 10px rgba(40,70,200,.35)); }
+                   border-radius:50%; cursor:pointer; background:none; filter:drop-shadow(0 4px 10px rgba(107,26,43,.35)); }
         #chatBtn img { width:62px; height:62px; border-radius:50%; box-shadow:0 0 0 3px #fff; display:block; }
-        #chatBtn b { position:absolute; right:-4px; top:-4px; background:#3b5bfd; color:#fff; font-size:11px; border-radius:10px;
+        #chatBtn b { position:absolute; right:-4px; top:-4px; background:var(--claret); color:#fff; font-size:11px; border-radius:10px;
                      padding:2px 6px; box-shadow:0 0 0 2px #fff; }
         #chatBtn:hover img { transform:rotate(-6deg); transition:transform .15s; }
         #chat { position:fixed; right:18px; bottom:92px; z-index:60; width:340px; max-width:calc(100vw - 24px);
                 height:min(480px, calc(100vh - 120px)); background:#fff; border-radius:16px; display:flex; flex-direction:column;
-                box-shadow:0 10px 36px rgba(20,30,80,.25); overflow:hidden; }
+                border:1px solid var(--line); box-shadow:0 16px 40px rgba(40,10,18,.22); overflow:hidden; }
         #chat[hidden] { display:none; }
         .chat-head { display:flex; align-items:center; gap:10px; padding:10px 12px; color:#fff;
-                     background:linear-gradient(135deg,#4d6bfe,#6fd3ff); }
+                     background:var(--claret); }
         .chat-head img { width:40px; height:40px; border-radius:50%; box-shadow:0 0 0 2px #fff; }
         .chat-head .t { font-weight:bold; line-height:1.2; }
         .chat-head .s { font-size:12px; opacity:.9; }
         .chat-head button { margin-left:auto; background:none; border:none; color:#fff; font-size:20px; cursor:pointer; }
-        #chatLog { flex:1; overflow-y:auto; padding:12px; background:#f6f8ff; }
+        #chatLog { flex:1; overflow-y:auto; padding:12px; background:var(--porcelain); }
         .bub { display:flex; gap:8px; margin:0 0 10px; align-items:flex-end; }
         .bub .t { max-width:76%; padding:8px 11px; border-radius:14px; font-size:14px; line-height:1.45;
                   white-space:pre-wrap; word-break:break-word; }
         .bub.me { justify-content:flex-end; }
-        .bub.me .t { background:#4a90e2; color:#fff; border-bottom-right-radius:4px; }
-        .bub.bot .t { background:#fff; color:#333; border-bottom-left-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+        .bub.me .t { background:var(--claret); color:var(--on-claret); border-bottom-right-radius:4px; }
+        .bub.bot .t { background:var(--paper); color:var(--ink); border-bottom-left-radius:4px; border:1px solid var(--line); }
         .bub.err .t { background:#fff3f3; color:#c0392b; }
         .bub img { width:32px; height:32px; border-radius:50%; flex:none; }
-        .chat-in { display:flex; gap:6px; padding:8px; border-top:1px solid #eee; }
-        .chat-in input { flex:1; min-width:0; padding:9px 11px; border:1px solid #ddd; border-radius:20px; font-size:14px; }
-        .chat-in button { padding:0 16px; background:#4d6bfe; color:#fff; border:none; border-radius:20px; font-size:14px; cursor:pointer; }
+        .chat-in { display:flex; gap:6px; padding:8px; border-top:1px solid var(--line); background:var(--paper); }
+        .chat-in input { flex:1; min-width:0; padding:9px 12px; border:1px solid #d9d3d6; border-radius:20px; font:inherit; font-size:14px; }
+        .chat-in input:focus { outline:none; border-color:var(--brass); box-shadow:0 0 0 3px rgba(201,164,92,.4); }
+        .chat-in button { padding:0 16px; background:var(--claret); color:var(--on-claret); border:none; border-radius:20px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
         .chat-in button:disabled { opacity:.5; cursor:default; }
         @media (max-width:480px) {
             #chat { right:12px; left:12px; width:auto; max-width:none; bottom:86px; }
@@ -95,7 +97,7 @@
         #chatBtn { width:76px; height:76px; }
         #chatBtn img { width:76px; height:76px; }
         #chat { bottom:106px; height:min(540px, calc(100vh - 130px)); }
-        .chat-head { gap:12px; padding:12px 14px; background:linear-gradient(135deg,#8c2236,#d0566c); }
+        .chat-head { gap:12px; padding:12px 14px; background:var(--claret); }
         .chat-head img#chatFace { width:84px; height:84px; box-shadow:0 0 0 3px #fff, 0 4px 14px rgba(0,0,0,.25); flex:none; cursor:zoom-in; }
         .chat-head img#chatFace.pop { animation:pop .35s ease; }
         .chat-head .t { font-size:18px; }
@@ -103,15 +105,15 @@
         .chat-tabs { display:flex; border-bottom:1px solid #eee; background:#fff; }
         .chat-tabs button { flex:1; border:0; background:none; padding:8px 0; font-size:13px; color:#888; cursor:pointer;
                             border-bottom:2px solid transparent; font-family:inherit; }
-        .chat-tabs button[aria-selected="true"] { color:#8c2236; border-bottom-color:#8c2236; font-weight:bold; }
-        .kb-tab { flex:1; overflow-y:auto; padding:12px; background:#fbf7f8; }
+        .chat-tabs button[aria-selected="true"] { color:var(--claret); border-bottom-color:var(--claret); font-weight:bold; }
+        .kb-tab { flex:1; overflow-y:auto; padding:12px; background:var(--porcelain); }
         .kb-tab[hidden], .chat-in[hidden] { display:none; }
         .kb-skins { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
         .kb-skin { min-width:0; border:2px solid #eee; border-radius:12px; background:#fff; padding:8px; text-align:center;
                    font-size:12px; color:#555; cursor:pointer; font-family:inherit; }
         .kb-skin img { width:100%; aspect-ratio:1; border-radius:50%; display:block; margin-bottom:6px; }
         .kb-skin b { display:block; font-size:13px; color:#333; }
-        .kb-skin[aria-pressed="true"] { border-color:#8c2236; background:#fbeff1; }
+        .kb-skin[aria-pressed="true"] { border-color:var(--claret); background:#fbeff1; }
         .kb-skin.locked { cursor:default; color:#aaa; }
         .kb-skin.locked span.lock { display:flex; align-items:center; justify-content:center; height:64px; border-radius:10px;
                    margin-bottom:6px; background:repeating-linear-gradient(135deg,#f2eef0 0 10px,#ebe5e8 10px 20px); font-size:26px; }
@@ -119,15 +121,15 @@
         .kb-opt small { display:block; color:#999; font-size:12px; }
         .kb-sw { width:42px; height:24px; border-radius:999px; border:0; background:#d7d9e0; position:relative; cursor:pointer; flex:none; }
         .kb-sw::after { content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left .2s; }
-        .kb-sw[aria-checked="true"] { background:#8c2236; }
+        .kb-sw[aria-checked="true"] { background:var(--claret); }
         .kb-sw[aria-checked="true"]::after { left:21px; }
-        .kb-opt input[type=range] { width:120px; accent-color:#8c2236; }
+        .kb-opt input[type=range] { width:120px; accent-color:var(--claret); }
 
         /* —— 全身立绘（看板娘）—— */
         .kb { position:fixed; z-index:40; --kb-scale:1; }
         .kb[hidden] { display:none; }
         .kb-fig { cursor:pointer; transform-origin:50% 100%; }
-        .kb-fig:focus-visible { outline:2px solid #8c2236; outline-offset:4px; border-radius:8px; }
+        .kb-fig:focus-visible { outline:2px solid var(--claret); outline-offset:4px; border-radius:8px; }
         .kb-in { position:relative; aspect-ratio:832/1216; transform-origin:50% 100%; }
         .kb-in img { position:absolute; display:block; -webkit-user-drag:none; user-select:none; pointer-events:none; }
         .kb-full { left:0; top:0; width:100%; height:100%; }
@@ -163,7 +165,7 @@
             .kb.big .kb-say.on { translate:-50% 0; }
             .kb.big .kb-skinbar { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; padding:12px 12px calc(16px + env(safe-area-inset-bottom, 0px)); }
             .kb-skinbar button { border:0; border-radius:999px; padding:7px 14px; font-size:13px; background:#fff; color:#333; cursor:pointer; font-family:inherit; }
-            .kb-skinbar button[aria-pressed="true"] { background:#8c2236; color:#fff; }
+            .kb-skinbar button[aria-pressed="true"] { background:var(--claret); color:#fff; }
             #chatBtn { width:64px; height:64px; }
             #chatBtn img { width:64px; height:64px; }
             #chat { bottom:92px; }
@@ -176,29 +178,18 @@
 
 <body>
     {% set JZH = "JZH" %}
-    <div class="container">
-        <div class="topbar">
-            <h2>留言板</h2>
-            <a href="/hub">← 返回主页</a>
-        </div>
-
-        <div id="flash">
-        {% with messages = get_flashed_messages() %}
-          {% for m in messages %}<p class="msg">{{ m }}</p>{% endfor %}
-        {% endwith %}
-        </div>
+    {{ appbar(_('留言板'), [('/hub', _('返回大厅'))]) }}
+    <div class="container page">
+        <div id="flash">{% include "_flash.html" %}</div>
 
         <form class="post-form" id="postForm" method="POST" enctype="multipart/form-data">
-            <textarea name="content" placeholder="发点什么JZH吧...（写 @JZH 她一定会来回你）"></textarea>
+            <textarea name="content" aria-label="{{ _('帖子内容') }}" placeholder="{{ _('说点什么吧……写上 @JZH，她一定会来回你') }}"></textarea>
             <div class="post-tools">
-                <input type="file" name="image" accept="image/*">
-                <label style="color:#888; font-size:14px;">
-                    <input type="checkbox" name="anonymous"> 匿名发布
-                </label>
+                <input type="file" name="image" accept="image/*" aria-label="{{ _('配图') }}">
+                <label><input type="checkbox" name="anonymous"> {{ _('匿名发布') }}</label>
                 <button type="button" class="at-jzh" data-target="content">@JZH</button>
             </div>
-            <button type="submit">发布</button>
-            <div style="clear:both;"></div>
+            <div class="post-submit"><button class="btn btn-primary btn-sm" type="submit">{{ _('发布') }}</button></div>
         </form>
 
 <div id="feed">
@@ -208,20 +199,17 @@
             <div class="card" data-post="{{ p[5] }}" data-mine="{{ 1 if p[0] == username else 0 }}">
                 <div class="head">
                     <span class="author{% if is_jzh %} jzh{% endif %}">
-                        {% if is_jzh %}<img class="jzh-ava" alt="JZH" src="{{ url_for('static', filename='jzh/skins/red/av_pout.webp') }}" data-say="{{ p[1] }}">{% endif %}{% if p[3] %}匿名{% else %}{{ p[0] }}{% endif %}
+                        {% if is_jzh %}<img class="jzh-ava" alt="JZH" src="{{ url_for('static', filename='jzh/skins/red/av_pout.webp') }}" data-say="{{ p[1] }}">{% endif %}{% if p[3] %}{{ _('匿名') }}{% else %}{{ p[0] }}{% endif %}
                     </span>
                     <span>{{ p[2] }}</span>
                 </div>
                 <div class="content">{{ p[1] }}</div>
                 {% if p[4] %}
-                <img src="/uploads/{{ p[4] }}" style="max-width:100%; max-height:150px; border-radius:8px; margin-top:10px;">
+                <img class="post-img" src="/uploads/{{ p[4] }}" alt="{{ _('帖子配图') }}">
                 {% endif %}
                 {% if p[0] == username %}
                 <form method="POST" action="/delete/{{ p[5] }}" style="margin-top:8px;">
-                    <button type="submit"
-                        style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:13px;">
-                        删除
-                    </button>
+                    <button type="submit" class="del">{{ _('删除') }}</button>
                 </form>
                 {% endif %}
                 <!-- 评论列表 -->
@@ -230,78 +218,78 @@
                     <div class="comment{% if c[1] == JZH %} jzh{% endif %}" data-cid="{{ c[4] }}">
                         <div class="c-row">
                             <span class="c-body">
-                                {% if c[1] == JZH %}<img class="jzh-ava" alt="JZH" src="{{ url_for('static', filename='jzh/skins/red/av_pout.webp') }}" data-say="{{ c[2] }}">{% endif %}<span class="c-author{% if c[1] == JZH %} jzh{% endif %}">{{ c[1] }}</span>:{{ c[2] }}
+                                {% if c[1] == JZH %}<img class="jzh-ava" alt="JZH" src="{{ url_for('static', filename='jzh/skins/red/av_pout.webp') }}" data-say="{{ c[2] }}">{% endif %}<span class="c-author{% if c[1] == JZH %} jzh{% endif %}">{{ c[1] }}</span>：{{ c[2] }}
                                 {% if c[1] == username %}
                                 <form method="POST" action="/delete_comment/{{ c[4] }}" style="display:inline;">
-                                    <button type="submit" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:11px;">删</button>
+                                    <button type="submit" class="del" style="font-size:12px; margin-left:4px;">{{ _('删') }}</button>
                                 </form>
                                 {% endif %}
                             </span>
                             <span class="c-time">{{ c[3] }}</span>
                         </div>
                         {% if c[5] %}
-                        <img src="/uploads/{{ c[5] }}" style="display:block; max-width:120px; max-height:120px; border-radius:6px; margin-top:4px;">
+                        <img class="c-img" src="/uploads/{{ c[5] }}" alt="{{ _('评论配图') }}">
                         {% endif %}
                     </div>
                     {% endfor %}
                 </div>
                 <!-- 评论框（未满8条才显示） -->
                 {% if comments.get(p[5], [])|length < 8 %}
-                <form method="POST" action="/comment/{{ p[5] }}" enctype="multipart/form-data" style="margin-top:8px; display:flex; gap:6px; align-items:center;">
-                    <button type="button" class="at-jzh" title="叫 JZH 来回复">@JZH</button>
-                    <input type="text" name="content" maxlength="200" placeholder="写评论或发个图吧…" style="flex:1; min-width:0; padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
-                    <label style="cursor:pointer; font-size:18px; padding:0 4px;" title="添加图片">
+                <form class="c-form" method="POST" action="/comment/{{ p[5] }}" enctype="multipart/form-data">
+                    <button type="button" class="at-jzh" title="{{ _('叫 JZH 来回复') }}">@JZH</button>
+                    <input type="text" name="content" maxlength="200" aria-label="{{ _('评论') }}" placeholder="{{ _('写评论或发个图吧…') }}">
+                    <label class="c-pic" title="{{ _('添加图片') }}">
                         <span>🖼️</span>
                         <input type="file" name="image" accept="image/*" style="display:none;"
                                onchange="this.previousElementSibling.textContent = this.files.length ? '✅' : '🖼️';">
                     </label>
-                    <button type="submit" style="padding:6px 14px; background:#4a90e2; color:white; border:none; border-radius:6px; font-size:13px; cursor:pointer;">评论</button>
+                    <button type="submit" class="btn btn-primary btn-sm">{{ _('评论') }}</button>
                 </form>
                 {% else %}
-                <div style="color:#aaa; font-size:12px; margin-top:6px;">评论已满 8 条</div>
+                <div class="c-full">{{ _('评论已满 8 条') }}</div>
                 {% endif %}
             </div>
             {% endfor %}
         {% else %}
-            <p class="empty">还没有人发帖，来做第一个吧！</p>
+            <p class="empty">{{ _('还没有人发帖，来做第一个吧！') }}</p>
         {% endif %}
 </div>
     </div>
 
     <!-- 右下角：找 JZH 聊天 -->
-    <button id="chatBtn" type="button" title="找 JZH 聊天"><img alt="JZH" src="{{ url_for('static', filename='jzh/skins/red/av_pout.webp') }}"><b>聊</b></button>
+    <button id="chatBtn" type="button" title="{{ _('找 JZH 聊天') }}" aria-label="{{ _('找 JZH 聊天') }}"><img alt="JZH" src="{{ url_for('static', filename='jzh/skins/red/av_pout.webp') }}"><b>{{ _('聊') }}</b></button>
     <div id="chat" hidden>
         <div class="chat-head">
             <img alt="JZH" id="chatFace" src="{{ url_for('static', filename='jzh/skins/red/av_pout.webp') }}">
-            <div><div class="t">JZH</div><div class="s" id="chatLeft">有话快说</div></div>
-            <button type="button" id="chatClose" title="关闭">×</button>
+            <div><div class="t">JZH</div><div class="s" id="chatLeft">{{ _('有话快说') }}</div></div>
+            <button type="button" id="chatClose" title="{{ _('关闭') }}" aria-label="{{ _('关闭') }}">×</button>
         </div>
         <div class="chat-tabs" role="tablist">
-            <button type="button" role="tab" aria-selected="true" data-tab="chat">聊天</button>
-            <button type="button" role="tab" aria-selected="false" data-tab="dress">换装</button>
-            <button type="button" role="tab" aria-selected="false" data-tab="look">立绘</button>
+            <button type="button" role="tab" aria-selected="true" data-tab="chat">{{ _('聊天') }}</button>
+            <button type="button" role="tab" aria-selected="false" data-tab="dress">{{ _('换装') }}</button>
+            <button type="button" role="tab" aria-selected="false" data-tab="look">{{ _('立绘') }}</button>
         </div>
         <div id="chatLog"></div>
         <div class="kb-tab" id="kbDress" hidden><div class="kb-skins" id="kbSkins"></div></div>
         <div class="kb-tab" id="kbLook" hidden>
-            <div class="kb-opt"><div>留言板显示全身立绘<small>电脑上在左边，手机上从左下角探出半身</small></div>
-                <button type="button" class="kb-sw" id="kbOptShow" role="switch" aria-checked="true" aria-label="显示全身立绘"></button></div>
-            <div class="kb-opt"><div>动态效果<small>呼吸、摇晃、眨眼；系统开了"减少动态效果"会自动停</small></div>
-                <button type="button" class="kb-sw" id="kbOptAnim" role="switch" aria-checked="true" aria-label="动态效果"></button></div>
-            <div class="kb-opt"><div>立绘大小</div><input type="range" id="kbOptSize" min="70" max="115" value="100" aria-label="立绘大小"></div>
+            <div class="kb-opt"><div>{{ _('留言板显示全身立绘') }}<small>{{ _('电脑上在左边，手机上从左下角探出半身') }}</small></div>
+                <button type="button" class="kb-sw" id="kbOptShow" role="switch" aria-checked="true" aria-label="{{ _('显示全身立绘') }}"></button></div>
+            <div class="kb-opt"><div>{{ _('动态效果') }}<small>{{ _('呼吸、摇晃、眨眼；系统开了"减少动态效果"会自动停') }}</small></div>
+                <button type="button" class="kb-sw" id="kbOptAnim" role="switch" aria-checked="true" aria-label="{{ _('动态效果') }}"></button></div>
+            <div class="kb-opt"><div>{{ _('立绘大小') }}</div><input type="range" id="kbOptSize" min="70" max="115" value="100" aria-label="{{ _('立绘大小') }}"></div>
         </div>
         <form class="chat-in" id="chatForm">
-            <input id="chatInput" maxlength="200" placeholder="跟 JZH 说点什么…" autocomplete="off">
-            <button type="submit" id="chatSend">发送</button>
+            <input id="chatInput" maxlength="200" aria-label="{{ _('消息') }}" placeholder="{{ _('跟 JZH 说点什么…') }}" autocomplete="off">
+            <button type="submit" id="chatSend">{{ _('发送') }}</button>
         </form>
     </div>
 
     <!-- 全身立绘（看板娘）：电脑在左边，手机在左下角 -->
     <div class="kb" id="kb" hidden>
         <div class="kb-say" id="kbSay"></div>
-        <div class="kb-fig" id="kbFig" role="button" tabindex="0" aria-label="戳一下 JZH">
+        <div class="kb-fig" id="kbFig" role="button" tabindex="0" aria-label="{{ _('戳一下 JZH') }}">
             <div class="kb-in">
-                <img class="kb-full" id="kbFull" alt="JZH 全身立绘">
+                <img class="kb-full" id="kbFull" alt="{{ _('JZH 全身立绘') }}">
                 <img class="kb-face" id="kbFace" alt="" hidden>
                 <img class="kb-face" id="kbBlink" alt="" hidden>
             </div>
@@ -317,8 +305,8 @@
     // —— 皮肤（衣服）：每套一个文件夹 static/jzh/skins/<id>/ ——
     // box = 脸部那块小图贴在全身图上的位置（x, y, 宽），全身图都是 832×1216
     var SKINS = [
-        { id: 'red',    name: '禁忌 · 深红女仆', box: [150, 8, 320], hello: '怎么还是喜欢女仆？' },
-        { id: 'casual', name: '日常 · 萌妹卫衣',     box: [150, 8, 320], hello: '随便穿穿……' }
+        { id: 'red',    name: __('禁忌 · 深红女仆'), box: [150, 8, 320], hello: __('怎么还是喜欢女仆？') },
+        { id: 'casual', name: __('日常 · 萌妹卫衣'), box: [150, 8, 320], hello: __('随便穿穿……') }
     ];
     var FW = 832, FH = 1216;
     var KB = { skin: 'red', show: true, anim: true, size: 100 };   // 每个人的选择存在自己浏览器里
@@ -388,16 +376,7 @@
     function kbReact(text) { kbSay(text, moodOf(text)); }
 
     // 戳她的台词（本地的，不花 AI 额度）
-    var LINES = [
-        ['smug', '看什么看？'],
-        ['pout', '今天吃咖喱猪排饭。'],
-        ['smug', '又输了？我就知道。'],
-        ['angry', '再戳！'],
-        ['pout', '有事就 @JZH，别光戳。'],
-        ['pout', '我急眼了。'],
-        ['grin', '……干嘛？'],
-        ['smug', '想看换装？右下角找我。']
-    ];
+    var LINES = {{ poke_lines|tojson }};   // 台词放在服务器的私密文件里（见 jzh_content.py）
     var lineIdx = Math.floor(Math.random() * LINES.length);
     function poke() {
         var l = LINES[lineIdx++ % LINES.length];
@@ -406,9 +385,9 @@
     }
     function greet() {
         var h = new Date().getHours();
-        var t = h < 5 ? ['pout', '这么晚还不睡？……我才不是在陪你。'] : h < 11 ? ['grin', '早。……别误会，只是顺口。']
-              : h < 14 ? ['pout', '吃饭了没？咖喱猪排饭不许抢。'] : h < 18 ? ['smug', '下午还来摸鱼？我就知道。']
-              : ['grin', '晚上好。今天也辛苦了……哼。'];
+        var t = h < 5 ? ['pout', __('这么晚还不睡？……我才不是在陪你。')] : h < 11 ? ['grin', __('早。……别误会，只是顺口。')]
+              : h < 14 ? ['pout', __('吃饭了没？咖喱猪排饭不许抢。')] : h < 18 ? ['smug', __('下午还来摸鱼？我就知道。')]
+              : ['grin', __('晚上好。今天也辛苦了……哼。')];
         kbSay(t[1], t[0]);
     }
     // 眨眼：每隔几秒闭一下眼（炸毛、得意的时候不眨）
@@ -425,7 +404,7 @@
         }, 2600 + Math.random() * 3200);
     }
     // 手机上点半身 → 全屏看全身；全屏时点人 = 戳，点空白 = 收起
-    function openBig() { kb.classList.add('big'); renderSkinbar(); kbSay('看够了没有？', 'smug'); }
+    function openBig() { kb.classList.add('big'); renderSkinbar(); kbSay(__('看够了没有？'), 'smug'); }
     function closeBig() { kb.classList.remove('big'); }
     kbFig.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -459,12 +438,13 @@
             b.setAttribute('aria-pressed', s.id === KB.skin ? 'true' : 'false');
             b.innerHTML = '<img alt="" loading="lazy" src="' + IMG + 'skins/' + s.id + '/card.webp"><b></b><span></span>';
             b.querySelector('b').textContent = s.name;
-            b.querySelector('span').textContent = s.id === KB.skin ? '穿着中' : '点击换上';
+            b.querySelector('span').textContent = s.id === KB.skin ? __('穿着中') : __('点击换上');
             b.onclick = function () { setSkin(s.id); };
             box.appendChild(b);
         });
         var d = document.createElement('div'); d.className = 'kb-skin locked';
-        d.innerHTML = '<span class="lock">🔒</span><b>新衣服</b>制作中，敬请期待';
+        d.innerHTML = '<span class="lock">🔒</span><b></b><span class="soon"></span>';
+        d.querySelector('b').textContent = __('新衣服'); d.querySelector('.soon').textContent = __('制作中，敬请期待');
         box.appendChild(d);
     }
     function renderSkinbar() {                                 // 手机全屏时底下的换装按钮
@@ -475,7 +455,7 @@
             b.onclick = function (e) { e.stopPropagation(); setSkin(s.id); };
             bar.appendChild(b);
         });
-        var c = document.createElement('button'); c.type = 'button'; c.textContent = '收起';
+        var c = document.createElement('button'); c.type = 'button'; c.textContent = __('收起');
         c.onclick = function (e) { e.stopPropagation(); closeBig(); };
         bar.appendChild(c);
     }
@@ -536,10 +516,10 @@
         var d = document.createElement('div');
         d.className = 'typing' + (failed ? ' fail' : '');
         d.innerHTML = '<img class="jzh-ava" alt="JZH" src="' + sdir() + (failed ? 'av_pout.webp' : 'av_smug.webp') + '">' +
-            (failed ? '<span>JZH 没理你……可能去吃白饭了，等会儿再 @ 她试试</span>' : '<span>JZH 正在输入</span><i></i><i></i><i></i>');
+            (failed ? '<span>' + __('JZH 没理你……可能去吃白饭了，等会儿再 @ 她试试') + '</span>' : '<span>' + __('JZH 正在输入') + '</span><i></i><i></i><i></i>');
         c.querySelector('.comments').appendChild(d);
-        if (failed) { setTimeout(function () { d.remove(); }, 6000); kbSay('……刚才走神了，再 @ 我一次。', 'pout'); }
-        else kbSay('在写了在写了，别催。', 'pout');
+        if (failed) { setTimeout(function () { d.remove(); }, 6000); kbSay(__('……刚才走神了，再 @ 我一次。'), 'pout'); }
+        else kbSay(__('在写了在写了，别催。'), 'pout');
     }
     function waitJzh(id, before) {
         if (waiting[id]) return;
@@ -626,7 +606,7 @@
                 loaded = true;
                 fetch('/bot/history', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
                     (d.items || []).forEach(function (it) { bubble(it.role === 'model' ? 'bot' : 'me', it.text); });
-                    if (!(d.items || []).length) bubble('bot', '有事说事。');
+                    if (!(d.items || []).length) bubble('bot', __('有事说事。'));
                 }).catch(function () {});
             }
         }
@@ -651,7 +631,7 @@
         input.value = '';
         bubble('me', msg);
         var wait = document.createElement('div');
-        wait.className = 'typing'; wait.innerHTML = '<span>JZH 正在输入</span><i></i><i></i><i></i>';
+        wait.className = 'typing'; wait.innerHTML = '<span>' + __('JZH 正在输入') + '</span><i></i><i></i><i></i>';
         log.appendChild(wait); log.scrollTop = log.scrollHeight;
         send.disabled = true;
         setMood('pout');
@@ -663,10 +643,10 @@
                 if (d.reply) {
                     bubble('bot', d.reply);
                     kbReact(d.reply);
-                    if (d.remaining != null) document.getElementById('chatLeft').textContent = '今天还能聊 ' + d.remaining + ' 句';
-                } else bubble('err', d.error || 'JZH 没搭理你');
+                    if (d.remaining != null) document.getElementById('chatLeft').textContent = __('今天还能聊 {n} 句', {n: d.remaining});
+                } else bubble('err', d.error ? __(d.error) : __('JZH 没搭理你'));
             })
-            .catch(function () { wait.remove(); bubble('err', '网络不太好，再试一次'); })
+            .catch(function () { wait.remove(); bubble('err', __('网络不太好，再试一次')); })
             .then(function () { send.disabled = false; input.focus(); });
     });
 })();

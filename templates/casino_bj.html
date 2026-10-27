@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
+{% include "_i18n.html" %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>21点</title>
+<title>{{ _('21点') }}</title>
 <style>
   :root{--bg:#06070f;--pink:#ff2e88;--cyan:#27e3ff;--purple:#a06bff;--amber:#ffb54d;--green:#34d17e;--ink:#eaf2ff;--felt:#1c6b4a;}
   *{box-sizing:border-box}
@@ -88,18 +89,18 @@
   <div class="top">
     <span class="coins">🪙<span id="coin">…</span></span>
     <span class="win">🏆<span id="win">—</span></span>
-    <span class="leave" id="leave">离开 ↩</span>
+    <span class="leave" id="leave">{{ _('离开') }} ↩</span>
   </div>
 
   <div class="table">
     <div class="felt-arc"></div>
-    <div class="phase" id="phase">连接中…</div>
+    <div class="phase" id="phase">{{ _('连接中…') }}</div>
 
     <!-- 庄家 -->
     <div class="dealer">
       <div class="dtitle">
         <svg class="npc" viewBox="0 0 34 44"><rect x="9" y="2" width="16" height="8" fill="#241b30"/><rect x="10" y="9" width="14" height="9" fill="#e9c39c"/><rect x="13" y="12" width="2" height="2" fill="#222"/><rect x="19" y="12" width="2" height="2" fill="#222"/><rect x="6" y="18" width="22" height="20" fill="#151828"/><rect x="15" y="18" width="4" height="20" fill="#e6edff"/><rect x="12" y="19" width="10" height="3" fill="#ff2e88"/></svg>
-        庄家 · 老江 <span class="val" id="dval"></span>
+        {{ _('庄家 · 老江') }} <span class="val" id="dval"></span>
       </div>
       <div class="hand" id="dhand"></div>
     </div>
@@ -118,19 +119,19 @@
         <div class="chip" data-v="50">50</div>
         <div class="chip" data-v="100">100</div>
       </div>
-      <div class="mybet">本局下注 <b id="mybet">0</b> 🪙 <span id="readyInfo" style="color:#8fbfe6"></span></div>
+      <div class="mybet">{{ _('本局下注') }} <b id="mybet">0</b> 🪙 <span id="readyInfo" style="color:#8fbfe6"></span></div>
       <div class="ctrls">
-        <button class="btn clear" id="btnClear">撤注</button>
-        <button class="btn deal" id="btnDeal">✅ 发牌</button>
+        <button class="btn clear" id="btnClear">{{ _('撤注') }}</button>
+        <button class="btn deal" id="btnDeal">✅ {{ _('发牌') }}</button>
       </div>
     </div>
 
     <!-- 决策 -->
     <div id="panelPlay" hidden>
       <div class="ctrls">
-        <button class="btn hit" id="btnHit">🃏 要牌</button>
-        <button class="btn stand" id="btnStand">✋ 停牌</button>
-        <button class="btn double" id="btnDouble">✖2 双倍</button>
+        <button class="btn hit" id="btnHit">🃏 {{ _('要牌') }}</button>
+        <button class="btn stand" id="btnStand">✋ {{ _('停牌') }}</button>
+        <button class="btn double" id="btnDouble">✖{{ _('2 双倍') }}</button>
       </div>
       <div class="waitmsg" id="waitMsg"></div>
     </div>
@@ -139,7 +140,7 @@
     <div id="panelResult" hidden>
       <div class="waitmsg" id="resultMsg"></div>
       <div class="ctrls" style="justify-content:center">
-        <button class="btn cont" id="btnCont">▶ 再来一局</button>
+        <button class="btn cont" id="btnCont">▶ {{ _('再来一局') }}</button>
       </div>
     </div>
   </div>
@@ -171,7 +172,7 @@ function cardSVG(card){
     <text x="36" y="58" font-size="12" font-weight="800" fill="${col}" text-anchor="middle" transform="rotate(180 36 54)">${r}</text></svg>`;
 }
 function av(s){try{return petSVG({version:s.version,stage:'adult',hat:s.hat,outfit:s.outfit,hair:s.hair,skin:s.skin,clothes:s.clothes});}catch(e){return '';}}
-const RB={win:['rb-win','赢'],bj:['rb-bj','黑杰克!'],lose:['rb-lose','输'],push:['rb-push','平'],bust:['rb-bust','爆'],sit:['','']};
+const RB={win:['rb-win',__('赢')],bj:['rb-bj',__('黑杰克!')],lose:['rb-lose',__('输')],push:['rb-push',__('平')],bust:['rb-bust',__('爆')],sit:['','']};
 
 function renderTable(v){
   // 庄家
@@ -188,17 +189,17 @@ function renderTable(v){
     let badge='';
     if(v.phase==='result' && RB[s.result]){ const [c,t]=RB[s.result]; if(c) badge=`<div class="rbadge ${c}">${t}${s.last_net?(s.last_net>0?' +'+s.last_net:' '+s.last_net):''}</div>`; }
     const bet=s.bet>0?`<div class="betchip">💰${s.bet}</div>`:'';
-    return `<div class="${cls}"><div class="who">${av(s)}<span>${me?'你':s.name}</span></div>
-      ${s.isBot?'<div class="bot" style="font-size:10px">机器人</div>':'<div style="height:13px"></div>'}
+    return `<div class="${cls}"><div class="who">${av(s)}<span>${me?__('你'):s.name}</span></div>
+      ${s.isBot?('<div class="bot" style="font-size:10px">'+__('机器人')+'</div>'):'<div style="height:13px"></div>'}
       <div class="hand">${cards}</div>${valb}${bet}${badge}</div>`;
   }).join("");
 }
 
 function apply(v){
-  if(!v||v.error){toast(v&&v.error||'房间没了');setTimeout(()=>location.href='/casino',1200);return;}
+  if(!v||v.error){toast(v&&v.error||__('房间没了'));setTimeout(()=>location.href='/casino',1200);return;}
   curV=v;
   document.getElementById('coin').textContent=Math.floor(v.coins||0);
-  document.getElementById('win').textContent=v.top_winner?(v.top_winner.owner+' +'+v.top_winner.net):'虚位以待';
+  document.getElementById('win').textContent=v.top_winner?(v.top_winner.owner+' +'+v.top_winner.net):__('虚位以待');
   // 只有牌面/阶段/轮次变化才重绘牌桌（避免闪烁 + 让发牌动画只在变化时播）
   const nsig=JSON.stringify({r:v.round,p:v.phase,dl:(v.dealer.cards||[]).length,dr:v.dealer.reveal,
     t:v.turn_owner, s:(v.seats||[]).map(s=>[s.cards.length,s.result,s.bet,s.is_turn])});
@@ -211,38 +212,38 @@ function apply(v){
   if(v.phase==='betting'){
     const aloneLike = v.solo || v.human_count<2;   // 单人场，或公共房只有你一个真人 → 不限时
     if(v.solo){
-      ph.innerHTML = `<b>下注</b> · 第 ${v.round} 局 <span class="lil">· 单人场不限时</span>`;
+      ph.innerHTML = `<b>${__('下注')}</b> · ${__('第 {p0} 局',{p0:(v.round)})} <span class="lil">· ${__('单人场不限时')}</span>`;
     } else if(v.waiting_for_players){
-      ph.innerHTML = `<b>下注</b> · 第 ${v.round} 局 <span class="lil">· 等其他玩家加入…不限时</span>`;
+      ph.innerHTML = `<b>${__('下注')}</b> · ${__('第 {p0} 局',{p0:(v.round)})} <span class="lil">· ${__('等其他玩家加入…不限时')}</span>`;
     } else {
-      ph.innerHTML = `<b>下注</b> · ${v.bet_secs_left}s 后开牌 · 第 ${v.round} 局`;
+      ph.innerHTML = `<b>${__('下注')}</b> · ${__('{p0}s 后开牌 · 第 {p1} 局',{p0:(v.bet_secs_left),p1:(v.round)})}`;
     }
     document.getElementById('mybet').textContent=v.my_bet||0;
-    document.getElementById('btnDeal').textContent = aloneLike ? '✅ 发牌（和机器人玩）'
-                                                               : (v.my_ready?'✅ 已准备 · 点取消':'✅ 准备');
-    document.getElementById('readyInfo').textContent = aloneLike ? (v.solo?'':'· 也可等真人一起玩')
-                                                                 : `· 已准备 ${v.ready_count}/${v.ready_total}`;
+    document.getElementById('btnDeal').textContent = aloneLike ? ('✅ '+__('发牌（和机器人玩）'))
+                                                               : (v.my_ready?('✅ '+__('已准备 · 点取消')):('✅ '+__('准备')));
+    document.getElementById('readyInfo').textContent = aloneLike ? (v.solo?'':('· '+__('也可等真人一起玩')))
+                                                                 : `· ${__('已准备 {p0}/{p1}',{p0:(v.ready_count),p1:(v.ready_total)})}`;
   } else if(v.phase==='playing'){
-    const turnName = v.turn_owner===v.me ? '你' : (turnDisplay(v));
-    ph.innerHTML = v.my_turn ? `<b style="color:#ffe08a">轮到你了！</b> · 要牌 / 停牌 / 双倍`
-                             : `<b>${turnName}</b> 决策中… · 第 ${v.round} 局`;
+    const turnName = v.turn_owner===v.me ? __('你') : (turnDisplay(v));
+    ph.innerHTML = v.my_turn ? `<b style="color:#ffe08a">${__('轮到你了！')}</b> · ${__('要牌 / 停牌 / 双倍')}`
+                             : `<b>${turnName}</b> ${__('决策中… · 第 {p0} 局',{p0:(v.round)})}`;
     document.getElementById('btnHit').disabled=!v.my_turn;
     document.getElementById('btnStand').disabled=!v.my_turn;
     const dbl=document.getElementById('btnDouble'); dbl.disabled=!v.can_double; dbl.style.display=v.can_double?'':'none';
-    document.getElementById('waitMsg').textContent = v.my_turn?'':'等其他玩家/机器人行动…';
+    document.getElementById('waitMsg').textContent = v.my_turn?'':__('等其他玩家/机器人行动…');
   } else if(v.phase==='result'){
-    ph.innerHTML = `<b>本局结束</b> · 第 ${v.round} 局`;
+    ph.innerHTML = `<b>${__('本局结束')}</b> · ${__('第 {p0} 局',{p0:(v.round)})}`;
     const mine=(v.seats||[]).find(s=>s.owner===v.me);
     let m='';
-    if(mine){ const map={win:'🎉 你赢了！',bj:'🃏 黑杰克！1.5倍！',push:'🤝 平局，退回本金',lose:'😾 输了这局',bust:'💥 爆牌了…',sit:'这局没下注'};
+    if(mine){ const map={win:('🎉 '+__('你赢了！')),bj:('🃏 '+__('黑杰克！1.5倍！')),push:('🤝 '+__('平局，退回本金')),lose:('😾 '+__('输了这局')),bust:('💥 '+__('爆牌了…')),sit:__('这局没下注')};
       m=(map[mine.result]||'')+(mine.last_net? (mine.last_net>0?`　+${mine.last_net}🪙`:`　${mine.last_net}🪙`):''); }
     document.getElementById('resultMsg').textContent=m;
     const cont=document.getElementById('btnCont');
-    cont.textContent = (v.timed && v.result_secs_left) ? `▶ 再来一局（${v.result_secs_left}s）` : '▶ 再来一局';
+    cont.textContent = (v.timed && v.result_secs_left) ? `▶ ${__('再来一局（{p0}s）',{p0:(v.result_secs_left)})}` : ('▶ '+__('再来一局'));
   }
   document.getElementById('log').innerHTML=(v.log||[]).map(x=>`<div>${x}</div>`).join("");
 }
-function turnDisplay(v){const s=(v.seats||[]).find(x=>x.owner===v.turn_owner);return s?(s.isBot?s.name:s.name):'某玩家';}
+function turnDisplay(v){const s=(v.seats||[]).find(x=>x.owner===v.turn_owner);return s?(s.isBot?s.name:s.name):__('某玩家');}
 
 async function api(path,body){const opt={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})};
   return (await fetch('/casino/bj/'+RID+path, path==='/state'?undefined:opt)).json();}

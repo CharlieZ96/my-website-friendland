@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
+{% include "_i18n.html" %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>德州扑克</title>
+<title>{{ _('德州扑克') }}</title>
 <style>
   *{box-sizing:border-box}
   body{margin:0;background:#0b1020;color:#eaf2ff;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;padding:12px 10px 24px}
@@ -61,12 +62,12 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <h1>🂡 <em>德州扑克</em></h1>
-    <div><span class="coins">🪙 <span id="coins">…</span></span> &nbsp; <button class="back" id="leave">← 离开</button></div>
+    <h1>🂡 <em>{{ _('德州扑克') }}</em></h1>
+    <div><span class="coins">🪙 <span id="coins">…</span></span> &nbsp; <button class="back" id="leave">← {{ _('离开') }}</button></div>
   </div>
 
   <div class="felt">
-    <div class="phase" id="phase">连接中…</div>
+    <div class="phase" id="phase">{{ _('连接中…') }}</div>
     <div class="opps" id="opps"></div>
     <div class="board" id="board"></div>
     <div class="potline" id="pot"></div>
@@ -76,7 +77,7 @@
   <div class="controls" id="controls"></div>
   <div class="banner" id="banner" hidden></div>
   <div class="log" id="log"></div>
-  <p class="rules">2~3 人真人对局 · 大盲 <span id="bb">10</span>/小盲 <span id="sb">5</span> · 进场自选额度，每局最多押 <span id="mb">500</span> 金币 · 摊牌赢家通吃 · 超时自动过牌/弃牌</p>
+  <p class="rules">{{ _('2~3 人真人对局 · 大盲') }} <span id="bb">10</span>/{{ _('小盲') }} <span id="sb">5</span> · {{ _('进场自选额度，每局最多押') }} <span id="mb">500</span> {{ _('金币 · 摊牌赢家通吃 · 超时自动过牌/弃牌') }}</p>
 </div>
 <div id="toast"></div>
 
@@ -103,19 +104,19 @@ function render(v){
   document.getElementById('coins').textContent = v.coins;
   document.getElementById('bb').textContent = v.bb; document.getElementById('sb').textContent = v.sb;
   var mbEl=document.getElementById('mb'); if(mbEl && v.max_buyin) mbEl.textContent = v.max_buyin;
-  const PH={waiting:"等待玩家准备",preflop:"翻牌前",flop:"翻牌",turn:"转牌",river:"河牌",showdown:"摊牌"};
-  document.getElementById('phase').textContent = (PH[v.phase]||v.phase) + (v.hand_no?`　·　第 ${v.hand_no} 局`:'');
+  const PH={waiting:__('等待玩家准备'),preflop:__('翻牌前'),flop:__('翻牌'),turn:__('转牌'),river:__('河牌'),showdown:__('摊牌')};
+  document.getElementById('phase').textContent = (PH[v.phase]||v.phase) + (v.hand_no?`　·　${__('第 {p0} 局',{p0:(v.hand_no)})}`:'');
 
   // 对手席（除自己外）
   const opps=v.seats.filter(s=>!s.is_me);
-  document.getElementById('opps').innerHTML = opps.map(s=>seatHTML(s,v)).join('') || '<div class="wait">还没有其他玩家，等人来～</div>';
+  document.getElementById('opps').innerHTML = opps.map(s=>seatHTML(s,v)).join('') || ('<div class="wait">'+__('还没有其他玩家，等人来～')+'</div>');
 
   // 公共牌
   const board=v.board||[];
   let bhtml = board.map(c=>cardHTML(c)).join('');
   for(let i=board.length;i<5;i++) bhtml += `<div class="card" style="opacity:.18;background:#0d2a1e;border-color:#2f5a45;color:transparent">·</div>`;
   document.getElementById('board').innerHTML = (v.phase==='waiting') ? '' : bhtml;
-  document.getElementById('pot').textContent = (v.phase==='waiting') ? '' : ('底池 '+(v.pot||0));
+  document.getElementById('pot').textContent = (v.phase==='waiting') ? '' : ((__('底池')+' ')+(v.pot||0));
 
   // 自己
   const me=v.seats.find(s=>s.is_me);
@@ -125,7 +126,7 @@ function render(v){
   const banner=document.getElementById('banner');
   if(v.phase==='showdown' && v.result){
     banner.hidden=false;
-    let h='🏆 '+v.result.winners.join('、')+' 赢了';
+    let h='🏆 '+v.result.winners.join('、')+(' '+__('赢了'));
     if(v.result.by) h+='（'+v.result.by+'）';
     const hd=v.result.hands||{}; const parts=Object.keys(hd).map(n=>n+':'+hd[n]);
     if(parts.length) h+='<br><span style="color:#9fb3d8">'+parts.join('　')+'</span>';
@@ -142,13 +143,13 @@ function render(v){
 function seatHTML(s,v){
   let cls='seat'; if(s.is_turn)cls+=' turn'; if(s.folded && s.in_hand)cls+=' folded';
   const cards = (s.in_hand && !s.folded) ? `<div class="cards">${(s.hole||[]).map(c=>cardHTML(c,true)).join('')}</div>` : `<div class="cards"></div>`;
-  let st=''; if(!s.in_hand && v.phase!=='waiting') st='旁观';
-  else if(s.folded && s.in_hand) st='弃牌'; else if(s.allin) st='全下';
-  else if(v.phase==='waiting'||v.phase==='showdown') st=(s.ready?'✅已准备':'…未准备');
+  let st=''; if(!s.in_hand && v.phase!=='waiting') st=__('旁观');
+  else if(s.folded && s.in_hand) st=__('弃牌'); else if(s.allin) st=__('全下');
+  else if(v.phase==='waiting'||v.phase==='showdown') st=(s.ready?('✅'+__('已准备')):__('…未准备'));
   else if(s.last_action) st=s.last_action;
-  const bet = (s.committed_round>0 && v.phase!=='waiting' && v.phase!=='showdown') ? ('下注 '+s.committed_round) : '';
+  const bet = (s.committed_round>0 && v.phase!=='waiting' && v.phase!=='showdown') ? ((__('下注')+' ')+s.committed_round) : '';
   const waitp = (v.phase==='waiting'||v.phase==='showdown');
-  const stk = waitp ? (s.bought_in?('额度 '+s.buyin):'未进场') : ('筹码 '+s.stack);
+  const stk = waitp ? (s.bought_in?((__('额度')+' ')+s.buyin):__('未进场')) : ((__('筹码')+' ')+s.stack);
   return `<div class="${cls}">
     <div class="nm">${s.name}${s.is_button?'<span class="dealer">D</span>':''}</div>
     ${cards}
@@ -161,20 +162,20 @@ function seatHTML(s,v){
 function meHTML(me,v){
   const inhand = me.in_hand && !me.folded;
   const cards = inhand ? `<div class="cards">${(me.hole||[]).map(c=>cardHTML(c)).join('')}</div>`
-                       : (v.phase!=='waiting' && me.in_hand && me.folded ? '<div class="cards" style="opacity:.4">已弃牌</div>' : '<div class="cards"></div>');
+                       : (v.phase!=='waiting' && me.in_hand && me.folded ? ('<div class="cards" style="opacity:.4">'+__('已弃牌')+'</div>') : '<div class="cards"></div>');
   let st='';
-  if(v.phase==='waiting'||v.phase==='showdown') st = me.buyin>0?(me.ready?'✅ 已准备':'点下方“准备”开始'):'先在下方选择进场额度';
-  else if(!me.in_hand) st='本局旁观，下一局加入';
-  else if(me.folded) st='已弃牌';
-  else if(me.allin) st='全下';
-  else if(me.is_turn) st='轮到你了！';
-  else st='等待其他玩家…';
+  if(v.phase==='waiting'||v.phase==='showdown') st = me.buyin>0?(me.ready?('✅ '+__('已准备')):__('点下方“准备”开始')):__('先在下方选择进场额度');
+  else if(!me.in_hand) st=__('本局旁观，下一局加入');
+  else if(me.folded) st=__('已弃牌');
+  else if(me.allin) st=__('全下');
+  else if(me.is_turn) st=__('轮到你了！');
+  else st=__('等待其他玩家…');
   const timer = (me.is_turn && v.turn_remain!=null) ?
     `<div class="timer"><i style="width:${Math.min(100,v.turn_remain/30*100)}%"></i></div>` : '';
   const waitp=(v.phase==='waiting'||v.phase==='showdown');
-  const meStk = waitp ? (me.buyin>0?('额度 '+me.buyin):'未进场') : ('筹码 '+me.stack+(me.committed_round>0?(' · 本轮已下 '+me.committed_round):''));
+  const meStk = waitp ? (me.buyin>0?((__('额度')+' ')+me.buyin):__('未进场')) : ((__('筹码')+' ')+me.stack+(me.committed_round>0?((' · '+__('本轮已下')+' ')+me.committed_round):''));
   return `<div class="me${me.is_turn?' turn':''}">
-    <div class="metop"><span class="who">你 ${me.is_button?'🔘庄':''}</span><span class="stk" style="color:#9fe0c0;font-size:12px">${meStk}</span></div>
+    <div class="metop"><span class="who">${__('你 {p0}',{p0:(me.is_button?('🔘'+__('庄')):'')})}</span><span class="stk" style="color:#9fe0c0;font-size:12px">${meStk}</span></div>
     ${cards}
     <div style="text-align:center;color:#ffd85a;font-size:12px;min-height:15px">${st}</div>
     ${timer}
@@ -183,7 +184,7 @@ function meHTML(me,v){
 
 function renderControls(v, me){
   const box=document.getElementById('controls');
-  if(!me){ box.innerHTML='<div class="wait">你不在这张桌子上</div>'; CTRL_SIG='noseat'; return; }
+  if(!me){ box.innerHTML=('<div class="wait">'+__('你不在这张桌子上')+'</div>'); CTRL_SIG='noseat'; return; }
   // 只有影响控制区的状态变了才重建 DOM。否则每次轮询都重建会把你正在拖的滑块弹回去、
   // 还会左右闪。签名相同就直接返回，保住当前的滑块位置。
   const sig=[v.phase,v.my_turn,v.to_call,v.can_check,v.min_raise_to,v.my_stack,v.current_bet,
@@ -196,9 +197,9 @@ function renderControls(v, me){
     const rc=v.ready_count||0, need=v.min_players;
     const coins=v.coins||0, minB=v.min_buyin||20, maxCap=v.max_buyin||500;
     const maxBuy=Math.min(maxCap, coins);
-    let html = `<div class="wait">已准备 ${rc}/${v.human_count} 人（至少 ${need} 人开局）</div>`;
+    let html = `<div class="wait">${__('已准备 {p0}/{p1} 人（至少 {p2} 人开局）',{p0:(rc),p1:(v.human_count),p2:(need)})}</div>`;
     if(coins < minB){
-      box.innerHTML = html + `<div class="wait" style="color:#ffb0b0">金币不足 ${minB}，暂时进不了场，先去别处赚点金币吧～</div>`;
+      box.innerHTML = html + `<div class="wait" style="color:#ffb0b0">${__('金币不足 {p0}，暂时进不了场，先去别处赚点金币吧～',{p0:(minB)})}</div>`;
       return;
     }
     const bought = me.buyin>0;
@@ -207,11 +208,11 @@ function renderControls(v, me){
       // 默认值：优先用玩家上次拖到的值（夹在合法范围内），否则给个合适的起点
       let def = (BUY_VAL!=null ? BUY_VAL : (bought?me.buyin:Math.min(200,maxBuy)));
       def = Math.max(minB, Math.min(def, maxBuy));
-      html += `<div class="wait">选择进场额度：每局最多押 <b style="color:#ffd85a" id="bVal">${def}</b> 金币（封顶 ${maxCap}）</div>
+      html += `<div class="wait">${__('选择进场额度：每局最多押')} <b style="color:#ffd85a" id="bVal">${def}</b> ${__('金币（封顶 {p0}）',{p0:(maxCap)})}</div>
         <div class="raisebox">
           <input type="range" id="bSld" min="${minB}" max="${maxBuy}" value="${def}" step="10">
         </div>
-        <div class="btnrow"><button class="btn ready" id="btnBuy">💰 以 <span id="bBtn">${def}</span> 金币进场</button></div>`;
+        <div class="btnrow"><button class="btn ready" id="btnBuy">💰 ${__('以')} <span id="bBtn">${def}</span> ${__('金币进场')}</button></div>`;
       box.innerHTML = html;
       const sld=document.getElementById('bSld');
       const sync=()=>{BUY_VAL=+sld.value;document.getElementById('bVal').textContent=sld.value;document.getElementById('bBtn').textContent=sld.value;};
@@ -220,8 +221,8 @@ function renderControls(v, me){
       return;
     }
     // 已设额度：显示额度 + 准备/取消 + 改额度
-    html += `<div class="wait">进场额度 <b style="color:#ffd85a">${me.buyin}</b> 金币/局　·　<a id="btnEdit" style="color:#8fa0c8;cursor:pointer;text-decoration:underline">改额度</a></div>
-      <div class="btnrow"><button class="btn ${me.ready?'unready':'ready'}" id="btnReady">${me.ready?'取消准备':'✅ 准备'}</button></div>`;
+    html += `<div class="wait">${__('进场额度')} <b style="color:#ffd85a">${me.buyin}</b> ${__('金币/局')}　·　<a id="btnEdit" style="color:#8fa0c8;cursor:pointer;text-decoration:underline">${__('改额度')}</a></div>
+      <div class="btnrow"><button class="btn ${me.ready?'unready':'ready'}" id="btnReady">${me.ready?__('取消准备'):('✅ '+__('准备'))}</button></div>`;
     box.innerHTML = html;
     document.getElementById('btnReady').onclick=async()=>{ apply(await api('/ready',{ready:!me.ready})); };
     document.getElementById('btnEdit').onclick=()=>{ EDIT_BUY=true; renderControls(v, me); };
@@ -229,7 +230,7 @@ function renderControls(v, me){
   }
   // 牌局中
   if(!v.my_turn){
-    box.innerHTML = `<div class="wait">${me.in_hand&&!me.folded?'等待轮到你…':'本局你已不在牌局，等下一局'}</div>`;
+    box.innerHTML = `<div class="wait">${me.in_hand&&!me.folded?__('等待轮到你…'):__('本局你已不在牌局，等下一局')}</div>`;
     return;
   }
   // 轮到我行动
@@ -238,20 +239,20 @@ function renderControls(v, me){
   const minTarget = v.min_raise_to;
   const canRaise = me.stack>0 && maxTarget>=minTarget && maxTarget>v.current_bet;
   let html='<div class="btnrow">';
-  html += `<button class="btn fold" id="aFold">弃牌</button>`;
-  if(v.can_check) html += `<button class="btn check" id="aCheck">过牌</button>`;
-  else html += `<button class="btn call" id="aCall">跟注 ${Math.min(toCall,me.stack)}</button>`;
+  html += `<button class="btn fold" id="aFold">${__('弃牌')}</button>`;
+  if(v.can_check) html += `<button class="btn check" id="aCheck">${__('过牌')}</button>`;
+  else html += `<button class="btn call" id="aCall">${__('跟注 {p0}',{p0:(Math.min(toCall,me.stack))})}</button>`;
   html += `</div>`;
   if(canRaise){
     html += `<div class="raisebox">
       <input type="range" id="rSld" min="${minTarget}" max="${maxTarget}" value="${minTarget}" step="1">
       <span class="raiseval" id="rVal">${minTarget}</span></div>
       <div class="btnrow">
-        <button class="btn raise" id="aRaise">加注到 <span id="rBtnVal">${minTarget}</span></button>
-        <button class="btn allin" id="aAllin">全下 ${maxTarget}</button>
+        <button class="btn raise" id="aRaise">${__('加注到')} <span id="rBtnVal">${minTarget}</span></button>
+        <button class="btn allin" id="aAllin">${__('全下 {p0}',{p0:(maxTarget)})}</button>
       </div>`;
   } else {
-    html += `<div class="btnrow"><button class="btn allin" id="aAllin">全下 ${maxTarget}</button></div>`;
+    html += `<div class="btnrow"><button class="btn allin" id="aAllin">${__('全下 {p0}',{p0:(maxTarget)})}</button></div>`;
   }
   box.innerHTML=html;
   const bind=(id,fn)=>{const e=document.getElementById(id);if(e)e.onclick=fn;};

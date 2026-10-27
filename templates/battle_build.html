@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
-  <meta charset="UTF-8">
+  {% include "_i18n.html" %}
+<meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JZH对撞</title>
+  <title>{{ _('JZH对撞') }}</title>
   <style>
     body { margin:0; font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#160f0c; color:#f0e6d2; }
     .container { max-width:480px; margin:0 auto; padding:16px; }
@@ -24,8 +25,8 @@
 <div class="container">
 {% if already %}
   <div class="wait">
-    <p>✅ 已提交，等待对手排兵…</p>
-    <p style="font-size:15px;color:#c99a5a;">对手：{{ opponent }}</p>
+    <p>✅ {{ _('已提交，等待对手排兵…') }}</p>
+    <p style="font-size:15px;color:#c99a5a;">{{ _('对手：{p0}', p0=(opponent)) }}</p>
     <div style="font-size:40px;">⏳</div>
   </div>
   </div>
@@ -39,14 +40,14 @@
     }, 2000);
   </script>
 {% else %}
-  <h2>选择你的JZH · #{{ mid }}</h2>
-  <div style="color:#f5b942;font-size:14px;margin:-6px 0 10px;">⚔ 对手：<b>{{ opponent }}</b></div>
-  <div class="label">出战顺序（前3张随机抽到·必上）· <span id="count">3</span>/7</div>
+  <h2>{{ _('选择你的JZH · #{p0}', p0=(mid)) }}</h2>
+  <div style="color:#f5b942;font-size:14px;margin:-6px 0 10px;">⚔ {{ _('对手：') }}<b>{{ opponent }}</b></div>
+  <div class="label">{{ _('出战顺序（前3张随机抽到·必上）') }}· <span id="count">3</span>/7</div>
   <div id="deck"></div>
-  <div class="label">从收藏夹选（最多再选4张）</div>
+  <div class="label">{{ _('从收藏夹选（最多再选4张）') }}</div>
   <div class="grid" id="pool"></div>
   <form id="deckform" method="POST"><input type="hidden" name="deck" id="deckfield"></form>
-  <button class="submit" onclick="submitDeck()">确认卡组，开撞！💥</button>
+  <button class="submit" onclick="submitDeck()">{{ _('确认卡组，开撞！') }}💥</button>
   <script>
     var COLLECTION = {{ collection|tojson }};
     var FORCED = {{ forced|tojson }};
@@ -58,7 +59,7 @@
         var div=document.createElement('div'); div.className='row';
         var img = c.image ? '<img src="/uploads/'+c.image+'" style="width:30px;height:42px;object-fit:cover;border-radius:4px;">' : '';
         div.innerHTML='<span class="idx">'+(i+1)+'</span>'+img+
-          '<span class="cn">'+c.name+' <small>攻'+c.attack+'/孝'+c.defense+'</small></span>';
+          '<span class="cn">'+c.name+(' '+'<small>'+__('攻'))+c.attack+('/'+__('孝'))+c.defense+'</small></span>';
         var up=document.createElement('button'); up.textContent='▲'; up.onclick=function(){mv(i,-1)};
         var dn=document.createElement('button'); dn.textContent='▼'; dn.onclick=function(){mv(i,1)};
         div.appendChild(up); div.appendChild(dn);
@@ -75,11 +76,11 @@
         var used=copies(c.id), maxed=used>=c.count;
         var b=document.createElement('div'); b.className='cardbtn'; b.style.opacity=maxed?0.45:1;
         var thumb=c.image?'<img src="/uploads/'+c.image+'" style="width:80px;height:112px;object-fit:cover;border-radius:6px;display:block;margin:0 auto 4px;">':'';
-        b.innerHTML=thumb+c.name+'<small>攻'+c.attack+' / 孝'+c.defense+'</small>'+
-          '<small style="color:'+(maxed?'#d64545':'#6bbf8a')+'">已用 '+used+'/'+c.count+'</small>';
+        b.innerHTML=thumb+c.name+('<small>'+__('攻'))+c.attack+(' / '+__('孝'))+c.defense+'</small>'+
+          '<small style="color:'+(maxed?'#d64545':'#6bbf8a')+'">'+__('已用 {a}/{b}',{a:used,b:c.count})+'</small>';
         b.onclick=function(){
-          if(deck.length>=7){alert('已满7张');return;}
-          if(copies(c.id)>=c.count){alert('你只有 '+c.count+' 张「'+c.name+'」');return;}
+          if(deck.length>=7){alert(__('已满7张'));return;}
+          if(copies(c.id)>=c.count){alert(__('你只有 {n} 张「{name}」',{n:c.count,name:c.name}));return;}
           var x=Object.assign({},c); x._forced=false; deck.push(x); renderDeck(); renderPool();
         };
         pv.appendChild(b);
@@ -88,7 +89,7 @@
 
     function mv(i,d){ var j=i+d; if(j<0||j>=deck.length)return; var a=deck[i];deck[i]=deck[j];deck[j]=a;renderDeck(); }
     function submitDeck(){
-      if(deck.length!==7){alert('需要正好7张（3抽+4选）');return;}
+      if(deck.length!==7){alert(__('需要正好7张（3抽+4选）'));return;}
       document.getElementById('deckfield').value=JSON.stringify(deck.map(function(c){return c.id;}));
       document.getElementById('deckform').submit();
     }

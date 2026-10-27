@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
-  <meta charset="UTF-8">
+  {% include "_i18n.html" %}
+<meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>排行榜</title>
+  <title>{{ _('排行榜') }}</title>
   <style>
     body{margin:0;font-family:"Segoe UI","Microsoft YaHei",sans-serif;background:#160f0c;color:#f0e6d2;}
     .container{max-width:460px;margin:0 auto;padding:16px;}
@@ -20,7 +21,7 @@
 </head>
 <body>
 <div class="container">
-  <h2>🏆 排行榜</h2>
+  <h2>🏆 {{ _('排行榜') }}</h2>
   {% if rows %}
     {% for r in rows %}
     <div class="row {% if r[0] == me %}me{% endif %}">
@@ -28,13 +29,13 @@
         {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}
       </div>
       <div class="name">{{ r[0] }}</div>
-      <div class="score">{{ r[1] }} 分</div>
+      <div class="score">{{ _('{p0} 分', p0=(r[1])) }}</div>
     </div>
     {% endfor %}
   {% else %}
-    <p class="empty">还没有人上榜，快去对战吧！</p>
+    <p class="empty">{{ _('还没有人上榜，快去对战吧！') }}</p>
   {% endif %}
-  <a href="/battle">← 返回对战大厅</a>
+  <a href="/battle">← {{ _('返回对战大厅') }}</a>
 </div>
 </body>
 </html>

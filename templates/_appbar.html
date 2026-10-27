@@ -1,0 +1,30 @@
+{# 站内顶栏。用法：
+     {% from "_appbar.html" import appbar with context %}
+     {{ appbar(_("留言板"), [("/hub", _("返回大厅"))]) }}
+   需要在右侧放额外按钮（比如铃铛）时：
+     {% call appbar(_("大厅")) %}<button ...>...</button>{% endcall %}
+#}
+{% macro appbar(title, nav=None) %}
+<header class="appbar">
+    <div class="appbar-in">
+        <a class="mark" href="/hub" aria-label="{{ _('JZH乐园') }}"><span class="mark-latin">JZH</span><span class="mark-cjk">{{ _('乐园') }}</span></a>
+        <span class="appbar-title">{{ title }}</span>
+        <nav class="appbar-nav" aria-label="{{ _('页面导航') }}">
+            {% if caller %}{{ caller() }}{% endif %}
+            {% for href, text in (nav or []) %}<a href="{{ href }}">{{ text }}</a>{% endfor %}
+            <a class="appbar-lang" href="{{ lang_url('en' if lang == 'zh' else 'zh') }}" lang="{{ 'en' if lang == 'zh' else 'zh-CN' }}">{{ 'English' if lang == 'zh' else '中文' }}</a>
+        </nav>
+    </div>
+</header>
+{% endmacro %}
+
+{# 站内页面的 <head> 公共部分 #}
+{% macro head(title) %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6b1a2b">
+    <title>{{ title }} - {{ _('JZH乐园') }}</title>
+    <link rel="preload" href="{{ url_for('static', filename='fonts/marcellus-latin-400.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/jzh.css') }}">
+    <script src="{{ url_for('i18n_js', code=lang) }}?v={{ i18n_version }}"></script>
+{% endmacro %}

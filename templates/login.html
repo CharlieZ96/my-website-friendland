@@ -1,36 +1,25 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>欢迎来到JZH乐园</title>
-    <style>
-        body { margin:0; min-height:100vh; display:flex; justify-content:center;
-               align-items:center; font-family:"Segoe UI","Microsoft YaHei",sans-serif;
-               background:#f4f6f8; }
-        .card { background:white; padding:40px; border-radius:12px; width:300px;
-                box-shadow:0 4px 20px rgba(0,0,0,0.08); }
-        h2 { text-align:center; color:#333; margin-top:0; }
-        input { width:100%; padding:12px; margin:8px 0; border:1px solid #ddd;
-                border-radius:6px; box-sizing:border-box; font-size:15px; }
-        button { width:100%; padding:12px; margin-top:12px; background:#4a90e2;
-                 color:white; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
-        .msg { color:#e74c3c; text-align:center; }
-        .link { text-align:center; margin-top:12px; font-size:14px; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h2>欢迎来到JZH乐园</h2>
-        {% with messages = get_flashed_messages() %}
-          {% for m in messages %}<p class="msg">{{ m }}</p>{% endfor %}
-        {% endwith %}
-        <form method="POST">
-            <input type="text" name="username" placeholder="用户名" required>
-            <input type="password" name="password" placeholder="密码" required>
-            <button type="submit">和JZH玩儿</button>
-        </form>
-        <div class="link"><a href="/register">还没账号？去领取JZH</a></div>
+{% extends "_entry.html" %}
+{% block title %}{{ _('登录') }} - {{ _('JZH乐园') }}{% endblock %}
+
+{% block panel %}
+<h1>{{ _('欢迎回来') }}</h1>
+<p class="lede">{{ _('JZH 已经在等你了。') }}</p>
+
+{% set flash_class = 'notice' %}{% include "_flash.html" %}
+
+<form method="POST">
+    <div class="field">
+        <label for="username">{{ _('用户名') }}</label>
+        <input id="username" type="text" name="username" autocomplete="username" required>
     </div>
-</body>
-</html>
+    <div class="field">
+        <label for="password">{{ _('密码') }}</label>
+        <input id="password" type="password" name="password" autocomplete="current-password" required>
+    </div>
+    <button class="btn btn-light btn-block" type="submit">{{ _('登录') }}</button>
+</form>
+
+<p class="panel-alt">{{ _('还没有账号？') }}<a href="/register">{{ _('注册，领取你的 JZH') }}</a></p>
+
+{% endblock %}
+

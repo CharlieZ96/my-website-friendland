@@ -12,6 +12,7 @@ import uuid
 from datetime import datetime
 from werkzeug.security import generate_password_hash
 
+from i18n import t
 from ai_bot import ask_ai, build_persona  # 复用你写好的调用函数（里面有人设 PERSONA）
 
 DB = "users.db"
@@ -204,7 +205,7 @@ MEMORY_KEEP = 40       # 每个用户最多存多少条记忆（超了删最老�
 def chat(username, message, history):
     message = (message or "").strip()
     if not message:
-        return {"reply": None, "error": "说点什么吧"}
+        return {"reply": None, "error": t("说点什么吧")}
     if len(message) > 200:
         message = message[:200]
 
@@ -217,9 +218,9 @@ def chat(username, message, history):
         if day != today:
             used = 0
         if used >= BOT_CHAT_DAILY_PER_USER:
-            return {"reply": None, "error": f"找JZH聊天（每天{BOT_CHAT_DAILY_PER_USER}条），明天再来～"}
+            return {"reply": None, "error": t("找JZH聊天（每天{n}条），明天再来～", n=BOT_CHAT_DAILY_PER_USER)}
         if not _gate_wait(conn, 3):
-            return {"reply": None, "error": "JZH没空理你，找真的JZH去"}
+            return {"reply": None, "error": t("JZH没空理你，找真的JZH去")}
 
         # 从数据库读这个用户最近的对话（跨刷新、跨设备都记得）
         mem = conn.execute(
@@ -233,7 +234,7 @@ def chat(username, message, history):
         system = build_persona(username)
         reply = ask_ai(message, system_prompt=system, history=hist)
         if not reply:
-            return {"reply": None, "error": "JZH没搭理你，再试一次？"}
+            return {"reply": None, "error": t("JZH没搭理你，再试一次？")}
         reply = reply.strip()[:300]
 
         # 把这轮对话存进记忆
@@ -256,7 +257,7 @@ def chat(username, message, history):
         return {"reply": reply, "remaining": BOT_CHAT_DAILY_PER_USER - used}
     except Exception as e:
         print("【bot聊天出错】", repr(e))
-        return {"reply": None, "error": "出了点小问题，稍后再试"}
+        return {"reply": None, "error": t("出了点小问题，稍后再试")}
     finally:
         conn.close()
 

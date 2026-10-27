@@ -8,6 +8,8 @@ from datetime import datetime
 import os
 import uuid
 import siteadmin
+import i18n
+import jzh_content
 from PIL import Image, ImageOps
 from flask import send_from_directory
 import random
@@ -26,8 +28,16 @@ UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)             # 没有这文件夹就自动建
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024    # 上传最大 8MB，超了拒绝
 ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp"}   # 只允许这些图片格式
-# 以后想换密钥：在服务文件里加一行 Environment="FLASK_SECRET_KEY=一串随机字符"（换了以后所有人要重新登录）
-app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "change-me"
+# 登录 cookie 的签名密钥：只从环境变量 FLASK_SECRET_KEY 读取，代码里不写任何密钥。
+# 在服务文件里加一行 Environment="FLASK_SECRET_KEY=一串随机字符"（换了以后所有人要重新登录）
+# 生成随机字符：python3 -c "import secrets; print(secrets.token_hex(32))"
+_secret = os.environ.get("FLASK_SECRET_KEY", "").strip()
+if not _secret:
+    import secrets
+    _secret = secrets.token_hex(32)
+    print("【警告】没有设置 FLASK_SECRET_KEY，已临时生成随机密钥；每次重启后所有人都要重新登录。")
+app.secret_key = _secret
+i18n.init(app)                                         # 中文 / English 切换
 socketio = SocketIO(app, cors_allowed_origins="*")
 ADMIN_USERNAME = "admin"
 DAILY_DRAW_LIMIT_ON = True     # True=开启每日限制；False=关闭（无限抽）
@@ -389,7 +399,8 @@ def board():
     for c in conn.execute("SELECT post_id, username, content, created_at, id, image FROM comments ORDER BY id ASC").fetchall():
         comments.setdefault(c[0], []).append(c)
     conn.close()
-    return render_template("board.html", posts=posts, username=session["username"], comments=comments)
+    return render_template("board.html", posts=posts, username=session["username"], comments=comments,
+                           poke_lines=jzh_content.poke_lines())
 
 @app.route("/delete_comment/<int:comment_id>", methods=["POST"])
 @login_required
@@ -435,7 +446,7 @@ def add_comment(post_id):
     count = conn.execute("SELECT COUNT(*) FROM comments WHERE post_id = ?", (post_id,)).fetchone()[0]
     if count >= COMMENT_LIMIT:
         conn.close()
-        flash(f"这条帖子的评论已满 {COMMENT_LIMIT} 条")
+        flash(i18n.t("这条帖子的评论已满 {n} 条", n=COMMENT_LIMIT))
         return redirect(url_for("board"))
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     conn.execute("INSERT INTO comments (post_id, username, content, created_at, image) VALUES (?, ?, ?, ?, ?)",
@@ -475,13 +486,13 @@ def logout():
 @app.route("/jzhyl")
 @login_required
 def jzhyl():
-    folder = os.path.join("static", "gallery")          # 图片文件夹
-    # 列出文件夹里所有图片文件
-    files = [f for f in os.listdir(folder)
-             if f.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp"))]
-    if not files:
-        return "gallery 文件夹里还没有图片，先放几张进去～"
-    pick = random.choice(files)                          # 随机抽一张
+    # 语录图片放在 static/gallery/（这个文件夹不进 Git，只在服务器上）
+    folder = os.path.join("static", "gallery")
+    files = []
+    if os.path.isdir(folder):
+        files = [f for f in os.listdir(folder)
+                 if f.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp"))]
+    pick = random.choice(files) if files else None       # 随机抽一张；没有图片就显示空状态
     return render_template("jzhyl.html", image=pick)
 
 
@@ -586,7 +597,7 @@ def draw():
         # 达上限就拦
         if limit_on and draw_count >= limit_count:
             conn.close()
-            flash(f"今天的抽卡次数用完啦（每天 {limit_count} 次），明天再来～")
+            flash(i18n.t("今天的抽卡次数用完啦（每天 {n} 次），明天再来～", n=limit_count))
             return redirect(url_for("draw"))
 
         # 取所有卡

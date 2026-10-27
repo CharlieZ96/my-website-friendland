@@ -1,58 +1,13 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>首页</title>
-    <style>
-        body {
-            margin: 0;
-            min-height: 100vh;               /* 占满整个屏幕高度 */
-            display: flex;
-            flex-direction: column;
-            justify-content: center;          /* 垂直居中 */
-            align-items: center;              /* 水平居中 */
-            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;  /* ← 改字体在这 */
-            background: #f4f6f8;              /* ← 改背景色在这 */
-        }
-        h1 {
-            color: #333333;                   /* ← 标题颜色 */
-            font-size: 32px;                  /* ← 标题大小 */
-            margin-bottom: 40px;              /* ← 标题和按钮的距离 */
-        }
-        .btn-group {
-            display: flex;
-            gap: 24px;                        /* ← 两个按钮之间的间距 */
-        }
-        .btn {
-            padding: 14px 40px;               /* ← 按钮内部大小（上下14 左右40） */
-            font-size: 18px;
-            border-radius: 8px;               /* ← 圆角大小 */
-            text-decoration: none;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .btn-login {  /* 左边"去登录"：实心蓝 */
-            background: #4a90e2;
-            color: white;
-            border: 2px solid #4a90e2;
-        }
-        .btn-register {                       /* 右边"去注册"：白底蓝框 */
-            background: white;
-            color: #4a90e2;
-            border: 2px solid #4a90e2;
-        }
-        .btn:hover {                          /* 鼠标悬停时的效果 */
-            opacity: 0.85;
-            transform: translateY(-2px);
-        }
-    </style>
-</head>
-<body>
-    <h1>JZH乐园</h1>
-    <div class="btn-group">
-        <a href="/login" class="btn btn-login">进入</a>
-        <a href="/register" class="btn btn-register">注册领取你的JZH</a>
-    </div>
-</body>
-</html>
+{% extends "_entry.html" %}
+{% block title %}{{ _('JZH乐园') }}{% endblock %}
+
+{% block stage_top %}{% endblock %}
+
+{% block panel %}
+<h1 class="home-mark"><span class="mark-latin">JZH</span><span class="mark-cjk">{{ _('乐园') }}</span></h1>
+<p class="home-copy">{{ _('一群朋友的私人游乐场。留言板、抽卡对战、养成和小游戏，主角都是 JZH。') }}</p>
+<div class="home-actions">
+    <a class="btn btn-light" href="/login">{{ _('登录') }}</a>
+    <a class="btn btn-ghost" href="/register">{{ _('注册，领取你的 JZH') }}</a>
+</div>
+{% endblock %}

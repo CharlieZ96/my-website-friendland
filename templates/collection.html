@@ -1,61 +1,42 @@
 <!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的卡册</title>
-    <style>
-        body { margin:0; font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#f4f6f8; }
-        .container { max-width:700px; margin:0 auto; padding:20px; }
-        h2 { color:#333; }
-        .card-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:14px; }
-        .card { background:white; border-radius:10px; padding:12px; box-shadow:0 2px 10px rgba(0,0,0,0.06); text-align:center; position:relative; }
-        .card img { width:100%; height:220px; object-fit:contain; border-radius:6px; background:#f4f6f8 }
-        .card .name { font-weight:bold; margin:6px 0 2px; }
-        .card .rarity { font-size:12px; color:#e67e22; }
-        .card .stat { font-size:13px; color:#555; }
-        .count { position:absolute; top:8px; right:8px; background:#4a90e2; color:white; border-radius:12px; padding:2px 8px; font-size:12px; }
-        .empty { text-align:center; color:#aaa; margin-top:40px; }
-        .lightbox { display:none; position:fixed; inset:0;
-            background:rgba(255,255,255,0.92); justify-content:center; align-items:center;
-            z-index:1000; cursor:zoom-out; }
-        .lightbox img { max-width:82%; max-height:82%; border-radius:8px;
-            padding:10px; background:#fff; border:1px solid #e0e0e0;
-            box-shadow:0 10px 40px rgba(0,0,0,0.2); }
-    </style>
-</head>
-
+{% from "_appbar.html" import appbar, head with context %}
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
+<head>{{ head(_('卡册')) }}</head>
 <body>
-    <div class="container">
-        <h2>我的收藏夹 <a href="/hub" style="font-size:14px; color:#888;">← 返回</a></h2>
+    {{ appbar(_('卡册'), [('/draw', _('抽卡')), ('/hub', _('返回大厅'))]) }}
+    <main class="page">
+        <div class="page-head">
+            <h1>{{ _('我的卡册') }}</h1>
+            {% if cards %}<p>{{ _('共 {n} 种卡牌，点图片看大图。', n=cards|length) }}</p>{% endif %}
+        </div>
         {% if cards %}
-        <div class="card-grid">
+        <div class="tcards">
             {% for c in cards %}
-            <div class="card">
-                <span class="count">×{{ c[5] }}</span>
+            <article class="tcard">
+                <span class="tcard-count">×{{ c[5] }}</span>
                 {% if c[3] %}
-                <img src="/uploads/{{ c[3] }}" onclick="showBig(this.src)" style="cursor:zoom-in;">
+                <img class="tcard-art zoom" src="/uploads/{{ c[3] }}" alt="{{ c[0] }}" onclick="showBig(this.src)">
                 {% endif %}
-                <div class="name">{{ c[0] }}</div>
-                <div class="rarity">{{ c[4] }}</div>
-                <div class="stat">攻击力 {{ c[1] }} / 孝心值 {{ c[2] }}</div>
-            </div>
+                <h2 class="tcard-name">{{ c[0] }}</h2>
+                <span class="rarity rarity-{{ c[4] }}">{{ c[4] }}</span>
+                <p class="tcard-stat">{{ _('攻击力') }} <b>{{ c[1] }}</b> · {{ _('孝心值') }} <b>{{ c[2] }}</b></p>
+            </article>
             {% endfor %}
         </div>
         {% else %}
-        <p class="empty">还没有卡，快去 <a href="/draw">抽卡</a> 吧！</p>
+        <div class="sheet empty-note">{{ _('还没有卡牌。') }} <a class="link" href="/draw">{{ _('去抽一张') }}</a></div>
         {% endif %}
-    </div>
+    </main>
 
     <div class="lightbox" id="lightbox" onclick="this.style.display='none'">
-        <img id="lightbox-img" src="">
+        <img id="lightbox-img" src="" alt="">
     </div>
-
     <script>
     function showBig(src) {
         document.getElementById('lightbox-img').src = src;
         document.getElementById('lightbox').style.display = 'flex';
     }
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') document.getElementById('lightbox').style.display = 'none'; });
     </script>
 </body>
 </html>

@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
-    <meta charset="UTF-8">
+    {% include "_i18n.html" %}
+<meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>对战中</title>
+    <title>{{ _('对战中') }}</title>
     <style>
         body { margin:0; min-height:100vh; display:flex; flex-direction:column; justify-content:center;
                align-items:center; font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:#160f0c; color:#f0e6d2; }
@@ -13,13 +14,13 @@
     </style>
 </head>
 <body>
-    <h2>对局 #{{ mid }}</h2>
-    <p id="status-text">正在匹配对手…</p>
+    <h2>{{ _('对局 #{p0}', p0=(mid)) }}</h2>
+    <p id="status-text">{{ _('正在匹配对手…') }}</p>
     <div class="spin">⏳</div>
-    <p style="color:#a08a6f;">你：{{ me }}</p>
+    <p style="color:#a08a6f;">{{ _('你：{p0}', p0=(me)) }}</p>
     <button id="cancel-btn" onclick="leave()"
         style="margin-top:16px; padding:10px 24px; border:1px solid #4a3226; background:transparent; color:#a08a6f; border-radius:8px; cursor:pointer;">
-        取消匹配
+        {{ _('取消匹配') }}
     </button>
 
     <script>
@@ -34,7 +35,7 @@
             .then(function (s) {
                 if (s.status === 'gone') {                 // 局没了（对手退出）
                     clearInterval(timer);
-                    document.getElementById('status-text').textContent = '对手离开了，正在返回大厅…';
+                    document.getElementById('status-text').textContent = __('对手离开了，正在返回大厅…');
                     setTimeout(function(){ location.href = '/battle'; }, 1200);
                 } else if (s.status === 'building' || s.status === 'ready') {
                 clearInterval(timer);

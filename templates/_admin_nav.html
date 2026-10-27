@@ -1,0 +1,14 @@
+{# 后台几页之间的切换。用法：{% set admin_page = 'cards' %}{% include "_admin_nav.html" %} #}
+<nav class="subnav" aria-label="{{ _('后台') }}">
+    <a href="/admin/cards"{% if admin_page == 'cards' %} aria-current="page"{% endif %}>{{ _('卡牌管理') }}</a>
+    <a href="/admin/settings"{% if admin_page == 'settings' %} aria-current="page"{% endif %}>{{ _('后台设置') }}</a>
+    <a href="/admin/registrations"{% if admin_page == 'registrations' %} aria-current="page"{% endif %}>{{ _('注册审批') }}<span id="pend" class="badge" hidden></span></a>
+    <a href="/admin/notices"{% if admin_page == 'notices' %} aria-current="page"{% endif %}>{{ _('发布公告') }}</a>
+</nav>
+<script>
+    // 待审批人数（这个接口只有管理员能访问）
+    fetch('/admin/registrations/count').then(function (r) { return r.json(); }).then(function (d) {
+        var el = document.getElementById('pend');
+        if (el && d.pending > 0) { el.textContent = d.pending; el.hidden = false; }
+    }).catch(function () {});
+</script>

@@ -1,37 +1,33 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>领取属于你的JZH</title>
-    <style>
-        body { margin:0; min-height:100vh; display:flex; justify-content:center;
-               align-items:center; font-family:"Segoe UI","Microsoft YaHei",sans-serif;
-               background:#f4f6f8; }
-        .card { background:white; padding:40px; border-radius:12px; width:300px;
-                box-shadow:0 4px 20px rgba(0,0,0,0.08); }
-        h2 { text-align:center; color:#333; margin-top:0; }
-        input { width:100%; padding:12px; margin:8px 0; border:1px solid #ddd;
-                border-radius:6px; box-sizing:border-box; font-size:15px; }
-        button { width:100%; padding:12px; margin-top:12px; background:#4a90e2;
-                 color:white; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
-        .msg { color:#e74c3c; text-align:center; }
-        .link { text-align:center; margin-top:12px; font-size:14px; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h2>领取属于你的JZH</h2>
-        {% with messages = get_flashed_messages() %}
-          {% for m in messages %}<p class="msg">{{ m }}</p>{% endfor %}
-        {% endwith %}
-        <form method="POST">
-            <input type="text" name="username" placeholder="设置用户名" required>
-            <input type="password" name="password" placeholder="设置密码" required>
-            <input type="text" name="captcha" placeholder="请计算：{{ captcha_question }} = ?" required>
-            <button type="submit">点击领取</button>
-        </form>
-        <div class="link"><a href="/login">想和JZH玩儿?由此进入</a></div>
+{% extends "_entry.html" %}
+{% block title %}{{ _('注册') }} - {{ _('JZH乐园') }}{% endblock %}
+
+{% block panel %}
+<h1>{{ _('领取属于你的 JZH') }}</h1>
+<p class="lede">{{ _('注册一个账号，就能加入大家。') }}</p>
+
+{% set flash_class = 'notice' %}{% include "_flash.html" %}
+
+<form method="POST">
+    <div class="field">
+        <label for="username">{{ _('用户名') }}</label>
+        <input id="username" type="text" name="username" autocomplete="username" minlength="2" maxlength="20" required
+               aria-describedby="username-hint">
+        <p class="hint" id="username-hint">{{ _('2–20 个字符，可以用中文、字母、数字和下划线。') }}</p>
     </div>
-</body>
-</html>
+    <div class="field">
+        <label for="password">{{ _('密码') }}</label>
+        <input id="password" type="password" name="password" autocomplete="new-password" minlength="6" required
+               aria-describedby="password-hint">
+        <p class="hint" id="password-hint">{{ _('至少 6 位。') }}</p>
+    </div>
+    <div class="field">
+        <label for="captcha">{{ _('验证：{q} 等于几？', q=captcha_question) }}</label>
+        <input id="captcha" type="text" name="captcha" inputmode="numeric" autocomplete="off" required>
+    </div>
+    <button class="btn btn-light btn-block" type="submit">{{ _('注册') }}</button>
+</form>
+
+<p class="panel-alt">{{ _('已经有账号了？') }}<a href="/login">{{ _('去登录') }}</a></p>
+
+{% endblock %}
+

@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
+{% include "_i18n.html" %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JZH对撞中</title>
+<title>{{ _('JZH对撞中') }}</title>
 <style>
   *{box-sizing:border-box;}
   body{margin:0;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#f0e6d2;min-height:100vh;overflow-x:hidden;
@@ -68,9 +69,9 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="title">⚔️ JZH对撞中 · #{{ mid }}</div>
-  <div class="legend">⚔ 攻击力　♥ 孝心值</div>
-  <div class="sidelabel">对手 · {{ opponent }}</div>
+  <div class="title">⚔️ {{ _('JZH对撞中 · #{p0}', p0=(mid)) }}</div>
+  <div class="legend">⚔ {{ _('攻击力　♥ 孝心值') }}</div>
+  <div class="sidelabel">{{ _('对手 · {p0}', p0=(opponent)) }}</div>
   <div class="lane" id="opplane"></div>
   <div class="arena" id="arena">
     <div class="flash" id="flash"></div>
@@ -79,22 +80,22 @@
     <div class="bigcard" id="bigMe"></div>
   </div>
   <div class="lane" id="mylane"></div>
-  <div class="sidelabel">你</div>
+  <div class="sidelabel">{{ _('你') }}</div>
   <div class="log" id="log"></div>
 </div>
 <div class="banner" id="banner">
   <div class="big" id="bBig"></div>
   <div class="sub" id="bSub"></div>
   <div class="top3">
-    <div class="t3title">🏆 排行榜前三</div>
+    <div class="t3title">🏆 {{ _('排行榜前三') }}</div>
     {% for r in top3 %}
     <div class="t3row">
       <span>{% if loop.index==1 %}🥇{% elif loop.index==2 %}🥈{% else %}🥉{% endif %} {{ r[0] }}</span>
-      <span class="sc">{{ r[1] }} 分</span>
+      <span class="sc">{{ _('{p0} 分', p0=(r[1])) }}</span>
     </div>
     {% endfor %}
   </div>
-  <a class="btn" href="/battle">返回大厅 / 再来一局</a>
+  <a class="btn" href="/battle">{{ _('返回大厅 / 再来一局') }}</a>
 </div>
 <script>
   var RESULT={{ result|tojson }}, IS_P1={{ 'true' if is_p1 else 'false' }}, DEATHS={{ death_imgs|tojson }};
@@ -103,7 +104,7 @@
   function miniHTML(f,i){ var dead=f.hp<=0,frac=Math.max(0,f.hp)/f.maxhp*100,c=frac>50?'#6bbf8a':frac>25?'#f5b942':'#d64545';
     var art=f.image?'<img src="/uploads/'+f.image+'">':'<div class="egg">🥚</div>';
     return '<div class="mini '+(i===0&&!dead?'front':'')+' '+(dead?'dead':'')+'">'+art+'<div class="mbar"><div style="width:'+frac+'%;background:'+c+'"></div></div></div>'; }
-  function laneHTML(fs){ return fs.length?fs.map(miniHTML).join(''):'<span style="color:#a08a6f;font-size:12px;padding:8px;">全灭</span>'; }
+  function laneHTML(fs){ return fs.length?fs.map(miniHTML).join(''):('<span style="color:#a08a6f;font-size:12px;padding:8px;">'+__('全灭')+'</span>'); }
   function bigHTML(f){ var dead=f.hp<=0; var art=f.image?'<img class="art" src="/uploads/'+f.image+'">':'<div class="art egg">🥚</div>';
     return '<div class="artwrap">'+art+(dead?deathHTML():'')+'<div class="gem atk">⚔'+f.atk+'</div><div class="gem hp">'+Math.max(0,f.hp)+'</div></div><div class="name">'+f.name+'</div>'; }
   function setBig(id,f){ var el=document.getElementById(id); el.className='bigcard'+((f&&f.hp<=0)?' dead':''); el.innerHTML=f?bigHTML(f):''; }
@@ -128,8 +129,8 @@
     setTimeout(play, s.type==='clash'?1900:1000);
   }
   function endB(){ var w=RESULT.winner, win=(w==='player1'&&IS_P1)||(w==='player2'&&!IS_P1);
-    document.getElementById('bBig').textContent = w==='draw'?'平 局':win?'胜 利':'败 北';
-    document.getElementById('bSub').textContent = w==='draw'?'两败俱伤，全部阵亡':win?'你的JZH还剩 '+RESULT.surplus+' 只！':'你的JZH全军覆没…';
+    document.getElementById('bBig').textContent = w==='draw'?__('平 局'):win?__('胜 利'):__('败 北');
+    document.getElementById('bSub').textContent = w==='draw'?__('两败俱伤，全部阵亡'):win?__('你的JZH还剩 {p0} 只！',{p0:(RESULT.surplus)}):__('你的JZH全军覆没…');
     document.getElementById('banner').style.display='flex'; }
   play();
 </script>

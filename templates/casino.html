@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ 'en' if lang == 'en' else 'zh-CN' }}">
 <head>
+{% include "_i18n.html" %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>赌场 · 赛博酒吧</title>
+<title>{{ _('赌场 · 赛博酒吧') }}</title>
 <style>
   :root{--bg:#0a0e1a;--bg2:#111832;--pink:#ff2e88;--cyan:#27e3ff;--purple:#a06bff;--amber:#ffb54d;--ink:#eaf2ff;}
   *{box-sizing:border-box}
@@ -201,7 +202,7 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><a href="/hub">← 回主页</a><span class="coins">🪙<span id="coin">…</span> <span style="opacity:.55">·</span> 🧠<span id="spirit">…</span></span></div>
+  <div class="top"><a href="/hub">← {{ _('回主页') }}</a><span class="coins">🪙<span id="coin">…</span> <span style="opacity:.55">·</span> 🧠<span id="spirit">…</span></span></div>
 
   <div class="scene" id="scene">
    <div class="stage" id="stage">
@@ -359,7 +360,7 @@
       <ellipse cx="61" cy="70" rx="58" ry="20" fill="#3a2418"/>
       <ellipse cx="61" cy="68" rx="53" ry="17" fill="#1c5a40"/>
       <ellipse cx="61" cy="68" rx="53" ry="17" fill="none" stroke="#2f7a58" stroke-width="1"/>
-      <text x="61" y="55" font-size="7.5" text-anchor="middle" fill="#ffd85a" font-weight="800" letter-spacing="1">德州扑克</text>
+      <text x="61" y="55" font-size="7.5" text-anchor="middle" fill="#ffd85a" font-weight="800" letter-spacing="1">{{ _('德州扑克') }}</text>
       <!-- 五张公共牌 -->
       <g>
         <rect x="34" y="60" width="10" height="14" rx="1.5" fill="#f4f7ff"/><text x="39" y="71" font-size="8" text-anchor="middle" fill="#ff2e88" font-weight="800">A</text>
@@ -435,13 +436,13 @@
       </svg>
     </div>
     <div class="dtext">
-      <div class="dname">赌场老板老江</div>
-      <div class="dbody" id="dbody">哟，新面孔。欢迎来到JZH赌场——先送你 <b style="color:var(--amber)">30 枚金币</b> 压压惊。</div>
-      <div class="dnext"><button id="dnext">下一句 ▶</button></div>
+      <div class="dname">{{ _('赌场老板老江') }}</div>
+      <div class="dbody" id="dbody">{{ _('哟，新面孔。欢迎来到JZH赌场——先送你') }} <b style="color:var(--amber)">{{ _('30 枚金币') }}</b> {{ _('压压惊。') }}</div>
+      <div class="dnext"><button id="dnext">{{ _('下一句') }} ▶</button></div>
     </div>
   </div>
 
-  <p class="hint">点场景里的<b style="color:#27e3ff">🎡轮盘</b>、<b style="color:#27e3ff">🎰老虎机</b>、<b style="color:#27e3ff">🃏21点</b>或<b style="color:#27e3ff">🂡德州扑克</b>机器进入游戏 · 点吧台里的<b style="color:var(--amber)">🍷老江</b>留言 / 买饮品 / 再听规则</p>
+  <p class="hint">{{ _('点场景里的') }}<b style="color:#27e3ff">🎡{{ _('轮盘') }}</b>{{ '、' if lang == 'zh' else ', ' }}<b style="color:#27e3ff">🎰{{ _('老虎机') }}</b>{{ '、' if lang == 'zh' else ', ' }}<b style="color:#27e3ff">🃏{{ _('21点') }}</b>{{ _('或') }}<b style="color:#27e3ff">🂡{{ _('德州扑克') }}</b>{{ _('机器进入游戏 · 点吧台里的') }}<b style="color:var(--amber)">🍷{{ _('老江') }}</b>{{ _('留言 / 买饮品 / 再听规则') }}</p>
 </div>
 
 <!-- 老江 · 留言面板（点老江本人打开：给老板留言、买饮品、再听规则；发币由 joejoe 后台决定） -->
@@ -450,21 +451,21 @@
     <div class="joehead">
       <div class="joeface">🍸</div>
       <div style="min-width:0">
-        <div class="joename">老江</div>
-        <div class="joetip">JZH赌场的老板 · 留个言，老板高兴兴许发你金币</div>
+        <div class="joename">{{ _('老江') }}</div>
+        <div class="joetip">{{ _('JZH赌场的老板 · 留个言，老板高兴兴许发你金币') }}</div>
       </div>
       <span class="joeclose" id="joeClose">✕</span>
     </div>
     <div class="joelog" id="joeLog"></div>
     <div class="joeinput">
-      <input id="joeText" type="text" maxlength="200" placeholder="给老江留句话…"
+      <input id="joeText" type="text" maxlength="200" placeholder="{{ _('给老江留句话…') }}"
              onkeydown="if(event.key==='Enter')joeSend()">
-      <button id="joeSendBtn" onclick="joeSend()">留言</button>
+      <button id="joeSendBtn" onclick="joeSend()">{{ _('留言') }}</button>
     </div>
     <div class="joebtns">
-      <button class="mbtn multi" id="joeBuy">🍷买饮品</button>
-      <button class="mbtn" id="joeRules" style="background:#1a2138;color:#8fe6ff;border-color:#2a3350;box-shadow:none">🔁听规则</button>
-      <button class="mbtn cancel" id="joeCloseBtn">走了</button>
+      <button class="mbtn multi" id="joeBuy">🍷{{ _('买饮品') }}</button>
+      <button class="mbtn" id="joeRules" style="background:#1a2138;color:#8fe6ff;border-color:#2a3350;box-shadow:none">🔁{{ _('听规则') }}</button>
+      <button class="mbtn cancel" id="joeCloseBtn">{{ _('走了') }}</button>
     </div>
   </div>
 </div>
@@ -472,14 +473,14 @@
 <!-- 老江的饮品店 -->
 <div id="drinkModal" class="modal-bg" hidden>
   <div class="modal" style="max-width:360px">
-    <h3>老江的酒柜</h3>
-    <p>用JZH的<b style="color:#eaf2ff">SAN值🧠</b>在这里购买饮品吧~（带进轮盘房下注阶段喝下生效）。<br>
-       最多带 <b style="color:var(--amber)">2瓶</b>；而且只有房里凑够 <b style="color:var(--amber)">2个真人玩家</b>才能喝哦。</p>
-    <div class="bagline" id="bagLine">背包：空 · 精神值🧠<b id="dmSpirit">…</b></div>
+    <h3>{{ _('老江的酒柜') }}</h3>
+    <p>{{ _('用JZH的') }}<b style="color:#eaf2ff">{{ _('SAN值') }}🧠</b>{{ _('在这里购买饮品吧~（带进轮盘房下注阶段喝下生效）。') }}<br>
+       {{ _('最多带') }} <b style="color:var(--amber)">{{ _('2瓶') }}</b>{{ _('；而且只有房里凑够') }} <b style="color:var(--amber)">{{ _('2个真人玩家') }}</b>{{ _('才能喝哦。') }}</p>
+    <div class="bagline" id="bagLine">{{ _('背包：空 · 精神值') }}🧠<b id="dmSpirit">…</b></div>
     <div class="drinklist" id="drinkList"></div>
     <div class="mrow" style="flex-direction:column;gap:10px">
-      <button class="mbtn multi" id="dmTut" style="background:#1a2138;color:#8fe6ff;border-color:#2a3350;box-shadow:none">🔁再听老江讲规则</button>
-      <button class="mbtn cancel" id="dmClose">收好，走了</button>
+      <button class="mbtn multi" id="dmTut" style="background:#1a2138;color:#8fe6ff;border-color:#2a3350;box-shadow:none">🔁{{ _('再听老江讲规则') }}</button>
+      <button class="mbtn cancel" id="dmClose">{{ _('收好，走了') }}</button>
     </div>
   </div>
 </div>
@@ -487,12 +488,12 @@
 <!-- 进房菜单 -->
 <div id="roomModal" class="modal-bg" hidden>
   <div class="modal">
-    <h3 id="rmTitle">进入轮盘赌</h3>
-    <p>一个人玩会自动配 2 个机器人陪你；也可以进公共房和别人一起。</p>
+    <h3 id="rmTitle">{{ _('进入轮盘赌') }}</h3>
+    <p>{{ _('一个人玩会自动配 2 个机器人陪你；也可以进公共房和别人一起。') }}</p>
     <div class="mrow" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center">
-      <button class="mbtn solo" style="flex:1 1 40%">🎲单人开一局</button>
-      <button class="mbtn multi" style="flex:1 1 40%">👥快速3人房</button>
-      <button class="mbtn cancel">取消</button>
+      <button class="mbtn solo" style="flex:1 1 40%">🎲{{ _('单人开一局') }}</button>
+      <button class="mbtn multi" style="flex:1 1 40%">👥{{ _('快速3人房') }}</button>
+      <button class="mbtn cancel">{{ _('取消') }}</button>
     </div>
   </div>
 </div>
@@ -548,7 +549,7 @@
       document.getElementById('spirit').textContent=Math.floor(s.spirit||0);
       const tw=s.top_winner;
       if(tw){ document.getElementById('topWinner').textContent=tw.owner; document.getElementById('topAmt').textContent='+'+tw.net+'🪙'; }
-      else { document.getElementById('topWinner').textContent='虚位以待'; document.getElementById('topAmt').textContent=''; }
+      else { document.getElementById('topWinner').textContent=__('虚位以待'); document.getElementById('topAmt').textContent=''; }
       if(s.sprite && typeof petSVG==='function'){
         const sp=s.sprite;
         const el=document.getElementById('playerJZH');
@@ -575,7 +576,7 @@
       }
       const dm=document.getElementById('drinkModal');
       if(dm && !dm.hidden) renderShop();     // 商店开着就同步刷新
-    }catch(e){ console.error('大厅数据读取失败',e); }
+    }catch(e){ console.error(__('大厅数据读取失败'),e); }
   }
   // 玩家 JZH 在赌场底部走来走去（只左右移动，纵向永远贴最下面，不会挡到机器）
   function startWander(el){
@@ -606,12 +607,12 @@
   function bagText(){
     const held=LOBBY.my_drinks||[], cat=LOBBY.drinks_catalog||[];
     const nmeOf=k=>{const c=cat.find(x=>x.kind===k);return c?c.emoji+c.name:k;};
-    return held.length ? held.map(nmeOf).join('、') : '空';
+    return held.length ? held.map(nmeOf).join('、') : __('空');
   }
   function renderShop(){
     const max=LOBBY.drink_hold_max||2, held=LOBBY.my_drinks||[], sp=Math.floor(LOBBY.spirit||0);
     document.getElementById('dmSpirit').textContent=sp;
-    document.getElementById('bagLine').innerHTML='背包（'+held.length+'/'+max+'）：<b>'+bagText()+'</b> · 精神值🧠<b id="dmSpirit">'+sp+'</b>';
+    document.getElementById('bagLine').innerHTML=__('背包（{a}/{b}）：',{a:held.length,b:max})+'<b>'+bagText()+'</b> · '+__('精神值')+'🧠<b id="dmSpirit">'+sp+'</b>';
     const list=document.getElementById('drinkList'); list.innerHTML='';
     (LOBBY.drinks_catalog||[]).forEach(d=>{
       const full=held.length>=max, poor=sp<d.cost;
@@ -619,9 +620,9 @@
       const card=document.createElement('div'); card.className='drinkcard';
       card.innerHTML='<div class="emo">'+d.emoji+'</div>'+
         '<div class="info"><div class="dn">'+d.name+' <span style="color:#ffd479;font-size:12px">🧠'+d.cost+'</span></div>'+
-        '<div class="dd">'+d.desc+'</div></div>'+
+        '<div class="dd">'+__(d.desc)+'</div></div>'+
         '<button class="buy" data-k="'+d.kind+'"'+(dis?' disabled':'')+'>'+
-        (full?'背包满':(poor?'精神不足':'买'))+'</button>';
+        (full?__('背包满'):(poor?__('精神不足'):__('买')))+'</button>';
       list.appendChild(card);
     });
     list.querySelectorAll('.buy').forEach(b=>b.addEventListener('click',()=>buyDrink(b.dataset.k)));
@@ -634,7 +635,7 @@
       document.getElementById('spirit').textContent=Math.floor(LOBBY.spirit||0);
       renderShop();
       toast(r.msg||'');
-    }catch(e){ toast('买失败,稍后再试'); }
+    }catch(e){ toast(__('买失败,稍后再试')); }
   }
   function openShop(){ renderShop(); drinkModal.hidden=false; }
   document.getElementById('dmClose').addEventListener('click',()=>{ drinkModal.hidden=true; });
@@ -643,21 +644,21 @@
 
   // 教学对话（首次进场自动弹；点吧台里的老江可重听）
   const lines=[
-    '哟，新面孔。欢迎来到JZH赌场——先送你 <b style="color:var(--amber)">30枚金币</b> 压压惊。',
-    '这里的金币就是你打工赚的那份。赢了能拿去买装饰，输了…就当请我喝一杯咯。',
-    '想玩就点场景里的玩意儿：<b style="color:#27e3ff">🎡轮盘</b>大家对着同一个盘开；<b style="color:#27e3ff">🃏21点</b>是和我(庄家)对牌；<b style="color:#27e3ff">🎰老虎机</b>一个人拉杆试手气。',
-    '一个人来也不怕，我给你叫两个"机器人"陪你凑一桌。想约朋友就进3P房。',
-    '对了，我这吧台还卖<b style="color:var(--amber)">一点神秘小玩意儿</b>——但那玩意儿可不是金币能买到的。想买或想再听规则，点我一下就行。'
+    (__('哟，新面孔。欢迎来到JZH赌场——先送你')+' '+'<b style="color:var(--amber)">'+__('30枚金币')+'</b>'+' '+__('压压惊。')),
+    __('这里的金币就是你打工赚的那份。赢了能拿去买装饰，输了…就当请我喝一杯咯。'),
+    (__('想玩就点场景里的玩意儿：')+'<b style="color:#27e3ff">'+'🎡'+__('轮盘')+'</b>'+__('大家对着同一个盘开；')+'<b style="color:#27e3ff">'+'🃏'+__('21点')+'</b>'+__('是和我(庄家)对牌；')+'<b style="color:#27e3ff">'+'🎰'+__('老虎机')+'</b>'+__('一个人拉杆试手气。')),
+    __('一个人来也不怕，我给你叫两个"机器人"陪你凑一桌。想约朋友就进3P房。'),
+    (__('对了，我这吧台还卖')+'<b style="color:var(--amber)">'+__('一点神秘小玩意儿')+'</b>'+__('——但那玩意儿可不是金币能买到的。想买或想再听规则，点我一下就行。'))
   ];
   const body=document.getElementById('dbody'), next=document.getElementById('dnext'), dlg=document.getElementById('dlg');
   let i=0;
-  function showDlg(){ i=0; body.innerHTML=lines[0]; next.textContent='下一句 ▶'; dlg.style.display='flex'; }
+  function showDlg(){ i=0; body.innerHTML=lines[0]; next.textContent=(__('下一句')+' ▶'); dlg.style.display='flex'; }
   function hideDlg(){ dlg.style.display='none'; }
   next.addEventListener('click',()=>{
     i++;
-    if(i>=lines.length){ hideDlg(); toast('老江回到吧台啦 · 想再听点他就行'); return; }
+    if(i>=lines.length){ hideDlg(); toast(__('老江回到吧台啦 · 想再听点他就行')); return; }
     body.innerHTML=lines[i];
-    if(i===lines.length-1) next.textContent='知道啦';
+    if(i===lines.length-1) next.textContent=__('知道啦');
   });
   // ===== 老江 · 聊天面板（点老江本人打开） =====
   const joeModal=document.getElementById('joeModal'), joeLog=document.getElementById('joeLog'),
@@ -682,18 +683,18 @@
       const d=await (await fetch('/casino/joe/mine')).json();
       const msgs=(d&&d.messages)||[];
       if(!msgs.length){
-        joeTip('给老江/JZH留句话吧——老板会看，心情好周末兴许发你金币。(留言老板本人可见，懂得都懂~)');
+        joeTip(__('给老江/JZH留句话吧——老板会看，心情好周末兴许发你金币。(留言老板本人可见，懂得都懂~)'));
       }else{
         msgs.forEach(m=>{
           joeAdd(m.msg,'me');
           if(m.reply || m.coins){
-            let t = m.reply ? ('老江：'+m.reply) : '老江：（收到）';
+            let t = m.reply ? (__('老江：')+m.reply) : __('老江：（收到）');
             if(m.coins) t += '  🪙+'+m.coins;
             joeAdd(t,'joe');
           }
         });
       }
-    }catch(e){ joeTip('给老江/JZH留句话吧——老板会看，心情好周末兴许发你金币。'); }
+    }catch(e){ joeTip(__('给老江/JZH留句话吧——老板会看，心情好周末兴许发你金币。')); }
   }
   function openJoe(){
     joeModal.hidden=false;
@@ -711,8 +712,8 @@
       const r=await fetch('/casino/joe/post',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});
       const d=await r.json();
       // 纯留言：没有 AI 回话、没有即时奖励。发币由老板 joejoe 在后台按留言决定。
-      joeTip(d.msg || (d.ok? '留言送到老江那儿了～' : '留言没发出去，待会儿再试。'));
-    }catch(e){ joeTip('网络出了点岔子，待会儿再试。'); }
+      joeTip(d.msg || (d.ok? __('留言送到老江那儿了～') : __('留言没发出去，待会儿再试。')));
+    }catch(e){ joeTip(__('网络出了点岔子，待会儿再试。')); }
     finally{ joeBusy=false; joeSendBtn.disabled=false; joeText.focus(); }
   }
   document.getElementById('barman').addEventListener('click', openJoe);   // 点老江 → 打开聊天面板（内含买饮品/听规则）
@@ -729,7 +730,7 @@
   let currentGame='roulette';
   function openRoomModal(game){
     currentGame=game;
-    document.getElementById('rmTitle').textContent = game==='bj' ? '进入 21点' : '进入轮盘赌';
+    document.getElementById('rmTitle').textContent = game==='bj' ? __('进入 21点') : __('进入轮盘赌');
     modal.hidden=false;
   }
   document.getElementById('mRoul').addEventListener('click',()=>openRoomModal('roulette'));
@@ -737,8 +738,8 @@
   document.getElementById('mHoldem').addEventListener('click', async ()=>{   // 德州扑克：只有多人公开房，直接进
     try{
       const r=await (await fetch('/casino/holdem/join',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
-      if(r.room) window.location.href='/casino/holdem/'+r.room; else toast('进房失败,稍后再试');
-    }catch(e){ toast('进房失败,稍后再试'); }
+      if(r.room) window.location.href='/casino/holdem/'+r.room; else toast(__('进房失败,稍后再试'));
+    }catch(e){ toast(__('进房失败,稍后再试')); }
   });
   document.querySelectorAll('.slotgame').forEach(el=>el.addEventListener('click',()=>{ location.href='/casino/slots'; }));  // 点老虎机→进游戏
   modal.querySelector('.cancel').addEventListener('click',()=>{ modal.hidden=true; });
@@ -750,8 +751,8 @@
       const b = mode==='solo' ? JSON.stringify({mode:'solo'}) : '{}';
       const r=await (await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:b})).json();
       if(r.room) window.location.href=base+'/'+r.room;
-      else toast('进房失败,稍后再试');
-    }catch(e){ toast('进房失败,稍后再试'); }
+      else toast(__('进房失败,稍后再试'));
+    }catch(e){ toast(__('进房失败,稍后再试')); }
   }
   modal.querySelector('.solo').addEventListener('click',()=>enterRoom('solo'));
   modal.querySelector('.multi').addEventListener('click',()=>enterRoom('multi'));
