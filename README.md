@@ -23,35 +23,15 @@ Python · Flask · Flask-SocketIO · SQLite · Pillow · 原生 JavaScript / van
 ## 本地运行 / Run locally
 
 ```bash
-python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-export FLASK_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
-export DEEPSEEK_API_KEY=...   # 可选 / optional：AI 回复
-export GEMINI_API_KEY=...     # 可选 / optional：AI 备用
-python3 app.py                # http://127.0.0.1:5000
+export FLASK_SECRET_KEY=your-random-string   # 换成任意随机字符串
+python3 app.py                               # AI 回复需另设 DEEPSEEK_API_KEY（可选）
 ```
 
-数据库 `users.db` 和 `uploads/` 会在第一次运行时自动创建，不进 Git。
+## 说明 / Notes
 
-`users.db` and `uploads/` are created on first run and are not committed.
-
-## 私密内容 / Private content
-
-角色的真实人设、台词和语录图片只放在服务器上，不在这个仓库里：
-
-- `private/jzh_private.py`：AI 人设和台词（格式见 `jzh_content.py`）。没有这个文件时使用仓库里的虚构示例。
-- `static/gallery/`：「JZH语录」页面随机展示的图片。
-
-两者都写在 `.gitignore` 里。英文版始终使用示例台词。
-
-The character's real persona, lines and quote images live only on the server (`private/jzh_private.py` and `static/gallery/`, both git-ignored). Without them the site falls back to the fictional samples in `jzh_content.py`. The English version always uses the samples.
-
-## 多语言 / Translations
-
-- 模板里用 `{{ _("中文") }}`，页面脚本里用 `__("中文")`；英文对照在 `translations_en.py`。
-- 检查漏翻：`python3 tools/i18n_check.py`
-- 语言优先级：网址参数 `?lang=zh|en` > 上次的选择（cookie）> 浏览器语言。
-- AI 对话内容不翻译。
+- 角色的真实人设和语录图片不在仓库里，这里只有虚构示例。/ The real persona and quote images are not in this repo; it only contains fictional samples.
+- 界面可切换中文 / English，AI 对话不翻译。/ The UI switches between Chinese and English; AI chat is not translated.
 
 ## 素材来源 / Credits
 
